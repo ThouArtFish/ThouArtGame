@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="ThouArtGame.vcxproj" Id="99790b08-a28d-4fa1-91fd-9eb359bf9369" />
+</Solution>

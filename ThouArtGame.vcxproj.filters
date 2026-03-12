@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ThouArtGame Files">
+      <UniqueIdentifier>{11cba64d-3e29-464d-8855-e57a265b8596}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThouArtGame Files\Headers">
+      <UniqueIdentifier>{48dd6a13-6c3e-4d01-8309-a4946046a435}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game Files">
+      <UniqueIdentifier>{2ce22b9d-bf95-4598-ae3d-31639cf9a62d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game Files\Headers">
+      <UniqueIdentifier>{3b5a8449-c272-4dd3-9eed-59bde13a0246}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game Files\Source">
+      <UniqueIdentifier>{a4fdec33-f35f-4c1c-b949-f2995fadd650}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThouArtGame Files\Source">
+      <UniqueIdentifier>{217e54ec-6712-4351-903d-f83a710291af}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="tag_engine\include\tag\BaseStateClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\LightManagerClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\MeshClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\ModelClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\PaintingModelClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\ResourceManagerClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\ShaderManagerClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\SkyboxClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\TextureLoaderClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\UtilClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\WorldModelClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="game\include\MainStateClass.hpp">
+      <Filter>Game Files\Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\glfw_imp.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="tag_engine\src\BaseStateClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\glad.c">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\LightManagerClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\MeshClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\ModelClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\PaintingModelClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\ResourceManagerClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\ShaderManagerClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\SkyboxClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\TextureLoaderClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\UtilClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\WorldModelClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="game\src\start.cpp">
+      <Filter>Game Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\define_once.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="tag_engine\src\BaseStateClass.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
+    <None Include="tag_engine\src\ResourceManagerClass.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
+    <None Include="tag_engine\src\UtilClass.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
+    <None Include="tag_engine\src\WorldModelTemplates.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
+  </ItemGroup>
+</Project>

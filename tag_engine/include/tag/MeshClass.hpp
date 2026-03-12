@@ -1,0 +1,224 @@
+#pragma once
+
+#include <string>
+#include <vector>
+#include <array>
+#include <iostream>
+#include <concepts>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glad/glad.h>
+#include "ShaderManagerClass.hpp"
+#include "ResourceManagerClass.hpp"
+
+/**
+ * The type of a texture.
+ */
+enum class TAGTexType {
+	SPEC_MAP,
+	DIFFUSE_MAP,
+	NORMAL_MAP,
+    NONE
+};
+
+/**
+ * Stores a singular mesh, consisting of vertices, indices, textures and values that modify material properties.
+ * Primarily used by the Model classes as the base mesh for multiple game world instances of the mesh.
+ * Only stores the physical, base properties of a mesh, not in-game instances, so it is not recommended to use TAGMesh draw functions
+ * directly as shaders need to have instances of meshes setup beforehand, which is done by TAGModel draw functions.
+ */
+class TAGMesh {
+	public:
+        /**
+         * Represents a single vertex of a mesh, including its local position, outward normal and texture coordinate.
+         */
+        struct Vertex {
+            glm::vec3 position;
+            glm::vec3 normal;
+            glm::vec2 tex_coord;
+        };
+
+        /**
+         * Represents a single fragment, or primitive, composed of 3 indices that point to vertices.
+         */
+        using Fragment = std::array<unsigned int, 3>;
+
+        /**
+         * Represents a single texture object, including an ID for the OpenGL texture buffer and the type of the texture.
+         */
+        struct Texture {
+            unsigned int id;
+            TAGTexType type;
+        };
+
+        /**
+         * Container for various values that modify the material of a mesh.
+         */
+        struct MaterialMod {
+            float spec_mod = 0.0f;
+            float spec_exp = 32.0f;
+            float opacity = 1.0f;
+        };
+
+        /**
+        * Axis aligned bounding box
+        */
+        struct BoundingBox {
+            glm::vec3 max;
+            glm::vec3 min;
+        };
+
+        /**
+        * A quad tree box, indices could be for lower level quad tree boxes, or mesh planes, depending on lowest_level
+        */
+        struct BVHNode {
+            bool is_leaf;
+            BoundingBox bounds;
+            std::vector<unsigned int> indices;
+        };
+
+        /**
+        * Represents a mesh fragment in game space
+        */
+        struct Plane {
+            glm::vec3 normal;
+            glm::vec3 start;
+            std::array<glm::vec3, 2> axis;
+        };
+        /**
+         * Smaller plane struct that only represents the infinite plane a fragment lies in
+         */
+        struct DotPlane {
+            glm::vec3 normal;
+            float constant;
+        };
+        /**
+         * Represents the volume of a plane used for collision detection with spheres, and ray detection with frag plane.
+         */
+        struct PlaneVolume {
+            Plane frag_plane;
+            std::array<DotPlane, 3> volume_planes;
+        };
+
+		MaterialMod material_mod;
+		std::vector<Texture> textures;
+        bool delete_on_death = true;
+        static inline unsigned int base_attrib = 0;
+
+        /**
+         * Define a mesh from the parameters.
+         * 
+         * @param vertices All the vertices of the mesh.
+         * @param indices Indices of vertices for drawing primitives. Each sequence of 3 indices represents one primitive.
+         * @param textures Textures used on mesh.
+         * @param material_mod Modifying values for material.
+         */
+        TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const std::vector<Texture>& textures, const MaterialMod& material_mod);
+        TAGMesh();
+        ~TAGMesh();
+        /**
+        * Generates game space planes to represent primitives for mesh
+        */
+        void generatePlanes();
+        /**
+        * Generates Bounding Volume Heirarchy for mesh, implemented with an octree.
+        * Requires planes to be generated with generatePlanes first or does nothing.
+        */
+        void generateBVH();
+        /**
+         * Setups up a vertex array object that allows quick assigning of the physical mesh for drawing.
+         * 
+         * @param vertices All the vertices of the mesh
+         * @param indices Indices of vertices for drawing primitives. Each sequence of 3 indices represents one primitive.
+         * @return Array of 3 IDs: vertex buffer object for vertex data, element buffer object for indices and a vertex array object 
+         *         that groups the VBO and EBO together.
+         */
+        static std::array<unsigned int, 3> setupMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags);
+        /**
+         * Same as setupMesh with parameters but assigns buffer objects to TAGMesh instance.
+         */
+        void setupMesh();
+        /**
+         * Setup mesh-related shader uniforms, such as textures and material modifier values.
+         * Not sufficient to draw a singular instance of a mesh.
+         * 
+         * @param shader Shader program
+         */
+        void setupFragmentUniforms(const TAGShaderManager::Shader& shader) const;
+        /**
+         * Draw one instance of a mesh.
+         * 
+         * @param shader Shader program
+         */
+		void drawUninstanced(const TAGShaderManager::Shader& shader);
+        /**
+         * Draw multiple instances of a mesh
+         * 
+         * @param shader Shader program
+         */
+        void drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number);
+        /**
+         * Get vector of vertices.
+         */
+        std::vector<Vertex>& changeVertices();
+        const std::vector<Vertex>& getVertices() const;
+        /**
+         * Get vector of fragments.
+         */
+        std::vector<Fragment>& changeFragments();
+        const std::vector<Fragment>& getFragments() const;
+        /**
+        * Get primitive planes
+        */
+        const std::vector<PlaneVolume>& getPlanes() const;
+        /**
+        * Get Bounding Volume Heirarchy
+        */
+        const std::vector<BVHNode>& getBVH() const;
+        /**
+        * Get mesh bounding box
+        */
+        const BoundingBox& getBoundingBox() const;
+        /**
+         * Return vertex array object ID
+         */
+        const unsigned int& getVAO() const;
+        /**
+         * Return element buffer object ID
+         */
+        const unsigned int& getEBO() const;
+        /**
+         * Return vertex buffer object ID
+         */
+        const unsigned int& getVBO() const;
+
+        /**
+        * Collision detection functions
+        */
+        static bool FragWithPoint(const glm::vec3& point, const Plane& plane);
+        static bool FragWithSphere(const glm::vec3& centre, const float& radius, const PlaneVolume& plane);
+        static bool FragWithCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const PlaneVolume& plane);
+        static bool BBoxWithBBox(const BoundingBox& box_a, const BoundingBox& box_b);
+        static bool BBoxWithRay(const BoundingBox& box, const glm::vec3& start, const glm::vec3& ray, const float& factor);
+        static bool BBoxWithCapsule(const BoundingBox& box, const glm::vec3& foot, const glm::vec3& spine, const float& radius);
+        static bool BBoxWithSphere(const BoundingBox& box, const glm::vec3& centre, const float& radius);
+
+        /**
+        * Generate bounding box from array of vectors
+        */
+        static BoundingBox generateBoundingBox(const glm::vec3* start, const unsigned int& size);
+	private:
+        static constexpr inline unsigned int bvh_box_max_size = 4;
+        BoundingBox mesh_bb;
+		std::vector<Vertex> vertices;
+		std::vector<Fragment> frags;
+        std::vector<BVHNode> bvh_octree;
+        std::vector<PlaneVolume> planes;
+        bool vertices_updated = false;
+        bool indices_updated = false;
+        unsigned int VAO = 0;
+        unsigned int VBO = 0;
+        unsigned int EBO = 0;
+
+        void applyBufferUpdates();
+};
