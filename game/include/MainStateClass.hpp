@@ -70,8 +70,8 @@ class MainState : public TAGBaseState {
 		TAGSkybox skybox = TAGSkybox("skybox", { TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, false });
 
 		static const inline TAGTexLoader::Params model_params = { TAGTexParam::REPEAT_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, true };
-		TAGModel lamp = TAGModel(model_params, "lamp.obj");
-		TAGWorldModel playground = TAGWorldModel(model_params, "playground.obj");
+		TAGModel lamp = TAGModel(model_params, "lamp.txt");
+		TAGWorldModel playground = TAGWorldModel(model_params, "playground.txt");
 
 		glm::vec3 processInput();
 		void setPerspectiveMatrix();
