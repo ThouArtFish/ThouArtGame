@@ -1,8 +1,7 @@
 #include <SkyboxClass.hpp>
 
 TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& params) {
-	TAGTexLoader tex_loader;
-	cubemap_ID = tex_loader.cubemapFromFile(TAGResourceManager::asset_path + directory, params);
+	cubemap_ID = TAGTexLoader::cubemapFromFile(TAGResourceManager::asset_path + directory + (directory.ends_with("/") ? "" : "/"), params);
 
 	static const std::array<float, 24> vertices = {
 		1.0f, 1.0f, 1.0f,
@@ -14,6 +13,7 @@ TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& p
 		-1.0f, -1.0f, -1.0f,
 		1.0f, -1.0f, -1.0f
 	};
+
 	static const std::array<unsigned int, 36> indices = {
 		0, 3, 1,
 		2, 1, 3,
@@ -45,6 +45,8 @@ TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& p
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
 	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 TAGSkybox::~TAGSkybox() {
@@ -55,11 +57,14 @@ TAGSkybox::~TAGSkybox() {
 		TAGResourceManager::deleteBuffer<OpenGLVertexArrayObject>(VAO);
 	}
 }
-void TAGSkybox::draw(const TAGShaderManager::Shader& shader) const {
+
+void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& name) const {
+	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);
-	glBindVertexArray(VAO);
 	glActiveTexture(GL_TEXTURE0);
+	shader.setInt(name, 0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_ID);
+	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 	glDepthFunc(GL_LESS);

@@ -121,16 +121,11 @@ int TAGBaseState::runGame() {
 		game_running = true;
 	}
 	else {
+		glfwTerminate();
 		return 0;
 	}
 	current_time = glfwGetTime();
 	while (!glfwWindowShouldClose(window)) {
-		// Check events for next loop
-		glfwPollEvents();
-		
-		// Check which keys are still being pressed
-		checkStillPressed();
-
 		// Track time
 		const double new_time = glfwGetTime();
 		delta_time = new_time - current_time;
@@ -143,6 +138,12 @@ int TAGBaseState::runGame() {
 		else if (frame_ready || iconified) {
 			continue;
 		}
+
+		// Check events for next loop
+		glfwPollEvents();
+
+		// Check which keys are still being pressed
+		checkStillPressed();
 
 		// Execute current state main loop and then handle return
 		const std::string end_state = states[current]->mainLoop();
@@ -233,10 +234,3 @@ void TAGBaseState::setWindowFullscreen(const TAGEnum& state) {
 		glfwSetWindowMonitor(window, (state == TAGEnum::TRUE ? monitor : NULL), 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
 	}
 }
-
-std::string TAGBaseState::mainLoop() { return "END"; }
-void TAGBaseState::enter() {}
-void TAGBaseState::exit() {}
-void TAGBaseState::mouseCallback() {}
-void TAGBaseState::framebufferSizeCallback() {}
-void TAGBaseState::iconifyCallback() {}

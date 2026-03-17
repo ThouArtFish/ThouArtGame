@@ -9,6 +9,7 @@
 #include <BaseStateClass.hpp>
 #include <ShaderManagerClass.hpp>
 #include <ModelClass.hpp>
+#include <SkyboxClass.hpp>
 #include <LightManagerClass.hpp>
 #include <WorldModelClass.hpp>
 #include <PaintingModelClass.hpp>
@@ -56,7 +57,8 @@ class MainState : public TAGBaseState {
 
 		TAGShaderManager shaders = TAGShaderManager({
 			{ "shaders/instanced.vert", "shaders/object_frag.frag", "instanced" },
-			{ "shaders/uninstanced.vert", "shaders/object_frag.frag", "uninstanced" }
+			{ "shaders/uninstanced.vert", "shaders/object_frag.frag", "uninstanced" },
+			{ "shaders/skybox.vert", "shaders/skybox.frag", "skybox" }
 		});
 
 		TAGPaintingModel images = TAGPaintingModel(
@@ -64,6 +66,8 @@ class MainState : public TAGBaseState {
 			{ TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, true },
 			TAGMesh::MaterialMod()
 		);
+
+		TAGSkybox skybox = TAGSkybox("skybox", { TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, false });
 
 		static const inline TAGTexLoader::Params model_params = { TAGTexParam::REPEAT_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, true };
 		TAGModel lamp = TAGModel(model_params, "lamp.obj");
@@ -207,12 +211,15 @@ std::string MainState::mainLoop() {
 
 	light_manager.unbindShaderData(0);
 
+	shader = shaders.useShader("skybox");
+	skybox.draw(shader, "skybox");
+
 	return "CURRENT";
 }
 
 void MainState::enter() {
-	setWindowFullscreen(TAGEnum::TRUE);
-	setMouseLock(TAGEnum::TRUE);
+	//setWindowFullscreen(TAGEnum::TRUE);
+	//setMouseLock(TAGEnum::TRUE);
 }
 
 void MainState::exit() {
@@ -268,13 +275,15 @@ glm::vec3 MainState::processInput() {
 }
 
 void MainState::setPerspectiveMatrix() {
-	const glm::mat4 current_perspec = glm::perspective(glm::radians(fov), (float)width / (float)height, near, far);
-	shaders.useShader("uninstanced").setMatrix4("perspective", current_perspec);
-	shaders.useShader("instanced").setMatrix4("perspective", current_perspec);
+	const glm::mat4 perspec = glm::perspective(glm::radians(fov), (float)width / (float)height, near, far);
+	shaders.useShader("uninstanced").setMatrix4("perspective", perspec);
+	shaders.useShader("instanced").setMatrix4("perspective", perspec);
+	shaders.useShader("skybox").setMatrix4("perspective", perspec);
 }
 
 void MainState::setCameraMatrix() {
 	const glm::mat4 view = glm::lookAt(camera_position, camera_position + camera_direction, camera_up);
 	shaders.useShader("instanced").setMatrix4("view", view);
 	shaders.useShader("uninstanced").setMatrix4("view", view);
+	shaders.useShader("skybox").setMatrix4("view", glm::mat4(glm::mat3(view)));
 }

@@ -27,10 +27,18 @@ enum class TAGTexParam {
 class TAGTexLoader {
 	public:
 		/**
+		* Handles pointers to image data blocks
+		*/
+		struct ImageDataContainer {
+			unsigned char* data;
+			~ImageDataContainer();
+		};
+
+		/**
 		 * Container for image raw data
 		 */
 		struct Info {
-			unsigned char* data;
+			ImageDataContainer data_container;
 			int width;
 			int height;
 			int nr_channels;
@@ -88,5 +96,5 @@ class TAGTexLoader {
 		static unsigned int cubemapFromFile(const std::string& directory, const Params& params);
 	private:
 		static GLenum getTextureFormat(const int&, const bool&);
-		static GLenum getMagTexParam(const TAGTexParam& param);
+		static GLenum removeMipmapTag(const TAGTexParam& param);
 };

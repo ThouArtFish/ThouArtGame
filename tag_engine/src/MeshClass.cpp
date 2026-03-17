@@ -218,6 +218,7 @@ std::array<unsigned int, 3> TAGMesh::setupMesh(const std::vector<Vertex>& vertic
 		glVertexAttribBinding(base, 1);
 	}
 	glVertexBindingDivisor(1, 1);
+
 	glBindVertexArray(0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
@@ -261,7 +262,6 @@ void TAGMesh::setupFragmentUniforms(const TAGShaderManager::Shader& shader) cons
 		glBindTexture(GL_TEXTURE_2D, textures[i].id);
 	}
 	glActiveTexture(GL_TEXTURE0);
-
 	shader.setBool("spec_map", specularNr > 1);
 	shader.setFloat("spec_mod", material_mod.spec_mod);
 	shader.setFloat("spec_exp", material_mod.spec_exp);
