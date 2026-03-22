@@ -64,7 +64,7 @@ class MainState : public TAGBaseState {
 		TAGPaintingModel images = TAGPaintingModel(
 			{ "images/flat_man.png", "images/pineapple.png" },
 			{ TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, true },
-			TAGMesh::MaterialMod()
+			TAGMesh::Material()
 		);
 
 		TAGSkybox skybox = TAGSkybox("skybox", { TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, false });

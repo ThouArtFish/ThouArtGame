@@ -28,6 +28,7 @@ enum class TAGTexType {
  * directly as shaders need to have instances of meshes setup beforehand, which is done by TAGModel draw functions.
  */
 class TAGMesh {
+    friend class TAGModel;
 	public:
         /**
          * Represents a single vertex of a mesh, including its local position, outward normal and texture coordinate.
@@ -39,9 +40,20 @@ class TAGMesh {
         };
 
         /**
-         * Represents a single fragment, or primitive, composed of 3 indices that point to vertices.
+         * Represents a single fragment, or primitive, composed of 3 vertex indices and a material index.
          */
-        using Fragment = std::array<unsigned int, 3>;
+        struct Fragment {
+            std::array<unsigned int, 3> vertex_indices;
+            unsigned int material_index = 0;
+        };
+
+        /**
+        * Element buffer object, containing fragments for a specific material
+        */
+        struct MaterialElementBuffer {
+            unsigned int EBO = 0;
+            unsigned int material_index = 0;
+        };
 
         /**
          * Represents a single texture object, including an ID for the OpenGL texture buffer and the type of the texture.
@@ -54,10 +66,12 @@ class TAGMesh {
         /**
          * Container for various values that modify the material of a mesh.
          */
-        struct MaterialMod {
+        struct Material {
             float spec_mod = 0.0f;
             float spec_exp = 32.0f;
             float opacity = 1.0f;
+            glm::vec3 colour = glm::vec3(1.0f, 0.0f, 0.0f);
+            std::vector<Texture> textures;
         };
 
         /**
@@ -69,7 +83,7 @@ class TAGMesh {
         };
 
         /**
-        * A quad tree box, indices could be for lower level quad tree boxes, or mesh planes, depending on lowest_level
+        * A quad tree box, indices could be for lower level quad tree boxes, or mesh planes, depending on is_leaf
         */
         struct BVHNode {
             bool is_leaf;
@@ -92,6 +106,7 @@ class TAGMesh {
             glm::vec3 normal;
             float constant;
         };
+
         /**
          * Represents the volume of a plane used for collision detection with spheres, and ray detection with frag plane.
          */
@@ -100,8 +115,7 @@ class TAGMesh {
             std::array<DotPlane, 3> volume_planes;
         };
 
-		MaterialMod material_mod;
-		std::vector<Texture> textures;
+        std::vector<Material> materials;
         bool delete_on_death = true;
         static inline unsigned int base_attrib = 0;
 
@@ -111,9 +125,9 @@ class TAGMesh {
          * @param vertices All the vertices of the mesh.
          * @param indices Indices of vertices for drawing primitives. Each sequence of 3 indices represents one primitive.
          * @param textures Textures used on mesh.
-         * @param material_mod Modifying values for material.
+         * @param materials Mesh materials.
          */
-        TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const std::vector<Texture>& textures, const MaterialMod& material_mod);
+        TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const std::vector<Material>& materials);
         TAGMesh();
         ~TAGMesh();
         /**
@@ -127,36 +141,8 @@ class TAGMesh {
         void generateBVH();
         /**
          * Setups up a vertex array object that allows quick assigning of the physical mesh for drawing.
-         * 
-         * @param vertices All the vertices of the mesh
-         * @param indices Indices of vertices for drawing primitives. Each sequence of 3 indices represents one primitive.
-         * @return Array of 3 IDs: vertex buffer object for vertex data, element buffer object for indices and a vertex array object 
-         *         that groups the VBO and EBO together.
-         */
-        static std::array<unsigned int, 3> setupMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags);
-        /**
-         * Same as setupMesh with parameters but assigns buffer objects to TAGMesh instance.
          */
         void setupMesh();
-        /**
-         * Setup mesh-related shader uniforms, such as textures and material modifier values.
-         * Not sufficient to draw a singular instance of a mesh.
-         * 
-         * @param shader Shader program
-         */
-        void setupFragmentUniforms(const TAGShaderManager::Shader& shader) const;
-        /**
-         * Draw one instance of a mesh.
-         * 
-         * @param shader Shader program
-         */
-		void drawUninstanced(const TAGShaderManager::Shader& shader);
-        /**
-         * Draw multiple instances of a mesh
-         * 
-         * @param shader Shader program
-         */
-        void drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number);
         /**
          * Get vector of vertices.
          */
@@ -165,7 +151,6 @@ class TAGMesh {
         /**
          * Get vector of fragments.
          */
-        std::vector<Fragment>& changeFragments();
         const std::vector<Fragment>& getFragments() const;
         /**
         * Get primitive planes
@@ -184,9 +169,9 @@ class TAGMesh {
          */
         const unsigned int& getVAO() const;
         /**
-         * Return element buffer object ID
+         * Return element buffer object IDs
          */
-        const unsigned int& getEBO() const;
+        const std::vector<MaterialElementBuffer>& getEBOs() const;
         /**
          * Return vertex buffer object ID
          */
@@ -214,11 +199,31 @@ class TAGMesh {
 		std::vector<Fragment> frags;
         std::vector<BVHNode> bvh_octree;
         std::vector<PlaneVolume> planes;
+        std::vector<MaterialElementBuffer> material_ebos;
         bool vertices_updated = false;
-        bool indices_updated = false;
+        bool is_transparent = false;
         unsigned int VAO = 0;
         unsigned int VBO = 0;
-        unsigned int EBO = 0;
 
         void applyBufferUpdates();
+        /**
+         * Setup mesh-related shader uniforms, such as textures and material modifier values.
+         * Not sufficient to draw a singular instance of a mesh.
+         *
+         * @param shader Shader program
+         */
+        void setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index) const;
+        /**
+         * Draw multiple instances of a mesh
+         *
+         * @param shader Shader program
+         * @param number Number of instances
+         */
+        void drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number);
+        /**
+        * Draw one instance of a mesh.
+        *
+        * @param shader Shader program
+        */
+        void drawUninstanced(const TAGShaderManager::Shader& shader);
 };

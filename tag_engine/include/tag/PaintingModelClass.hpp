@@ -21,15 +21,15 @@ public:
 	/**
 	* @param paths The paths to each image to be used as models
 	* @param tex_params The texture loading parameters for each image
-	* @param mat_mod Material modifications values for each image
+	* @param material Material for each image
 	*/
-	TAGPaintingModel(const std::vector<std::string>& paths, const TAGTexLoader::Params& tex_params, const TAGMesh::MaterialMod& mat_mod);
+	TAGPaintingModel(const std::vector<std::string>& paths, const TAGTexLoader::Params& tex_params, const TAGMesh::Material& material = {});
 	/**
 	* @param Path to an image to be used as a model, can be left empty to add images later
 	* @param tex_params The texture loading parameters for the image
-	* @param mat_mod Material modifications values for the image
+	* @param material Material for the image
 	*/
-	TAGPaintingModel(const TAGTexLoader::Params& tex_params, const TAGMesh::MaterialMod& mat_mod, const std::string& path = "");
+	TAGPaintingModel(const TAGTexLoader::Params& tex_params, const std::string& path = "", const TAGMesh::Material& material = {});
 	/**
 	* Add a new image model. This replaces the addMesh function from TAGModel.
 	* 
@@ -37,7 +37,7 @@ public:
 	* @param tex_params The texture loading parameters for the image
 	* @param mat_mod Material modification values for the image
 	*/
-	void loadPainting(const std::string& path, const TAGTexLoader::Params& tex_params, const TAGMesh::MaterialMod& mat_mod);
+	void loadPainting(const std::string& path, const TAGTexLoader::Params& tex_params, const TAGMesh::Material& material = {});
 	/**
 	* Makes the Object reference face towards the point.
 	* If lock_axis is true, the axis of the image model won't change after turning.
@@ -49,8 +49,8 @@ public:
 	void faceDirec(const glm::vec3& position, Object& obj, const bool& lock_axis);
 private:
 	inline static constexpr std::array<glm::vec2, 4> tex_coords = { glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 0.0f), glm::vec2(1.0f, 1.0f), glm::vec2(0.0f, 1.0f) };
-	inline static constexpr TAGMesh::Fragment frag_1 = { 0, 1, 3 };
-	inline static constexpr TAGMesh::Fragment frag_2 = { 1, 2, 3 };
+	inline static constexpr TAGMesh::Fragment frag_1 = { { 0, 1, 3 }, 0 };
+	inline static constexpr TAGMesh::Fragment frag_2 = { { 1, 2, 3 }, 0 };
 	inline static constexpr glm::vec3 defArm = { -1.0f, 0.0f, 0.0f };
 	inline static constexpr glm::vec3 defNormal = { 0.0f, 0.0f, 1.0f };
 

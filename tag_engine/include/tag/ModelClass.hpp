@@ -109,7 +109,7 @@ public:
 	* @param textures Textures of mesh
 	* @param material_mod Material modifiers
 	*/
-	void addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const std::vector<TAGMesh::Texture>& textures, const TAGMesh::MaterialMod& material_mod);
+	void addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const std::vector<TAGMesh::Material>& materials);
 	/**
 	 * Delete a mesh.
 	 * 

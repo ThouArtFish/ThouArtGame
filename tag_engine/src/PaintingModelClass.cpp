@@ -1,18 +1,18 @@
 #include <PaintingModelClass.hpp>
 
-TAGPaintingModel::TAGPaintingModel(const std::vector<std::string>& paths, const TAGTexLoader::Params& tex_params, const TAGMesh::MaterialMod& mat_mod) : TAGModel(tex_params) {
+TAGPaintingModel::TAGPaintingModel(const std::vector<std::string>& paths, const TAGTexLoader::Params& tex_params, const TAGMesh::Material& material) : TAGModel(tex_params) {
 	for (size_t i = 0; i < paths.size(); i++) {
-		loadPainting(paths[i], tex_params, mat_mod);
+		loadPainting(paths[i], tex_params, material);
 	}
 }
 
-TAGPaintingModel::TAGPaintingModel(const TAGTexLoader::Params& tex_params, const TAGMesh::MaterialMod& mat_mod, const std::string& path) : TAGModel(tex_params) {
+TAGPaintingModel::TAGPaintingModel(const TAGTexLoader::Params& tex_params, const std::string& path, const TAGMesh::Material& material) : TAGModel(tex_params) {
 	if (path != "") {
-		loadPainting(path, tex_params, mat_mod);
+		loadPainting(path, tex_params, material);
 	}
 }
 
-void TAGPaintingModel::loadPainting(const std::string& path, const TAGTexLoader::Params& tex_params, const TAGMesh::MaterialMod& mat_mod) {
+void TAGPaintingModel::loadPainting(const std::string& path, const TAGTexLoader::Params& tex_params, const TAGMesh::Material& material) {
 	const TAGTexLoader::Info tex_info = TAGTexLoader::loadRawImageData(TAGResourceManager::asset_path + path, tex_params.flip);
 
 	std::vector<glm::vec3> corners;
@@ -30,8 +30,9 @@ void TAGPaintingModel::loadPainting(const std::string& path, const TAGTexLoader:
 	}
 	
 	const std::string name = static_cast<std::filesystem::path>(path).stem().string();
-	const TAGMesh::Texture texture = { TAGTexLoader::textureFromInfo(tex_info, tex_params), TAGTexType::DIFFUSE_MAP };
-	addMesh(name, vertices, { frag_1, frag_2 }, { texture }, mat_mod);
+	TAGMesh::Material new_material = material;
+	new_material.textures.emplace_back(TAGTexLoader::textureFromInfo(tex_info, tex_params), TAGTexType::DIFFUSE_MAP);
+	addMesh(name, vertices, { frag_1, frag_2 }, { new_material });
 }
 
 void TAGPaintingModel::faceDirec(const glm::vec3& point, Object& obj, const bool& lock_axis) {
