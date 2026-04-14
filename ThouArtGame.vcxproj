@@ -144,6 +144,7 @@
   <ItemGroup>
     <ClInclude Include="game\include\MainStateClass.hpp" />
     <ClInclude Include="tag_engine\include\tag\BaseStateClass.hpp" />
+    <ClInclude Include="tag_engine\include\tag\HUDManagerClass.hpp" />
     <ClInclude Include="tag_engine\include\tag\glfw_imp.hpp" />
     <ClInclude Include="tag_engine\include\tag\LightManagerClass.hpp" />
     <ClInclude Include="tag_engine\include\tag\MeshClass.hpp" />
@@ -160,6 +161,7 @@
     <ClCompile Include="game\src\start.cpp" />
     <ClCompile Include="tag_engine\src\BaseStateClass.cpp" />
     <ClCompile Include="tag_engine\src\define_once.cpp" />
+    <ClCompile Include="tag_engine\src\HUDManagerClass.cpp" />
     <ClCompile Include="tag_engine\src\glad.c" />
     <ClCompile Include="tag_engine\src\LightManagerClass.cpp" />
     <ClCompile Include="tag_engine\src\MeshClass.cpp" />

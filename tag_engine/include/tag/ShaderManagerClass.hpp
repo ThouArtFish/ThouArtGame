@@ -32,13 +32,13 @@ public:
     */
     struct Shader {
         unsigned int ID;
-        void setBool(const std::string& name, const bool& value) const;
-        void setInt(const std::string& name, const int& value) const;
-        void setFloat(const std::string& name, const float& value) const;
-        void setVec4(const std::string& name, const glm::vec4& value) const;
-        void setVec3(const std::string& name, const glm::vec3& value) const;
-        void setMatrix4(const std::string& name, const glm::mat4& value) const;
-        void setMatrix3(const std::string& name, const glm::mat3& value) const;
+        void setBool(const std::string& name, const bool& value, const unsigned int& count = 1) const;
+        void setInt(const std::string& name, const int& value, const unsigned int& count = 1) const;
+        void setFloat(const std::string& name, const float& value, const unsigned int& count = 1) const;
+        void setVec4(const std::string& name, const glm::vec4& value, const unsigned int& count = 1) const;
+        void setVec3(const std::string& name, const glm::vec3& value, const unsigned int& count = 1) const;
+        void setMatrix4(const std::string& name, const glm::mat4& value, const unsigned int& count = 1) const;
+        void setMatrix3(const std::string& name, const glm::mat3& value, const unsigned int& count = 1) const;
     };
     bool delete_on_death = true;
 

@@ -29,7 +29,7 @@ GLenum TAGTexLoader::removeMipmapTag(const TAGTexParam& param) {
 	return (param == TAGTexParam::LINEAR_INTERP_PIX ? GL_LINEAR : GL_NEAREST);
 }
 
-unsigned int TAGTexLoader::textureFromInfo(const Info& tex_info, const Params& params) {
+TAGTexLoader::Texture TAGTexLoader::textureFromInfo(const Info& tex_info, const std::string& name, const Params& params) {
 	unsigned int ID = TAGResourceManager::createBuffer<OpenGLTexture>();
 	const GLenum format = getTextureFormat(tex_info.nr_channels, params.srgb);
 	glBindTexture(GL_TEXTURE_2D, ID);
@@ -40,24 +40,11 @@ unsigned int TAGTexLoader::textureFromInfo(const Info& tex_info, const Params& p
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLenum)params.min_filter);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, removeMipmapTag(params.mag_filter));
 	glBindTexture(GL_TEXTURE_2D, 0);
-	return ID;
+	return { name, ID, (unsigned int)tex_info.width, (unsigned int)tex_info.height };
 }
 
-unsigned int TAGTexLoader::textureFromFile(const std::string& path, const Params& params) {
-	return textureFromInfo(loadRawImageData(path, params.flip), params);
-}
-
-unsigned int TAGTexLoader::textureFromColour(const glm::vec3& colour) {
-	unsigned int ID = TAGResourceManager::createBuffer<OpenGLTexture>();
-	glBindTexture(GL_TEXTURE_2D, ID);
-	const char rgb[3] = {(char)round(colour.r * 255), (char)round(colour.g * 255), (char)round(colour.b * 255)};
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	return ID;
+TAGTexLoader::Texture TAGTexLoader::textureFromFile(const std::string& tex_path, const Params& params, const std::string& name) {
+	return textureFromInfo(loadRawImageData(tex_path, params.flip), (name == "" ? static_cast<std::filesystem::path>(tex_path).stem().string() : name), params);
 }
 
 unsigned int TAGTexLoader::cubemapFromFile(const std::string& folder_path, const Params& params) {

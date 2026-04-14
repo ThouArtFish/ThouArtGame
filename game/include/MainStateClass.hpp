@@ -70,7 +70,9 @@ class MainState : public TAGBaseState {
 		TAGSkybox skybox = TAGSkybox("skybox", { TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, false });
 
 		static const inline TAGTexLoader::Params model_params = { TAGTexParam::REPEAT_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, true };
+
 		TAGModel lamp = TAGModel(model_params, "lamp.txt");
+
 		TAGWorldModel playground = TAGWorldModel(model_params, "playground.txt");
 
 		glm::vec3 processInput();
@@ -84,14 +86,14 @@ MainState::MainState(const std::string& state_name) {
 	stable_position = camera_position;
 
 	// Create paintings
-	glm::vec3 stand = glm::vec3(0, -images.getMesh("flat_man").getBoundingBox().min.y * 2.0f, 0);
+	glm::vec3 stand = glm::vec3(0, -images.getMesh("flat_man").mesh_bb.min.y * 2.0f, 0);
 	images.changeInstances("flat_man").push_back(
 		{
 			.position = stand + floor_elevation,
 			.scale = 2.0f
 		}
 	);
-	stand = glm::vec3(0, -images.getMesh("pineapple").getBoundingBox().min.y * 3.0f, 0);
+	stand = glm::vec3(0, -images.getMesh("pineapple").mesh_bb.min.y * 3.0f, 0);
 	images.changeInstances("pineapple").push_back(
 		{
 			.position = glm::vec3(4.0f, 0.0f, 0.0f) + stand + floor_elevation,
@@ -114,7 +116,7 @@ MainState::MainState(const std::string& state_name) {
 	lights.emplace_back(glm::vec4(lamp_pos, lamp_light_fact), lamp_light);
 
 	// Place lamp
-	lamp_pos = glm::vec3(0, -lamp.getMesh("lampion").getBoundingBox().min.y * 0.01f, -3.0f) + floor_elevation;
+	lamp_pos = glm::vec3(0, -lamp.getMesh("lampion").mesh_bb.min.y * 0.01f, -3.0f) + floor_elevation;
 
 	setPerspectiveMatrix();
 }
@@ -218,8 +220,8 @@ std::string MainState::mainLoop() {
 }
 
 void MainState::enter() {
-	//setWindowFullscreen(TAGEnum::TRUE);
-	//setMouseLock(TAGEnum::TRUE);
+	setWindowFullscreen(TAGEnum::TRUE);
+	setMouseLock(TAGEnum::TRUE);
 }
 
 void MainState::exit() {

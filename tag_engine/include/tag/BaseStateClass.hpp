@@ -22,13 +22,17 @@ public:
 	 * Container for passing info required for initializing a game
 	 */
 	struct GameInitializer {
-		const int windowWidth;
-		const int windowHeight;
-		const int openGLVerMajor = 4;
-		const int openGLVerMinor = 6;
-		const std::string windowName;
-		GameInitializer(const int& width, const int& height, const std::string& name) : windowWidth(width), windowHeight(height), windowName(name) {}
+		const int window_width;
+		const int window_height;
+		const int openGL_version_major = 4;
+		const int openGL_version_minor = 6;
+		const std::string window_name;
+		GameInitializer(const int& width, const int& height, const std::string& name) : window_width(width), window_height(height), window_name(name) {}
 	};
+
+	/**
+	* Common variables that game states may want to share
+	*/
 	static inline glm::vec3 camera_position = glm::vec3(0.0f);
 	static inline glm::vec3 camera_direction = glm::vec3(0.0f, 0.0f, -1.0f);
 

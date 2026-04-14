@@ -23,7 +23,7 @@ public:
 	* @param tex_params The texture loading parameters for each image
 	* @param material Material for each image
 	*/
-	TAGPaintingModel(const std::vector<std::string>& paths, const TAGTexLoader::Params& tex_params, const TAGMesh::Material& material = {});
+	TAGPaintingModel(const std::vector<std::string>& paths, const TAGTexLoader::Params& tex_params = {}, const TAGMesh::Material& material = {});
 	/**
 	* @param Path to an image to be used as a model, can be left empty to add images later
 	* @param tex_params The texture loading parameters for the image
@@ -35,9 +35,17 @@ public:
 	* 
 	* @param path Path to an image to be used as a model
 	* @param tex_params The texture loading parameters for the image
-	* @param mat_mod Material modification values for the image
+	* @param material Material for image
 	*/
-	void loadPainting(const std::string& path, const TAGTexLoader::Params& tex_params, const TAGMesh::Material& material = {});
+	void loadPainting(const std::string& path, const TAGTexLoader::Params& tex_params = {}, const TAGMesh::Material& material = {});
+	/**
+	* Add a new image model. This replaces the addMesh function from TAGModel.
+	* 
+	* @param name Name of new painting mesh
+	* @param texture Texture container
+	* @param material Material for image
+	*/
+	void loadPainting(const std::string& name, const TAGTexLoader::Texture& texture, const TAGMesh::Material& material = {});
 	/**
 	* Makes the Object reference face towards the point.
 	* If lock_axis is true, the axis of the image model won't change after turning.

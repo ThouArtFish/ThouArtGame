@@ -1,8 +1,8 @@
 #include <PaintingModelClass.hpp>
 
 TAGPaintingModel::TAGPaintingModel(const std::vector<std::string>& paths, const TAGTexLoader::Params& tex_params, const TAGMesh::Material& material) : TAGModel(tex_params) {
-	for (size_t i = 0; i < paths.size(); i++) {
-		loadPainting(paths[i], tex_params, material);
+	for (const std::string& path : paths) {
+		loadPainting(path, tex_params, material);
 	}
 }
 
@@ -15,23 +15,34 @@ TAGPaintingModel::TAGPaintingModel(const TAGTexLoader::Params& tex_params, const
 void TAGPaintingModel::loadPainting(const std::string& path, const TAGTexLoader::Params& tex_params, const TAGMesh::Material& material) {
 	const TAGTexLoader::Info tex_info = TAGTexLoader::loadRawImageData(TAGResourceManager::asset_path + path, tex_params.flip);
 
-	std::vector<glm::vec3> corners;
-	corners.reserve(4);
-	const float angle = glm::atan((float)(tex_info.height) / (float)(tex_info.width));
-	const std::array<float, 4> angles = { angle, glm::pi<float>() - angle, glm::pi<float>() + angle, glm::two_pi<float>() - angle };
-	for (const float& angle : angles) {
-		corners.push_back(glm::normalize(glm::mat3(glm::rotate(glm::mat4(1), angle, defNormal)) * defArm));
-	}
-
 	std::vector<TAGMesh::Vertex> vertices;
 	vertices.reserve(4);
+	const float angle = glm::atan((float)(tex_info.height) / (float)(tex_info.width));
+	const std::array<float, 4> angles = { angle, glm::pi<float>() - angle, glm::pi<float>() + angle, glm::two_pi<float>() - angle };
 	for (size_t i = 0; i < 4; i++) {
-		vertices.push_back({ corners[i], defNormal, tex_coords[i] });
+		vertices.push_back({ glm::normalize(glm::mat3(glm::rotate(glm::mat4(1), angles[i], defNormal)) * defArm), defNormal, tex_coords[i] });
 	}
-	
+
 	const std::string name = static_cast<std::filesystem::path>(path).stem().string();
 	TAGMesh::Material new_material = material;
-	new_material.textures.emplace_back(TAGTexLoader::textureFromInfo(tex_info, tex_params), TAGTexType::DIFFUSE_MAP);
+	TAGTexLoader::Texture texture = TAGTexLoader::textureFromInfo(tex_info, name, tex_params);
+	texture.type = TAGTexType::DIFFUSE_MAP;
+	new_material.textures.push_back(texture);
+	addMesh(name, vertices, { frag_1, frag_2 }, { new_material });
+}
+
+void TAGPaintingModel::loadPainting(const std::string& name, const TAGTexLoader::Texture& texture, const TAGMesh::Material& material) {
+	std::vector<TAGMesh::Vertex> vertices;
+	vertices.reserve(4);
+	const float angle = glm::atan((float)(texture.height) / (float)(texture.width));
+	const std::array<float, 4> angles = { angle, glm::pi<float>() - angle, glm::pi<float>() + angle, glm::two_pi<float>() - angle };
+	for (size_t i = 0; i < 4; i++) {
+		vertices.push_back({ glm::normalize(glm::mat3(glm::rotate(glm::mat4(1), angles[i], defNormal)) * defArm), defNormal, tex_coords[i] });
+	}
+
+	TAGMesh::Material new_material = material;
+	new_material.textures.push_back(texture);
+
 	addMesh(name, vertices, { frag_1, frag_2 }, { new_material });
 }
 

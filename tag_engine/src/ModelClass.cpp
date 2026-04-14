@@ -13,10 +13,7 @@ TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const std::string& pa
 }
 
 void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const bool& cull_face, const std::string& mesh_name) {
-	if (cull_face) {
-		glEnable(GL_CULL_FACE);
-	}
-	else {
+	if (!cull_face) {
 		glDisable(GL_CULL_FACE);
 	}
 
@@ -60,13 +57,14 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const bool& cull_
 			mesh.drawInstanced(shader, size);
 		}
 	}
+
+	if (!cull_face) {
+		glEnable(GL_CULL_FACE);
+	}
 }
 
 void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const bool& cull_face, const std::string& mesh_name) {
-	if (cull_face) {
-		glEnable(GL_CULL_FACE);
-	}
-	else {
+	if (!cull_face) {
 		glDisable(GL_CULL_FACE);
 	}
 
@@ -80,6 +78,10 @@ void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj
 		for (const std::string& mesh_name : mesh_draw_order) {
 			meshes.at(mesh_name).drawUninstanced(shader);
 		}
+	}
+
+	if (!cull_face) {
+		glEnable(GL_CULL_FACE);
 	}
 }
 
@@ -201,8 +203,8 @@ void TAGModel::loadModel(const std::string& path) {
 		return (current_index.vertex_index == index.vertex_index && current_index.normal_index == index.normal_index && current_index.texcoord_index == index.texcoord_index);
 	};
 
-	// Map of already loaded textures
-	std::unordered_map<std::string, unsigned int> loaded_textures;
+	// Loaded textures
+	std::vector<TAGTexLoader::Texture> loaded_textures;
 
 	// Load each mesh
 	for (const tinyobj::shape_t& shape : shapes) {
@@ -230,7 +232,7 @@ void TAGModel::loadModel(const std::string& path) {
 			const auto& vertex_pos = std::find_if(unique_indices.begin(), unique_indices.end(), checkSameFrag);
 			if (vertex_pos == unique_indices.end()) {
 				primitive[primitive_index] = (unsigned int)mesh.vertices.size();
-				mesh.vertices.emplace_back(all_vertices[current_index.vertex_index], all_normals[glm::abs(current_index.normal_index)], all_texcoords[glm::abs(current_index.texcoord_index)]);
+				mesh.vertices.emplace_back(all_vertices[current_index.vertex_index], all_normals[current_index.normal_index], all_texcoords[current_index.texcoord_index]);
 				unique_indices.push_back(current_index);
 			}
 			else {
@@ -264,27 +266,32 @@ void TAGModel::loadModel(const std::string& path) {
 			TAGMesh::Material mesh_material;
 
 			if (!material.diffuse_texname.empty()) {
-				auto texture_pos = loaded_textures.find(material.diffuse_texname);
+				const auto& texture_pos = std::find_if(loaded_textures.begin(), loaded_textures.end(), [&material](const TAGTexLoader::Texture& tex) { return tex.name == material.diffuse_texname; });
 				if (texture_pos == loaded_textures.end()) {
 					mesh_material.textures.push_back(loadMaterialTexture(material.diffuse_texname, TAGTexType::DIFFUSE_MAP));
-					loaded_textures.try_emplace(material.diffuse_texname, mesh_material.textures.back().id);
+					loaded_textures.push_back(mesh_material.textures.back());
 				}
 				else {
-					mesh_material.textures.emplace_back(texture_pos->second, TAGTexType::DIFFUSE_MAP);
+					TAGTexLoader::Texture texture = *texture_pos;
+					texture.type = TAGTexType::DIFFUSE_MAP;
+					mesh_material.textures.push_back(texture);
 				}
 			}
 
 			if (!material.specular_texname.empty()) {
-				auto texture_pos = loaded_textures.find(material.specular_texname);
+				const auto& texture_pos = std::find_if(loaded_textures.begin(), loaded_textures.end(), [&material](const TAGTexLoader::Texture& tex) { return tex.name == material.specular_texname; });
 				if (texture_pos == loaded_textures.end()) {
 					mesh_material.textures.push_back(loadMaterialTexture(material.specular_texname, TAGTexType::SPEC_MAP));
-					loaded_textures.try_emplace(material.specular_texname, mesh_material.textures.back().id);
+					loaded_textures.push_back(mesh_material.textures.back());
 				}
 				else {
-					mesh_material.textures.emplace_back(texture_pos->second, TAGTexType::SPEC_MAP);
+					TAGTexLoader::Texture texture = *texture_pos;
+					texture.type = TAGTexType::SPEC_MAP;
+					mesh_material.textures.push_back(texture);
 				}
 			}
 
+			mesh_material.name = material.name;
 			mesh_material.spec_exp = material.shininess;
 			mesh_material.spec_mod = material.specular[0];
 			mesh_material.opacity = material.dissolve;
@@ -301,7 +308,7 @@ void TAGModel::loadModel(const std::string& path) {
 		instances.try_emplace(shape.name);
 		instance_buffers.try_emplace(shape.name);
 
-		if (mesh.is_transparent < 1.0f) {
+		if (mesh.is_transparent) {
 			mesh_draw_order.insert(mesh_draw_order.begin(), shape.name);
 		}
 		else {
@@ -310,12 +317,10 @@ void TAGModel::loadModel(const std::string& path) {
 	}
 }
 
-const TAGMesh::Texture TAGModel::loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const {
-	return TAGMesh::Texture(TAGTexLoader::textureFromFile(this->directory + tex_path, this->tex_params), tex_type);
-}
-
-const TAGMesh::Texture TAGModel::loadMaterialTexture(const glm::vec3& vec, const TAGTexType& tex_type) const {
-	return TAGMesh::Texture(TAGTexLoader::textureFromColour(vec), tex_type);
+const TAGTexLoader::Texture TAGModel::loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const {
+	TAGTexLoader::Texture texture = TAGTexLoader::textureFromFile(this->directory + tex_path, this->tex_params);
+	texture.type = tex_type;
+	return texture;
 }
 
 std::vector<std::string> TAGModel::getMeshNames() const {

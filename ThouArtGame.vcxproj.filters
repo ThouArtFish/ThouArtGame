@@ -60,6 +60,9 @@
     <ClInclude Include="tag_engine\include\tag\glfw_imp.hpp">
       <Filter>ThouArtGame Files\Headers</Filter>
     </ClInclude>
+    <ClInclude Include="tag_engine\include\tag\HUDManagerClass.hpp">
+      <Filter>ThouArtGame Files\Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="tag_engine\src\BaseStateClass.cpp">
@@ -102,6 +105,9 @@
       <Filter>Game Files\Source</Filter>
     </ClCompile>
     <ClCompile Include="tag_engine\src\define_once.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="tag_engine\src\HUDManagerClass.cpp">
       <Filter>ThouArtGame Files\Source</Filter>
     </ClCompile>
   </ItemGroup>

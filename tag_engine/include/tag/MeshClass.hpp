@@ -10,16 +10,7 @@
 #include <glad/glad.h>
 #include "ShaderManagerClass.hpp"
 #include "ResourceManagerClass.hpp"
-
-/**
- * The type of a texture.
- */
-enum class TAGTexType {
-	SPEC_MAP,
-	DIFFUSE_MAP,
-	NORMAL_MAP,
-    NONE
-};
+#include "TextureLoaderClass.hpp"
 
 /**
  * Stores a singular mesh, consisting of vertices, indices, textures and values that modify material properties.
@@ -53,25 +44,21 @@ class TAGMesh {
         struct MaterialElementBuffer {
             unsigned int EBO = 0;
             unsigned int material_index = 0;
-        };
-
-        /**
-         * Represents a single texture object, including an ID for the OpenGL texture buffer and the type of the texture.
-         */
-        struct Texture {
-            unsigned int id;
-            TAGTexType type;
+            ~MaterialElementBuffer();
         };
 
         /**
          * Container for various values that modify the material of a mesh.
          */
         struct Material {
+            std::string name = "Default";
             float spec_mod = 0.0f;
             float spec_exp = 32.0f;
             float opacity = 1.0f;
             glm::vec3 colour = glm::vec3(1.0f, 0.0f, 0.0f);
-            std::vector<Texture> textures;
+            std::vector<TAGTexLoader::Texture> textures;
+
+            TAGTexLoader::Texture& getTexture(const std::string& name);
         };
 
         /**
@@ -106,7 +93,6 @@ class TAGMesh {
             glm::vec3 normal;
             float constant;
         };
-
         /**
          * Represents the volume of a plane used for collision detection with spheres, and ray detection with frag plane.
          */
@@ -115,9 +101,11 @@ class TAGMesh {
             std::array<DotPlane, 3> volume_planes;
         };
 
-        std::vector<Material> materials;
         bool delete_on_death = true;
         static inline unsigned int base_attrib = 0;
+        BoundingBox mesh_bb;
+        std::vector<PlaneVolume> planes;
+        std::vector<BVHNode> bvh_octree;
 
         /**
          * Define a mesh from the parameters.
@@ -151,19 +139,15 @@ class TAGMesh {
         /**
          * Get vector of fragments.
          */
+        std::vector<Fragment>& changeFragments();
         const std::vector<Fragment>& getFragments() const;
         /**
-        * Get primitive planes
+        * Get a material at an index
+        * 
+        * @param index Index of material
         */
-        const std::vector<PlaneVolume>& getPlanes() const;
-        /**
-        * Get Bounding Volume Heirarchy
-        */
-        const std::vector<BVHNode>& getBVH() const;
-        /**
-        * Get mesh bounding box
-        */
-        const BoundingBox& getBoundingBox() const;
+        Material& getMaterial(const unsigned int& index);
+        Material& getMaterial(const std::string& name);
         /**
          * Return vertex array object ID
          */
@@ -194,13 +178,12 @@ class TAGMesh {
         static BoundingBox generateBoundingBox(const glm::vec3* start, const unsigned int& size);
 	private:
         static constexpr inline unsigned int bvh_box_max_size = 4;
-        BoundingBox mesh_bb;
 		std::vector<Vertex> vertices;
 		std::vector<Fragment> frags;
-        std::vector<BVHNode> bvh_octree;
-        std::vector<PlaneVolume> planes;
+        std::vector<Material> materials;
         std::vector<MaterialElementBuffer> material_ebos;
         bool vertices_updated = false;
+        bool frags_updated = false;
         bool is_transparent = false;
         unsigned int VAO = 0;
         unsigned int VBO = 0;

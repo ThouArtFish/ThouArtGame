@@ -3,12 +3,22 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <filesystem>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <stb/stb_image.h>
 #include "ResourceManagerClass.hpp"
 
+/**
+ * The type of a texture.
+ */
+enum class TAGTexType {
+	SPEC_MAP,
+	DIFFUSE_MAP,
+	NORMAL_MAP,
+	NONE_MAP
+};
 
 /**
  * Texture types
@@ -53,47 +63,54 @@ class TAGTexLoader {
 			bool srgb = false;
 			bool flip = false;
 		};
+
+		/**
+		* Texture container
+		*/
+		struct Texture {
+			std::string name;
+			unsigned int id;
+			unsigned int width;
+			unsigned int height;
+			TAGTexType type = TAGTexType::NONE_MAP;
+		};
+
 		/*
 		* Returns raw data of image file at path.
 		* 
-		* @param path The path to the image.
+		* @param tex_path The path to the image.
 		* @param flip Whether to flip the image on load or not.
 		* @return Raw image data container.
 		*/
-		static Info loadRawImageData(const std::string& path, const bool& flip);
+		static Info loadRawImageData(const std::string& tex_path, const bool& flip);
 		/*
 		* Creates texture buffer from raw image data and texture parameters
 		* 
 		* @param info Raw image data container.
+		* @param name Name of texture
 		* @param params Settings for texture setup.
-		* @return ID for OpenGL texture buffer. This is probably stupid.
+		* @return Texture struct containing info about texture handle buffer, such as ID.
 		*/
-		static unsigned int textureFromInfo(const Info& path, const Params& params);
+		static Texture textureFromInfo(const Info& info, const std::string& name, const Params& params = {});
 		/*
 		* Creates texture buffer from image path and texture parameters
 		*
-		* @param path The path to the image.
+		* @param tex_path The path to the image.
 		* @param params Settings for texture setup.
-		* @return ID for OpenGL texture buffer. This is probably stupid.
+		* @param name Name of texture, if blank then texture filename is used.
+		* @return Texture struct containing info about texture handle buffer, such as ID.
 		*/
-		static unsigned int textureFromFile(const std::string& path, const Params& params);
-		/*
-		* Creates texture buffer from just a colour represented by a 3D vector.
-		*
-		* @param colour 3D vector representing RGB values in the [0, 1] range.
-		* @return ID for OpenGL texture buffer. This is probably stupid.
-		*/
-		static unsigned int textureFromColour(const glm::vec3& colour);
+		static Texture textureFromFile(const std::string& tex_path, const Params& params = {}, const std::string& name = "");
 		/*
 		* Creates texture buffer from directory path and texture parameters for a cubemap.
 		* The images within the directory should be named "right", "left", "top", "bottom", "front" and "back"
 		* for each side of the cubemap.
 		*
-		* @param info Raw image data container.
+		* @param folder_path Path to folder containing images.
 		* @param params Settings for texture setup.
-		* @return ID for OpenGL texture buffer. This is probably stupid.
+		* @return ID for OpenGL texture buffer.
 		*/
-		static unsigned int cubemapFromFile(const std::string& directory, const Params& params);
+		static unsigned int cubemapFromFile(const std::string& folder_path, const Params& params = {});
 	private:
 		static GLenum getTextureFormat(const int&, const bool&);
 		static GLenum removeMipmapTag(const TAGTexParam& param);

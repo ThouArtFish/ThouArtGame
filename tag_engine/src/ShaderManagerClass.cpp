@@ -128,24 +128,24 @@ auto TAGShaderManager::begin() const {
 auto TAGShaderManager::end() const {
 	return shaders.end();
 }
-void TAGShaderManager::Shader::setBool(const std::string& name, const bool& value) const {
-	glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value);
+void TAGShaderManager::Shader::setBool(const std::string& name, const bool& value, const unsigned int& count) const {
+	glUniform1iv(glGetUniformLocation(ID, name.c_str()), count, (GLint*)&value);
 }
-void TAGShaderManager::Shader::setInt(const std::string& name, const int& value) const {
-	glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
+void TAGShaderManager::Shader::setInt(const std::string& name, const int& value, const unsigned int& count) const {
+	glUniform1iv(glGetUniformLocation(ID, name.c_str()), count, (GLint*)&value);
 }
-void TAGShaderManager::Shader::setFloat(const std::string& name, const float& value) const {
-	glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
+void TAGShaderManager::Shader::setFloat(const std::string& name, const float& value, const unsigned int& count) const {
+	glUniform1fv(glGetUniformLocation(ID, name.c_str()), count, &value);
 }
-void TAGShaderManager::Shader::setVec4(const std::string& name, const glm::vec4& value) const {
-	glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(value));
+void TAGShaderManager::Shader::setVec4(const std::string& name, const glm::vec4& value, const unsigned int& count) const {
+	glUniform4fv(glGetUniformLocation(ID, name.c_str()), count, (GLfloat*)&value);
 }
-void TAGShaderManager::Shader::setVec3(const std::string& name, const glm::vec3& value) const {
-	glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(value));
+void TAGShaderManager::Shader::setVec3(const std::string& name, const glm::vec3& value, const unsigned int& count) const {
+	glUniform3fv(glGetUniformLocation(ID, name.c_str()), count, (GLfloat*)&value);
 }
-void TAGShaderManager::Shader::setMatrix4(const std::string& name, const glm::mat4& value) const {
-	glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(value));
+void TAGShaderManager::Shader::setMatrix4(const std::string& name, const glm::mat4& value, const unsigned int& count) const {
+	glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), count, GL_FALSE, glm::value_ptr(value));
 }
-void TAGShaderManager::Shader::setMatrix3(const std::string& name, const glm::mat3& value) const {
-	glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(value));
+void TAGShaderManager::Shader::setMatrix3(const std::string& name, const glm::mat3& value, const unsigned int& count) const {
+	glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), count, GL_FALSE, glm::value_ptr(value));
 }

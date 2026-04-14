@@ -118,8 +118,7 @@ public:
 	void deleteMesh(const std::string& mesh_name);
 private:
 	void loadModel(const std::string& path);
-	const TAGMesh::Texture loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const;
-	const TAGMesh::Texture loadMaterialTexture(const glm::vec3& vec, const TAGTexType& tex_type) const;
+	const TAGTexLoader::Texture loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const;
 protected:
 	struct InstanceDrawBuffer {
 		bool was_updated = true;

@@ -59,20 +59,20 @@ void TAGBaseState::initGame(const GameInitializer& game_init) {
 	}
 
 	// Initialize some global variables
-	width = game_init.windowWidth;
-	height = game_init.windowHeight;
+	width = game_init.window_width;
+	height = game_init.window_height;
 	last_x = width / 2.0;
 	last_y = height / 2.0;
 
 	// Initialize GLFW
 	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, game_init.openGLVerMajor);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, game_init.openGLVerMinor);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, game_init.openGL_version_major);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, game_init.openGL_version_minor);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	GL_DEBUG(glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE));
 
 	// Create GLFW window
-	window = glfwCreateWindow(width, height, game_init.windowName.c_str(), NULL, NULL);
+	window = glfwCreateWindow(width, height, game_init.window_name.c_str(), NULL, NULL);
 	glfwMakeContextCurrent(window);
 
 	// Set gamma
@@ -106,6 +106,9 @@ void TAGBaseState::initGame(const GameInitializer& game_init) {
 	// Enable blending globally
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	// Enable back-face culling globally
+	glEnable(GL_CULL_FACE);
 
 	// Clear screen colour
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -169,6 +172,7 @@ void TAGBaseState::baseFramebufferSizeCallback(GLFWwindow* window, int width, in
 	glViewport(0, 0, width, height);
 	states[current]->framebufferSizeCallback();
 }
+
 void TAGBaseState::baseMouseCallback(GLFWwindow* window, double xposIn, double yposIn) {
 	if (first_mouse) {
 		last_x = xposIn;
@@ -183,6 +187,7 @@ void TAGBaseState::baseMouseCallback(GLFWwindow* window, double xposIn, double y
 	last_y = yposIn;
 	states[current]->mouseCallback();
 }
+
 void TAGBaseState::baseIconifyCallback(GLFWwindow* window, int iconified) {
 	TAGBaseState::iconified = (iconified == 1);
 	states[current]->iconifyCallback();
