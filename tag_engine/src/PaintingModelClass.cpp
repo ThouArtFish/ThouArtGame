@@ -31,7 +31,7 @@ void TAGPaintingModel::loadPainting(const std::string& path, const TAGTexLoader:
 	addMesh(name, vertices, { frag_1, frag_2 }, { new_material });
 }
 
-void TAGPaintingModel::loadPainting(const std::string& name, const TAGTexLoader::Texture& texture, const TAGMesh::Material& material) {
+void TAGPaintingModel::addPainting(const std::string& name, const TAGTexLoader::Texture& texture, const TAGMesh::Material& material) {
 	std::vector<TAGMesh::Vertex> vertices;
 	vertices.reserve(4);
 	const float angle = glm::atan((float)(texture.height) / (float)(texture.width));

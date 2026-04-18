@@ -120,13 +120,16 @@ private:
 	void loadModel(const std::string& path);
 	const TAGTexLoader::Texture loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const;
 protected:
+	struct ObjectShader {
+		glm::vec4 position_AND_scale;
+		glm::vec4 axis_AND_rotation;
+	};
+
 	struct InstanceDrawBuffer {
 		bool was_updated = true;
-		unsigned int vbo = 0;
-		unsigned int max_instances = 0;
+		TAGResourceManager::RingBuffer<ObjectShader, 3> buffer;
 
 		InstanceDrawBuffer();
-		~InstanceDrawBuffer();
 	};
 
 	std::string directory;

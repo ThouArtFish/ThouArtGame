@@ -12,12 +12,13 @@
 #include <SkyboxClass.hpp>
 #include <LightManagerClass.hpp>
 #include <WorldModelClass.hpp>
+#include <HUDManagerClass.hpp>
 #include <PaintingModelClass.hpp>
 #include <UtilClass.hpp>
 
 class MainState : public TAGBaseState {
 	public:
-		MainState(const std::string& state_name);
+		MainState();
 		std::string mainLoop();
 		void enter();
 		void exit();
@@ -58,7 +59,8 @@ class MainState : public TAGBaseState {
 		TAGShaderManager shaders = TAGShaderManager({
 			{ "shaders/instanced.vert", "shaders/object_frag.frag", "instanced" },
 			{ "shaders/uninstanced.vert", "shaders/object_frag.frag", "uninstanced" },
-			{ "shaders/skybox.vert", "shaders/skybox.frag", "skybox" }
+			{ "shaders/skybox.vert", "shaders/skybox.frag", "skybox" },
+			{ "shaders/hud_instanced.vert", "shaders/hud_instanced.frag", "hud" }
 		});
 
 		TAGPaintingModel images = TAGPaintingModel(
@@ -66,6 +68,8 @@ class MainState : public TAGBaseState {
 			{ TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, true },
 			TAGMesh::Material()
 		);
+
+		TAGHUDManager hud = TAGHUDManager();
 
 		TAGSkybox skybox = TAGSkybox("skybox", { TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, false });
 
@@ -80,7 +84,7 @@ class MainState : public TAGBaseState {
 		void setCameraMatrix();
 };
 
-MainState::MainState(const std::string& state_name) {
+MainState::MainState() {
 	//Set camera position
 	camera_position = glm::vec3(0.0f, 2.0f, 0.0f);
 	stable_position = camera_position;
@@ -109,6 +113,9 @@ MainState::MainState(const std::string& state_name) {
 			.scale = 3.0f
 		}
 	);
+
+	hud.addImage(images.getMesh("pineapple").getMaterial("Default").textures.at(0));
+	hud.changeQuads().emplace_back(glm::vec2(0.0f), glm::vec2(0.1f), "pineapple", 0);
 
 	// Create lights
 	std::vector<TAGLightManager::Light>& lights = light_manager.changeLights();
@@ -168,6 +175,8 @@ std::string MainState::mainLoop() {
 		images.faceDirec(camera_position, obj, true);
 	}
 
+	hud.changeQuads().at(0).position.x += 0.02f * (float)delta_time;
+
 	// Apply camera position changes
 	glm::vec3 bounce = glm::vec3(0);
 	if (camera_velocity == glm::vec3(0) || !grounded) {
@@ -215,6 +224,9 @@ std::string MainState::mainLoop() {
 
 	shader = shaders.useShader("skybox");
 	skybox.draw(shader, "skybox");
+
+	shader = shaders.useShader("hud");
+	hud.drawAll(shader);
 
 	return "CURRENT";
 }

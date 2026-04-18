@@ -7,52 +7,48 @@
 #include <variant>
 #include <iostream>
 #include <algorithm>
+#include <glm/glm.hpp>
 #include <glad/glad.h>
 
 /**
 * Structs for storing OpenGL buffer IDs
 */
-struct OpenGLVertexArrayObject {
-	OpenGLVertexArrayObject();
-	~OpenGLVertexArrayObject();
-	unsigned int ID;
+class OpenGLHandle {
+public:
+	const GLuint& getID() const;
+protected:
+	GLuint ID = 0;
 };
-struct OpenGLProgram {
-	OpenGLProgram();
-	~OpenGLProgram();
-	unsigned int ID;
+
+struct VertexArrayObject : public OpenGLHandle {
+	VertexArrayObject();
+	~VertexArrayObject();
 };
-struct OpenGLVertexShader {
-	OpenGLVertexShader();
-	~OpenGLVertexShader();
-	unsigned int ID;
+struct ProgramShader : public OpenGLHandle {
+	ProgramShader();
+	~ProgramShader();
 };
-struct OpenGLFragmentShader {
-	OpenGLFragmentShader();
-	~OpenGLFragmentShader();
-	unsigned int ID;
+struct VertexShader : public OpenGLHandle {
+	VertexShader();
+	~VertexShader();
 };
-struct OpenGLTexture {
-	OpenGLTexture();
-	~OpenGLTexture();
-	unsigned int ID;
+struct FragmentShader : public OpenGLHandle {
+	FragmentShader();
+	~FragmentShader();
 };
-struct OpenGLBuffer {
-	OpenGLBuffer();
-	~OpenGLBuffer();
-	unsigned int ID;
+struct TextureBuffer : public OpenGLHandle {
+	TextureBuffer();
+	~TextureBuffer();
+};
+struct GenericBuffer : public OpenGLHandle {
+	GenericBuffer();
+	~GenericBuffer();
 };
 
 /**
 * Concept for grouping buffer structs
 */
-template<class T> concept BufferType =
-std::same_as<T, OpenGLVertexArrayObject>
-|| std::same_as<T, OpenGLTexture>
-|| std::same_as<T, OpenGLBuffer>
-|| std::same_as<T, OpenGLProgram>
-|| std::same_as<T, OpenGLFragmentShader>
-|| std::same_as<T, OpenGLVertexShader>;
+template<class T> concept BufferType = std::derived_from<T, OpenGLHandle>;
 
 /**
 * Manages OpenGL buffer objects
@@ -65,24 +61,49 @@ public:
 	static inline std::string asset_path = "../assets/";
 
 	/**
+	* Struct for handling triple ring buffers
+	*/
+	template<class T, unsigned int MAX_FENCES> class RingBuffer {
+		static_assert(MAX_FENCES > 0 && MAX_FENCES < 11, "MAX_FENCES must be between 1 and 10");
+	public:
+		RingBuffer(const unsigned int& max_objs);
+		~RingBuffer();
+		void updateBuffer(const std::vector<T>& data);
+		void bindBuffer(const GLuint& binding_index, const GLuint& vao = 0) const;
+		void resizeBuffer(const unsigned int& new_size);
+		void setFence();
+		const unsigned int& getMaxObjects() const;
+	private:
+		T* buffer_ptr = nullptr;
+		std::array<GLsync, MAX_FENCES> fences = {};
+		GLuint buffer_id = 0;
+		unsigned int current_fence = 0;
+		unsigned int current_objs = 0;
+		unsigned int max_objs;
+	};
+
+	/**
 	* Deletes the buffer with the passed ID and of type T
 	* 
 	* @param ID The ID of the buffer to be deleted
 	*/
-	template<BufferType T> static void deleteBuffer(const unsigned int& ID);
+	template<BufferType T> static void deleteBuffer(const GLuint& ID);
 	/**
 	* Creates a buffer of type T
 	*/
-	template<BufferType T> static unsigned int createBuffer();
+	template<BufferType T> static GLuint createBuffer();
+	/**
+	* Check if buffer of BufferType T exists with buffer handle ID
+	* 
+	* @param ID The ID of the buffer to check
+	*/
+	template<BufferType T> static bool isBuffer(const GLuint& ID);
 	/**
 	* Clears all buffers
 	*/
 	static void clear();
 private:
-	using BufferVariant = std::variant<
-		OpenGLTexture, OpenGLVertexArrayObject, OpenGLBuffer, OpenGLProgram, OpenGLVertexShader, OpenGLFragmentShader
-	>;
-
+	using BufferVariant = std::variant<VertexArrayObject, ProgramShader, VertexShader, FragmentShader, TextureBuffer, GenericBuffer>;
 	static inline std::list<BufferVariant> buffers;
 };
 

@@ -1,50 +1,54 @@
 #include <ResourceManagerClass.hpp>
 
-OpenGLVertexArrayObject::OpenGLVertexArrayObject() {
+const GLuint& OpenGLHandle::getID() const {
+	return ID;
+}
+
+VertexArrayObject::VertexArrayObject() {
 	glCreateVertexArrays(1, &ID);
 }
 
-OpenGLProgram::OpenGLProgram() {
+ProgramShader::ProgramShader() {
 	ID = glCreateProgram();
 }
 
-OpenGLVertexShader::OpenGLVertexShader() {
+VertexShader::VertexShader() {
 	ID = glCreateShader(GL_VERTEX_SHADER);
 }
 
-OpenGLFragmentShader::OpenGLFragmentShader() {
+FragmentShader::FragmentShader() {
 	ID = glCreateShader(GL_FRAGMENT_SHADER);
 }
 
-OpenGLTexture::OpenGLTexture() {
+TextureBuffer::TextureBuffer() {
 	glGenTextures(1, &ID);
 }
 
-OpenGLBuffer::OpenGLBuffer() {
+GenericBuffer::GenericBuffer() {
 	glCreateBuffers(1, &ID);
 }
 
-OpenGLVertexArrayObject::~OpenGLVertexArrayObject() {
+VertexArrayObject::~VertexArrayObject() {
 	glDeleteVertexArrays(1, &ID);
 }
 
-OpenGLProgram::~OpenGLProgram() {
+ProgramShader::~ProgramShader() {
 	glDeleteProgram(ID);
 }
 
-OpenGLVertexShader::~OpenGLVertexShader() {
+VertexShader::~VertexShader() {
 	glDeleteShader(ID);
 }
 
-OpenGLFragmentShader::~OpenGLFragmentShader() {
+FragmentShader::~FragmentShader() {
 	glDeleteShader(ID);
 }
 
-OpenGLTexture::~OpenGLTexture() {
+TextureBuffer::~TextureBuffer() {
 	glDeleteTextures(1, &ID);
 }
 
-OpenGLBuffer::~OpenGLBuffer() {
+GenericBuffer::~GenericBuffer() {
 	glDeleteBuffers(1, &ID);
 }
 

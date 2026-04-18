@@ -2,7 +2,7 @@
 
 TAGLightManager::TAGLightManager(const unsigned int& size, const TAGLightManager::ChangeFreq& changeFreq) : buffer_size(size) {
 	lights.reserve(buffer_size);
-	buffer_ID = TAGResourceManager::createBuffer<OpenGLBuffer>();
+	buffer_ID = TAGResourceManager::createBuffer<GenericBuffer>();
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer_ID);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Light) * buffer_size + sizeof(glm::vec4), NULL, (GLenum)changeFreq);
 	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(glm::vec4), (void*)0);
@@ -11,7 +11,7 @@ TAGLightManager::TAGLightManager(const unsigned int& size, const TAGLightManager
 
 TAGLightManager::TAGLightManager(const std::vector<Light>& lights, const TAGLightManager::ChangeFreq& changeFreq) : buffer_size((unsigned int)lights.size()) {
 	this->lights = lights;
-	buffer_ID = TAGResourceManager::createBuffer<OpenGLBuffer>();
+	buffer_ID = TAGResourceManager::createBuffer<GenericBuffer>();
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer_ID);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Light) * buffer_size + sizeof(glm::vec4), NULL, (GLenum)changeFreq);
 	const size_t size = lights.size();
@@ -22,7 +22,7 @@ TAGLightManager::TAGLightManager(const std::vector<Light>& lights, const TAGLigh
 
 TAGLightManager::~TAGLightManager() {
 	if (delete_on_death) {
-		TAGResourceManager::deleteBuffer<OpenGLBuffer>(buffer_ID);
+		TAGResourceManager::deleteBuffer<GenericBuffer>(buffer_ID);
 	}
 }
 

@@ -11,7 +11,7 @@ TAGShaderManager::TAGShaderManager(const std::vector<Source>& sources) {
 TAGShaderManager::~TAGShaderManager() {
 	if (delete_on_death) {
 		for (const auto& pair : shaders) {
-			TAGResourceManager::deleteBuffer<OpenGLProgram>(pair.second.ID);
+			TAGResourceManager::deleteBuffer<ProgramShader>(pair.second.ID);
 		}
 	}
 }
@@ -54,7 +54,7 @@ unsigned int TAGShaderManager::loadShader(const std::string& vertexPath, const s
 	int success;
 	char infoLog[512];
 
-	vertex = TAGResourceManager::createBuffer<OpenGLVertexShader>();
+	vertex = TAGResourceManager::createBuffer<VertexShader>();
 	glShaderSource(vertex, 1, &vShaderCode, NULL);
 	glCompileShader(vertex);
 	glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
@@ -64,7 +64,7 @@ unsigned int TAGShaderManager::loadShader(const std::string& vertexPath, const s
 		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
 	};
 
-	fragment = TAGResourceManager::createBuffer<OpenGLFragmentShader>();
+	fragment = TAGResourceManager::createBuffer<FragmentShader>();
 	glShaderSource(fragment, 1, &fShaderCode, NULL);
 	glCompileShader(fragment);
 	glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
@@ -75,7 +75,7 @@ unsigned int TAGShaderManager::loadShader(const std::string& vertexPath, const s
 	};
 
 	// shader Program
-	const unsigned int ID = TAGResourceManager::createBuffer<OpenGLProgram>();
+	const unsigned int ID = TAGResourceManager::createBuffer<ProgramShader>();
 	glAttachShader(ID, vertex);
 	glAttachShader(ID, fragment);
 	glLinkProgram(ID);
@@ -85,8 +85,8 @@ unsigned int TAGShaderManager::loadShader(const std::string& vertexPath, const s
 		glGetProgramInfoLog(ID, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
 	}
-	TAGResourceManager::deleteBuffer<OpenGLVertexShader>(vertex);
-	TAGResourceManager::deleteBuffer<OpenGLFragmentShader>(fragment);
+	TAGResourceManager::deleteBuffer<VertexShader>(vertex);
+	TAGResourceManager::deleteBuffer<FragmentShader>(fragment);
 	return ID;
 }
 void TAGShaderManager::addShader(const Source& source) {
@@ -98,7 +98,7 @@ void TAGShaderManager::addShader(const std::vector<Source>& sources) {
 	}
 }
 void TAGShaderManager::deleteShader(const std::string& name) {
-	TAGResourceManager::deleteBuffer<OpenGLProgram>(shaders.at(name).ID);
+	TAGResourceManager::deleteBuffer<ProgramShader>(shaders.at(name).ID);
 	shaders.erase(name);
 }
 void TAGShaderManager::deleteShader(const std::vector<std::string>& names) {

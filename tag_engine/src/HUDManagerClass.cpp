@@ -1,6 +1,6 @@
 #include <HUDManagerClass.hpp>
 
-TAGHUDManager::TAGHUDManager(const std::vector<std::string>& paths, const TAGTexLoader::Params& params) {
+TAGHUDManager::TAGHUDManager(const std::vector<std::string>& paths, const TAGTexLoader::Params& params) : quad_buffer(50) {
 	if (VAO == 0) {
 		initMesh();
 	}
@@ -10,7 +10,7 @@ TAGHUDManager::TAGHUDManager(const std::vector<std::string>& paths, const TAGTex
 	}
 }
 
-TAGHUDManager::TAGHUDManager(const TAGTexLoader::Params& params, const std::string& path) {
+TAGHUDManager::TAGHUDManager(const TAGTexLoader::Params& params, const std::string& path) : quad_buffer(50) {
 	if (VAO == 0) {
 		initMesh();
 	}
@@ -23,11 +23,9 @@ TAGHUDManager::TAGHUDManager(const TAGTexLoader::Params& params, const std::stri
 TAGHUDManager::~TAGHUDManager() {
 	if (delete_on_death) {
 		for (const TAGTexLoader::Texture& tex : images) {
-			TAGResourceManager::deleteBuffer<OpenGLTexture>(tex.id);
+			TAGResourceManager::deleteBuffer<TextureBuffer>(tex.id);
 		}
 	}
-	glUnmapNamedBuffer(quad_buffer);
-	TAGResourceManager::deleteBuffer<OpenGLBuffer>(quad_buffer);
 }
 
 void TAGHUDManager::loadImage(const std::string& path, const TAGTexLoader::Params& params, const std::string& name) {
@@ -45,7 +43,7 @@ void TAGHUDManager::deleteImage(const std::string& name, const bool& global_dele
 		return;
 	}
 	if (global_delete) {
-		TAGResourceManager::deleteBuffer<OpenGLTexture>(pos->id);
+		TAGResourceManager::deleteBuffer<TextureBuffer>(pos->id);
 	}
 	images.erase(pos);
 	const size_t start_quads = quads.size();
@@ -117,27 +115,8 @@ std::vector<std::string> TAGHUDManager::getImageNames() const {
 }
 
 void TAGHUDManager::updateQuadBuffer() {
-	// Create and map quad buffer if not already done
-	if (quad_buffer == 0) {
-		quad_buffer = TAGResourceManager::createBuffer<OpenGLBuffer>();
-		glNamedBufferStorage(quad_buffer, total_size, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-		quad_buffer_ptr = (BufferQuad*)glMapNamedBufferRange(quad_buffer, 0, total_size, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-	}
-
-	// Set next write region of quad buffer 
-	current_fence = (current_fence + 1) % NUM_FENCES;
-
-	// If region is still being used by GPU then wait
-	if (fences[current_fence]) {
-		while (glClientWaitSync(fences[current_fence], 0, 0) == GL_TIMEOUT_EXPIRED) {
-			continue;
-		}
-		glDeleteSync(fences[current_fence]);
-		fences[current_fence] = nullptr;
-	}
-
 	// Sort quads client-side by lowest to highest layer
-	const unsigned int max_renderable_quads = glm::min(max_quads, (unsigned int)quads.size());
+	const unsigned int max_renderable_quads = glm::min(quad_buffer.getMaxObjects(), (unsigned int)quads.size());
 	std::vector<unsigned int> quad_indices;
 	quad_indices.reserve(max_renderable_quads);
 	for (unsigned int i = 0; i < max_renderable_quads; i++) {
@@ -171,15 +150,18 @@ void TAGHUDManager::updateQuadBuffer() {
 		}
 
 		BufferQuad buffer_quad;
+		glm::vec2 data1, data2;
 		glm::vec2 dim = (quad.position_format == TAGHUDQuadFormat::PIXEL ? (glm::vec2)screen_dimensions : glm::vec2(1.0f));
-		buffer_quad.trans = ((quad.position * glm::vec2(2.0f, -2.0f)) / dim) + glm::vec2(-1.0f, 1.0f);
+		data1 = ((quad.position * glm::vec2(2.0f, -2.0f)) / dim) + glm::vec2(-1.0f, 1.0f);
 		dim = (quad.dimension_format == TAGHUDQuadFormat::PIXEL ? (glm::vec2)screen_dimensions : glm::vec2(0.5f));
-		buffer_quad.scale = quad.dimensions / dim;
+		data2 = quad.dimensions / dim;
+		buffer_quad.quad_data = glm::vec4(data1, data2);
 
 		const auto& tex_pos = std::find_if(images.begin(), images.end(), [&quad](const TAGTexLoader::Texture& tex) { return tex.name == quad.image_name; });
 		dim = (quad.texel_format == TAGHUDQuadFormat::PIXEL ? glm::vec2(tex_pos->width, tex_pos->height) : glm::vec2(1.0f));
-		buffer_quad.texel_trans = quad.texel_top_left / dim;
-		buffer_quad.texel_scale = (quad.texel_bottom_right - quad.texel_top_left) / dim;
+		data1 = quad.texel_top_left / dim;
+		data2 = (quad.texel_bottom_right - quad.texel_top_left) / dim;
+		buffer_quad.texel_data = glm::vec4(data1, data2);
 
 		const auto& pos = std::find(used_images.begin(), used_images.end(), tex_pos->id);
 		if (pos == used_images.end() && used_images.size() < MAX_TEXTURES) {
@@ -199,11 +181,9 @@ void TAGHUDManager::updateQuadBuffer() {
 	// Record number of quads to be drawn
 	buffer_quad_count = (unsigned int)buffer_quads.size();
 	
-	// Copy new quads to mapped buffer
-	std::memcpy(quad_buffer_ptr + max_quads * current_fence, buffer_quads.data(), buffer_quad_count * sizeof(BufferQuad));
+	quad_buffer.updateBuffer(buffer_quads);
 
-	// Bind new buffer region to vao
-	glVertexArrayVertexBuffer(VAO, 1, quad_buffer, (GLintptr)(current_fence * region_size), sizeof(BufferQuad));
+	quad_buffer.bindBuffer(1, VAO);
 
 	quads_changed = false;
 }
@@ -230,13 +210,13 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader) {
 	glBindVertexArray(0);
 	glDepthFunc(GL_LESS);
 
-	fences[current_fence] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	quad_buffer.setFence();
 }
 
 void TAGHUDManager::initMesh() {
-	VAO = TAGResourceManager::createBuffer<OpenGLVertexArrayObject>();
-	VBO = TAGResourceManager::createBuffer<OpenGLBuffer>();
-	EBO = TAGResourceManager::createBuffer<OpenGLBuffer>();
+	VAO = TAGResourceManager::createBuffer<VertexArrayObject>();
+	VBO = TAGResourceManager::createBuffer<GenericBuffer>();
+	EBO = TAGResourceManager::createBuffer<GenericBuffer>();
 
 	const std::array<float, 8> quad_vertices = {
 		0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f
@@ -257,14 +237,14 @@ void TAGHUDManager::initMesh() {
 	glVertexAttribBinding(base_attrib, 0);
 
 	// Quad readers
-	for (unsigned int i = 0; i < 5; i++) {
+	for (unsigned int i = 0; i < 3; i++) {
 		const unsigned int current_attrib = base_attrib + i + 1;
 		glEnableVertexAttribArray(current_attrib);
-		if (i < 4) {
-			glVertexAttribFormat(current_attrib, 2, GL_FLOAT, GL_FALSE, offsetof(BufferQuad, trans) + sizeof(glm::vec2) * i);
+		if (i < 2) {
+			glVertexAttribFormat(current_attrib, 4, GL_FLOAT, GL_FALSE, offsetof(BufferQuad, quad_data) + sizeof(glm::vec4) * i);
 		}
 		else {
-			glVertexAttribIFormat(current_attrib, 1, GL_UNSIGNED_INT, offsetof(BufferQuad, trans) + sizeof(glm::vec2) * i);
+			glVertexAttribIFormat(current_attrib, 1, GL_UNSIGNED_INT, offsetof(BufferQuad, quad_data) + sizeof(glm::vec4) * i);
 		}
 		glVertexAttribBinding(current_attrib, 1);
 	}

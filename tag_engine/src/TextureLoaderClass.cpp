@@ -30,7 +30,7 @@ GLenum TAGTexLoader::removeMipmapTag(const TAGTexParam& param) {
 }
 
 TAGTexLoader::Texture TAGTexLoader::textureFromInfo(const Info& tex_info, const std::string& name, const Params& params) {
-	unsigned int ID = TAGResourceManager::createBuffer<OpenGLTexture>();
+	unsigned int ID = TAGResourceManager::createBuffer<TextureBuffer>();
 	const GLenum format = getTextureFormat(tex_info.nr_channels, params.srgb);
 	glBindTexture(GL_TEXTURE_2D, ID);
 	glTexImage2D(GL_TEXTURE_2D, 0, format, tex_info.width, tex_info.height, 0, format - (params.srgb && format != GL_RED ? 29499 : 0), GL_UNSIGNED_BYTE, tex_info.data_container.data);
@@ -56,7 +56,7 @@ unsigned int TAGTexLoader::cubemapFromFile(const std::string& folder_path, const
 		"front.jpg",
 		"back.jpg"
 	};
-	unsigned int ID = TAGResourceManager::createBuffer<OpenGLTexture>();
+	unsigned int ID = TAGResourceManager::createBuffer<TextureBuffer>();
 	glBindTexture(GL_TEXTURE_CUBE_MAP, ID);
 	for (size_t i = 0; i < 6; i++)
 	{

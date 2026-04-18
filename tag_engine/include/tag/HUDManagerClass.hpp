@@ -41,10 +41,8 @@ public:
 	* Quad representation within buffer
 	*/
 	struct BufferQuad {
-		glm::vec2 trans;
-		glm::vec2 scale;
-		glm::vec2 texel_trans;
-		glm::vec2 texel_scale;
+		glm::vec4 quad_data;
+		glm::vec4 texel_data;
 		unsigned int tex_index;
 	};
 
@@ -134,19 +132,12 @@ private:
 	static inline unsigned int VAO = 0;
 	static inline unsigned int VBO = 0;
 	static inline unsigned int EBO = 0;
-	static inline constexpr unsigned int NUM_FENCES = 3;
 	static inline constexpr unsigned int MAX_TEXTURES = 16;
 
-	glm::ivec2 screen_dimensions = { 1, 1 };
 	unsigned int buffer_quad_count = 0;
-	unsigned int current_fence = 0;
-	unsigned int max_quads = 100;
-	unsigned int region_size = max_quads * sizeof(BufferQuad);
-	unsigned int total_size = region_size * NUM_FENCES;
-	unsigned int quad_buffer = 0;
-	BufferQuad* quad_buffer_ptr = nullptr;
 	bool quads_changed = true;
-	std::array<GLsync, NUM_FENCES> fences = {};
+	glm::ivec2 screen_dimensions = { 1, 1 };
+	TAGResourceManager::RingBuffer<BufferQuad, 3> quad_buffer;
 	std::vector<TAGTexLoader::Texture> images;
 	std::vector<LayerData> layers;
 	std::vector<unsigned int> used_images;

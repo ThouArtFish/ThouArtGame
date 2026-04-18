@@ -45,7 +45,7 @@ public:
 	* @param texture Texture container
 	* @param material Material for image
 	*/
-	void loadPainting(const std::string& name, const TAGTexLoader::Texture& texture, const TAGMesh::Material& material = {});
+	void addPainting(const std::string& name, const TAGTexLoader::Texture& texture, const TAGMesh::Material& material = {});
 	/**
 	* Makes the Object reference face towards the point.
 	* If lock_axis is true, the axis of the image model won't change after turning.
