@@ -16,47 +16,22 @@ TAGShaderManager::~TAGShaderManager() {
 	}
 }
 
-unsigned int TAGShaderManager::loadShader(const std::string& vertexPath, const std::string& fragmentPath) {
-	std::string vertexCode;
-	std::string fragmentCode;
-	std::ifstream vShaderFile;
-	std::ifstream fShaderFile;
-
-	// Read source code from shader files and except errors
-	vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-	fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-	try
-	{
-		// open files
-		vShaderFile.open(TAGResourceManager::asset_path + vertexPath);
-		fShaderFile.open(TAGResourceManager::asset_path + fragmentPath);
-		std::stringstream vShaderStream, fShaderStream;
-		// read file's buffer contents into streams
-		vShaderStream << vShaderFile.rdbuf();
-		fShaderStream << fShaderFile.rdbuf();
-		// close file handlers
-		vShaderFile.close();
-		fShaderFile.close();
-		// convert stream into string
-		vertexCode = vShaderStream.str();
-		fragmentCode = fShaderStream.str();
+unsigned int TAGShaderManager::loadShader(Source source) {
+	if (source.is_path) {
+		loadFromFile(source);
 	}
-	catch (std::ifstream::failure e)
-	{
-		std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
-	}
-
-	const char* vShaderCode = vertexCode.c_str();
-	const char* fShaderCode = fragmentCode.c_str();
 
 	// Compile shaders
 	unsigned int vertex, fragment;
 	int success;
 	char infoLog[512];
+	static std::vector<GLchar*> source_ptr;
 
 	vertex = TAGResourceManager::createBuffer<VertexShader>();
-	glShaderSource(vertex, 1, &vShaderCode, NULL);
+	source_ptr.push_back((GLchar*)source.vertex.c_str());
+	glShaderSource(vertex, 1, source_ptr.data(), NULL);
 	glCompileShader(vertex);
+	source_ptr.pop_back();
 	glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
 	if (!success)
 	{
@@ -65,8 +40,10 @@ unsigned int TAGShaderManager::loadShader(const std::string& vertexPath, const s
 	};
 
 	fragment = TAGResourceManager::createBuffer<FragmentShader>();
-	glShaderSource(fragment, 1, &fShaderCode, NULL);
+	source_ptr.push_back((GLchar*)source.fragment.c_str());
+	glShaderSource(fragment, 1, source_ptr.data(), NULL);
 	glCompileShader(fragment);
+	source_ptr.pop_back();
 	glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
 	if (!success)
 	{
@@ -89,23 +66,52 @@ unsigned int TAGShaderManager::loadShader(const std::string& vertexPath, const s
 	TAGResourceManager::deleteBuffer<FragmentShader>(fragment);
 	return ID;
 }
-void TAGShaderManager::addShader(const Source& source) {
-	shaders.try_emplace(source.name, loadShader(source.vertexPath, source.fragmentPath));
-}
-void TAGShaderManager::addShader(const std::vector<Source>& sources) {
-	for (const Source& source : sources) {
-		shaders.try_emplace(source.name, loadShader(source.vertexPath, source.fragmentPath));
+
+void TAGShaderManager::loadFromFile(Source& source) {
+	std::ifstream file;
+	std::stringstream stream;
+
+	// Read source code from shader files and except errors
+	file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+	try
+	{
+		file.open(TAGResourceManager::asset_path + source.vertex);
+		stream << file.rdbuf();
+		file.close();
+		source.vertex = stream.str();
+
+		file.open(TAGResourceManager::asset_path + source.fragment);
+		stream << file.rdbuf();
+		file.close();
+		source.fragment = stream.str();
+	}
+	catch (std::ifstream::failure e)
+	{
+		std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
 	}
 }
+
+void TAGShaderManager::addShader(const Source& source) {
+	shaders.try_emplace(source.name, loadShader(source));
+}
+
+void TAGShaderManager::addShader(const std::vector<Source>& sources) {
+	for (const Source& source : sources) {
+		shaders.try_emplace(source.name, loadShader(source));
+	}
+}
+
 void TAGShaderManager::deleteShader(const std::string& name) {
 	TAGResourceManager::deleteBuffer<ProgramShader>(shaders.at(name).ID);
 	shaders.erase(name);
 }
+
 void TAGShaderManager::deleteShader(const std::vector<std::string>& names) {
 	for (const std::string& name : names) {
 		deleteShader(name);
 	}
 }
+
 const TAGShaderManager::Shader& TAGShaderManager::useShader(const std::string& name) const {
 	const Shader& shader = shaders.at(name);
 	glUseProgram(shader.ID);
@@ -114,6 +120,7 @@ const TAGShaderManager::Shader& TAGShaderManager::useShader(const std::string& n
 void TAGShaderManager::stopShader() const {
 	glUseProgram(0);
 }
+
 std::vector<std::string> TAGShaderManager::getShaderNames() const {
 	std::vector<std::string> names;
 	names.reserve(shaders.size());
@@ -122,30 +129,11 @@ std::vector<std::string> TAGShaderManager::getShaderNames() const {
 	}
 	return names;
 }
+
 auto TAGShaderManager::begin() const {
 	return shaders.begin();
 }
+
 auto TAGShaderManager::end() const {
 	return shaders.end();
-}
-void TAGShaderManager::Shader::setBool(const std::string& name, const bool& value, const unsigned int& count) const {
-	glUniform1iv(glGetUniformLocation(ID, name.c_str()), count, (GLint*)&value);
-}
-void TAGShaderManager::Shader::setInt(const std::string& name, const int& value, const unsigned int& count) const {
-	glUniform1iv(glGetUniformLocation(ID, name.c_str()), count, (GLint*)&value);
-}
-void TAGShaderManager::Shader::setFloat(const std::string& name, const float& value, const unsigned int& count) const {
-	glUniform1fv(glGetUniformLocation(ID, name.c_str()), count, &value);
-}
-void TAGShaderManager::Shader::setVec4(const std::string& name, const glm::vec4& value, const unsigned int& count) const {
-	glUniform4fv(glGetUniformLocation(ID, name.c_str()), count, (GLfloat*)&value);
-}
-void TAGShaderManager::Shader::setVec3(const std::string& name, const glm::vec3& value, const unsigned int& count) const {
-	glUniform3fv(glGetUniformLocation(ID, name.c_str()), count, (GLfloat*)&value);
-}
-void TAGShaderManager::Shader::setMatrix4(const std::string& name, const glm::mat4& value, const unsigned int& count) const {
-	glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), count, GL_FALSE, glm::value_ptr(value));
-}
-void TAGShaderManager::Shader::setMatrix3(const std::string& name, const glm::mat3& value, const unsigned int& count) const {
-	glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), count, GL_FALSE, glm::value_ptr(value));
 }

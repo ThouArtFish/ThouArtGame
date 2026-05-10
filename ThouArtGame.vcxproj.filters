@@ -124,5 +124,8 @@
     <None Include="tag_engine\src\WorldModelTemplates.inl">
       <Filter>ThouArtGame Files\Source</Filter>
     </None>
+    <None Include="tag_engine\src\ShaderManagerClass.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
   </ItemGroup>
 </Project>

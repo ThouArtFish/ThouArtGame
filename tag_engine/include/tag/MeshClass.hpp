@@ -194,19 +194,22 @@ class TAGMesh {
          * Not sufficient to draw a singular instance of a mesh.
          *
          * @param shader Shader program
+         * @param options Shader options
          */
-        void setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index) const;
+        void setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index, const TAGModel::ShaderOptions& options) const;
         /**
          * Draw multiple instances of a mesh
          *
          * @param shader Shader program
-         * @param number Number of instances
+         * @param number Number of 
+         * @param options Shader options
          */
-        void drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number);
+        void drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number, const TAGModel::ShaderOptions& options);
         /**
         * Draw one instance of a mesh.
         *
         * @param shader Shader program
+        * @param options Shader options
         */
-        void drawUninstanced(const TAGShaderManager::Shader& shader);
+        void drawUninstanced(const TAGShaderManager::Shader& shader, const TAGModel::ShaderOptions& options);
 };

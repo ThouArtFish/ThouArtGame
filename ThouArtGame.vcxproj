@@ -177,6 +177,7 @@
   <ItemGroup>
     <None Include="tag_engine\src\BaseStateClass.inl" />
     <None Include="tag_engine\src\ResourceManagerClass.inl" />
+    <None Include="tag_engine\src\ShaderManagerClass.inl" />
     <None Include="tag_engine\src\UtilClass.inl" />
     <None Include="tag_engine\src\WorldModelTemplates.inl" />
   </ItemGroup>

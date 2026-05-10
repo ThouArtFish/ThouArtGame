@@ -12,8 +12,18 @@ enum class TAGEnum {
 	TOGGLE
 };
 
+/**
+* Floating point number only concept
+*/
 template <typename T> concept Floating = std::is_floating_point_v<T>;
+/**
+* Integral number only concept
+*/
 template <typename T> concept Integral = std::is_integral_v<T>;
+/**
+* Variadic helper template for defining other templates 
+*/
+template <typename T, typename... U> concept isAnyOf = (std::same_as<T, U> || ...);
 
 /**
 * Provides useful functions

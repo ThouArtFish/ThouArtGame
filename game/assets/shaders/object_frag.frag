@@ -21,6 +21,7 @@ uniform float spec_mod;
 uniform float spec_exp;
 uniform float opacity;
 uniform bool spec_map;
+uniform bool diffuse_map;
 uniform sampler2D diffuse1;
 uniform sampler2D specular1;
 

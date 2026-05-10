@@ -42,6 +42,19 @@ public:
 		glm::mat3 normal;
 		ObjectTrans(const Object& obj);
 	};
+	/**
+	* Options for shaders
+	*/
+	struct ShaderOptions {
+		bool cull_backface = true;
+		std::string normal_matrix_name = "normal";
+		std::string model_matrix_name = "model";
+		std::string diffuse_tex_prefix = "diffuse";
+		std::string specular_tex_prefix = "specular";
+		std::string colour_vec_name = "colour";
+
+
+	};
 
 	/**
 	 * Path to the model file, and parameters for texture loading.
@@ -61,7 +74,7 @@ public:
 	 * @param cull_face Whether to cull inside faces, generally true for 3D models.
 	 * @param mesh_name Name of mesh to draw all instances of, can be left as default.
 	 */
-	void drawAll(const TAGShaderManager::Shader& shader, const bool& cull_face, const std::string& mesh_name = "");
+	void drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name = "", const ShaderOptions& options = default_shader_options);
 	/**
 	 * Draws one instance of a specified mesh, or one instance of all meshes if no mesh name is passed.
 	 * 
@@ -70,7 +83,7 @@ public:
 	 * @param cull_face Whether to cull inside faces, generally true for 3D models.
 	 * @param mesh_name Name of mesh to draw all instances of, can be left as default.
 	 */
-	void drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const bool& cull_face, const std::string& mesh_name = "");
+	void drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name = "", const ShaderOptions& options = default_shader_options);
 	/**
 	 * Sets the size of the instance buffer for the specified mesh.
 	 * This is not a hard cap, the buffer is resized if more instances are added than size permits.
@@ -117,6 +130,7 @@ public:
 	 */
 	void deleteMesh(const std::string& mesh_name);
 private:
+	static inline const ShaderOptions default_shader_options = {};
 	void loadModel(const std::string& path);
 	const TAGTexLoader::Texture loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const;
 protected:

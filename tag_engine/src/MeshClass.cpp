@@ -252,7 +252,7 @@ void TAGMesh::setupMesh() {
 	generateBVH();
 }
 
-void TAGMesh::setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index) const {
+void TAGMesh::setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index, const TAGModel::ShaderOptions& options) const {
 	unsigned int diffuseNr = 1;
 	unsigned int specularNr = 1;
 	const Material& material = materials[material_index];
@@ -275,12 +275,12 @@ void TAGMesh::setupFragmentUniforms(const TAGShaderManager::Shader& shader, cons
 	}
 	glActiveTexture(GL_TEXTURE0);
 	if (diffuseNr == 1) {
-		shader.setVec3("colour", materials[material_index].colour);
+		shader.setVec3("colour", material.colour);
 	}
 	shader.setBool("spec_map", specularNr > 1);
-	shader.setFloat("spec_mod", materials[material_index].spec_mod);
-	shader.setFloat("spec_exp", materials[material_index].spec_exp);
-	shader.setFloat("opacity", materials[material_index].opacity);
+	shader.setFloat("spec_mod", material.spec_mod);
+	shader.setFloat("spec_exp", material.spec_exp);
+	shader.setFloat("opacity", material.opacity);
 }
 
 void TAGMesh::drawUninstanced(const TAGShaderManager::Shader& shader) {

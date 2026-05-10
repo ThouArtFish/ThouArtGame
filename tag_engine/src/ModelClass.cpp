@@ -9,8 +9,8 @@ TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const std::string& pa
 	}
 }
 
-void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const bool& cull_face, const std::string& mesh_name) {
-	if (!cull_face) {
+void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name, const ShaderOptions& options) {
+	if (!options.cull_backface) {
 		glDisable(GL_CULL_FACE);
 	}
 
@@ -43,39 +43,39 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const bool& cull_
 	if (mesh_name != "") {
 		TAGMesh& mesh = meshes.at(mesh_name);
 		instance_buffer.buffer.bindBuffer(1, mesh.getVAO());
-		mesh.drawInstanced(shader, (unsigned int)size);
+		mesh.drawInstanced(shader, (unsigned int)size, options);
 	}
 	else {
 		for (const std::string& name : mesh_draw_order) {
 			TAGMesh& mesh = meshes.at(name);
 			instance_buffer.buffer.bindBuffer(1, mesh.getVAO());
-			mesh.drawInstanced(shader, (unsigned int)size);
+			mesh.drawInstanced(shader, (unsigned int)size, options);
 		}
 	}
 
-	if (!cull_face) {
+	if (!options.cull_backface) {
 		glEnable(GL_CULL_FACE);
 	}
 }
 
-void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const bool& cull_face, const std::string& mesh_name) {
-	if (!cull_face) {
+void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name, const ShaderOptions& options) {
+	if (!options.cull_backface) {
 		glDisable(GL_CULL_FACE);
 	}
 
 	const glm::mat4 model = glm::rotate(glm::translate(glm::mat4(1.0f), obj.position), obj.angle, obj.rotation_axis);
-	shader.setMatrix3("normal", glm::mat3(model));
-	shader.setMatrix4("model", model * glm::mat4(glm::mat3(obj.scale)));
+	shader.setMatrix3(options.model_matrix_name, glm::mat3(model));
+	shader.setMatrix4(options.normal_matrix_name, model * glm::mat4(glm::mat3(obj.scale)));
 	if (mesh_name != "") {
-		meshes.at(mesh_name).drawUninstanced(shader);
+		meshes.at(mesh_name).drawUninstanced(shader, options);
 	}
 	else {
 		for (const std::string& mesh_name : mesh_draw_order) {
-			meshes.at(mesh_name).drawUninstanced(shader);
+			meshes.at(mesh_name).drawUninstanced(shader, options);
 		}
 	}
 
-	if (!cull_face) {
+	if (!options.cull_backface) {
 		glEnable(GL_CULL_FACE);
 	}
 }
