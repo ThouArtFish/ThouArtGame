@@ -25,13 +25,17 @@ template <typename T> concept Integral = std::is_integral_v<T>;
 /**
 * Variadic helper template for defining other templates 
 */
-template <typename T, typename... U> concept isAnyOf = (std::same_as<T, U> || ...);
+template <typename T, typename... Ts> concept isAnyOf = (std::same_as<T, Ts> || ...);
+
+/**
+* Struct for checking if type is in std::variant
+*/
 
 template <typename T, typename Variant>
-struct is_variant_member;
+struct isVariantMember;
 
 template <typename T, typename... Ts>
-struct is_variant_member<T, std::variant<Ts...>>
+struct isVariantMember<T, std::variant<Ts...>>
 	: std::bool_constant<(std::same_as<T, Ts> || ...)> {
 };
 
