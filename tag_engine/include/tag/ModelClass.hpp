@@ -34,6 +34,7 @@ public:
 		float angular_velocity = 0.0f;
 		float scale = 1.0f;
 	};
+
 	/**
 	* Contains the transformation applied to a mesh for an instance
 	*/
@@ -41,19 +42,6 @@ public:
 		glm::mat4 model;
 		glm::mat3 normal;
 		ObjectTrans(const Object& obj);
-	};
-	/**
-	* Options for shaders
-	*/
-	struct ShaderOptions {
-		bool cull_backface = true;
-		std::string normal_matrix_name = "normal";
-		std::string model_matrix_name = "model";
-		std::string diffuse_tex_prefix = "diffuse";
-		std::string specular_tex_prefix = "specular";
-		std::string colour_vec_name = "colour";
-
-
 	};
 
 	/**

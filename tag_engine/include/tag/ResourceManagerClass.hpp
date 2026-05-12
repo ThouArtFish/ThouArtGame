@@ -74,22 +74,28 @@ public:
 	*/
 	template<class T> class BufferHandler {
 	public:
+		virtual ~BufferHandler() = default;
+		BufferHandler(const BufferHandler&) = delete;
+		BufferHandler& operator=(const BufferHandler&) = delete;
+
 		unsigned int getMaxObjects() const;
 		unsigned int getCurrentObjects() const;
+		BufferAccess getAccessLevel() const;
 		virtual void bindBuffer(const GLuint& binding_index, const GLuint& vao = 0) const = 0;
 		virtual void updateBuffer(const std::vector<T>& data) = 0;
 		virtual void resizeBuffer(const unsigned int& new_size) = 0;
 	protected:
-		GLuint buffer_id = 0;
+		BufferAccess access;
+		GLuint buffer_id;
+		unsigned int max_objs;
 		unsigned int current_objs = 0;
-		unsigned int max_objs = 0;
 	};
 
 	/**
 	* Struct for handling ring buffers, for STREAM level buffers
 	*/
 	template<class T, unsigned int MAX_FENCES> class RingBuffer : public BufferHandler<T> {
-		static_assert(MAX_FENCES > 1 && MAX_FENCES < 11, "MAX_FENCES must be between 2 and 10");
+		static_assert(MAX_FENCES > 1 && MAX_FENCES < 6, "MAX_FENCES must be between 2 and 5");
 	public:
 		RingBuffer(const unsigned int& max_objs);
 		~RingBuffer();
@@ -113,27 +119,30 @@ public:
 		void updateBuffer(const std::vector<T>& data) override;
 		void bindBuffer(const GLuint& binding_index, const GLuint& vao = 0) const override;
 		void resizeBuffer(const unsigned int& new_size) override;
-	private:
-		GLenum access = GL_DYNAMIC_DRAW;
 	};
 
 	/**
 	* Struct for handling buffer access
 	*/
-	template<class T> class DynamicBuffer {
+	template<class C, class G> class ObjectBuffer {
 	public:
-		DynamicBuffer(const unsigned int& max_objs, const BufferAccess& access);
-		const std::vector<T>& getBuffer();
-		std::vector<T>& changeBuffer();
-		bool isBufferChanged();
-		void bindBuffer(const GLuint& binding_index, const GLuint& vao = 0) const;
-		void resizeBuffer(const unsigned int& new_size);
+		ObjectBuffer(const unsigned int& max_objs, G(*converter)(const C&), const BufferAccess& access);
+
+		const std::vector<C>& getObjects() const;
+		std::vector<C>& changeObjects();
+		bool isObjectsChanged() const;
+
+		const BufferHandler<G>& getBuffer() const;
 		void updateBuffer();
+		void resizeBuffer(const unsigned int& new_size);
+
 		void changeAccess(const BufferAccess& new_access);
 	private:
-		bool buffer_changed = false;
-		std::vector<T> objs;
-		std::unique_ptr<BufferHandler<T>> buffer;
+		G(*converter)(const C&);
+
+		bool objects_changed = false;
+		std::vector<C> objs;
+		std::unique_ptr<BufferHandler<G>> buffer;
 	};
 
 	/**

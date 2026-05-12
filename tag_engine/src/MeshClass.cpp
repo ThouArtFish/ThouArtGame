@@ -252,7 +252,7 @@ void TAGMesh::setupMesh() {
 	generateBVH();
 }
 
-void TAGMesh::setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index, const TAGModel::ShaderOptions& options) const {
+void TAGMesh::setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index) const {
 	unsigned int diffuseNr = 1;
 	unsigned int specularNr = 1;
 	const Material& material = materials[material_index];

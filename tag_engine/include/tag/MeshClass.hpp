@@ -196,7 +196,7 @@ class TAGMesh {
          * @param shader Shader program
          * @param options Shader options
          */
-        void setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index, const TAGModel::ShaderOptions& options) const;
+        void setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index) const;
         /**
          * Draw multiple instances of a mesh
          *
@@ -204,12 +204,12 @@ class TAGMesh {
          * @param number Number of 
          * @param options Shader options
          */
-        void drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number, const TAGModel::ShaderOptions& options);
+        void drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number);
         /**
         * Draw one instance of a mesh.
         *
         * @param shader Shader program
         * @param options Shader options
         */
-        void drawUninstanced(const TAGShaderManager::Shader& shader, const TAGModel::ShaderOptions& options);
+        void drawUninstanced(const TAGShaderManager::Shader& shader);
 };

@@ -10,7 +10,12 @@ template<class T> unsigned int TAGResourceManager::BufferHandler<T>::getCurrentO
 	return current_objs;
 }
 
+template<class T> BufferAccess TAGResourceManager::BufferHandler<T>::getAccessLevel() const {
+	return access;
+}
+
 template<class T, unsigned int MAX_FENCES> TAGResourceManager::RingBuffer<T, MAX_FENCES>::RingBuffer(const unsigned int& max_objs) {
+	access = BufferAccess::STREAM;
 	this->max_objs = max_objs;
 	const unsigned int total_size = max_objs * sizeof(T) * MAX_FENCES;
 
@@ -77,7 +82,7 @@ template<class T> TAGResourceManager::OrphanBuffer<T>::OrphanBuffer(const unsign
 	this->access = access;
 	buffer_id = createBuffer<GenericBuffer>();
 
-	glNamedBufferStorage(buffer_id, max_objs * sizeof(T), nullptr, this->access);
+	glNamedBufferStorage(buffer_id, max_objs * sizeof(T), nullptr, (GLenum)access);
 }
 
 template<class T> TAGResourceManager::OrphanBuffer<T>::~OrphanBuffer() {
@@ -85,7 +90,7 @@ template<class T> TAGResourceManager::OrphanBuffer<T>::~OrphanBuffer() {
 }
 
 template<class T> void TAGResourceManager::OrphanBuffer<T>::updateBuffer(const std::vector<T>& data) {
-	glNamedBufferData(buffer_id, max_objs * sizeof(T), nullptr, access);
+	glNamedBufferData(buffer_id, max_objs * sizeof(T), nullptr, (GLenum)access);
 	current_objs = glm::min(data.size(), max_objs);
 	glNamedBufferSubData(buffer_id, 0, sizeof(T) * current_objs, data.data());
 }
@@ -101,7 +106,7 @@ template<class T> void TAGResourceManager::OrphanBuffer<T>::bindBuffer(const GLu
 
 template<class T> void TAGResourceManager::OrphanBuffer<T>::resizeBuffer(const unsigned int& new_size) {
 	const GLuint new_buffer_id = createBuffer<GenericBuffer>(buffer_id);
-	glNamedBufferData(new_buffer_id, new_size * sizeof(T), nullptr, access);
+	glNamedBufferData(new_buffer_id, new_size * sizeof(T), nullptr, (GLenum)access);
 
 	const unsigned int new_current_objs = glm::min(new_size, current_objs);
 	glCopyNamedBufferSubData(
@@ -116,6 +121,54 @@ template<class T> void TAGResourceManager::OrphanBuffer<T>::resizeBuffer(const u
 	buffer_id = new_buffer_id;
 	max_objs = new_size;
 	current_objs = new_current_objs;
+}
+
+template<class C, class G> TAGResourceManager::ObjectBuffer<C, G>::ObjectBuffer(const unsigned int& max_objs, G(*converter)(const C&),  const BufferAccess& access) {
+	this->converter = converter;
+	buffer = (access != BufferAccess::STREAM ? std::make_unique<OrphanBuffer<G>>(max_objs, access) : std::make_unique<RingBuffer<G, 3>>(max_objs));
+}
+
+template<class C, class G> const std::vector<C>& TAGResourceManager::ObjectBuffer<C, G>::getObjects() const {
+	return objs;
+}
+
+template<class C, class G> std::vector<C>& TAGResourceManager::ObjectBuffer<C, G>::changeObjects() {
+	objects_changed = true;
+	return objs;
+}
+
+template<class C, class G> bool TAGResourceManager::ObjectBuffer<C, G>::isObjectsChanged() const {
+	return objects_changed;
+}
+
+template<class C, class G> const TAGResourceManager::BufferHandler<G>& TAGResourceManager::ObjectBuffer<C, G>::getBuffer() const {
+	return *(buffer.get());
+}
+
+template<class C, class G> void TAGResourceManager::ObjectBuffer<C, G>::updateBuffer() {
+	std::vector<G> buffer_data;
+	buffer_data.reserve(objs.size());
+
+	for (const C& obj : objs) {
+		buffer_data.push_back(converter(obj));
+	}
+
+	buffer->updateBuffer(buffer_data);
+}
+
+template<class C, class G> void TAGResourceManager::ObjectBuffer<C, G>::resizeBuffer(const unsigned int& new_size) {
+	buffer->resizeBuffer(new_size);
+}
+
+template<class C, class G> void TAGResourceManager::ObjectBuffer<C, G>::changeAccess(const BufferAccess& new_access) {
+	if (buffer->getAccessLevel() == new_access) {
+		return;
+	}
+
+	const BufferHandler<G>* old_buffer = buffer.release();
+	buffer = (new_access != BufferAccess::STREAM ? std::make_unique<OrphanBuffer<G>>(old_buffer->getMaxObjects(), new_access) : std::make_unique<RingBuffer<G, 3>>(old_buffer->getMaxObjects()));
+	updateBuffer();
+	delete old_buffer;
 }
 
 template<BufferType T> void TAGResourceManager::deleteBuffer(const GLuint& ID) {
