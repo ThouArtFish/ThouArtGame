@@ -30,7 +30,6 @@ template <typename T, typename... Ts> concept isAnyOf = (std::same_as<T, Ts> || 
 /**
 * Struct for checking if type is in std::variant
 */
-
 template <typename T, typename Variant>
 struct isVariantMember;
 

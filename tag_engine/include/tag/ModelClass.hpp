@@ -36,12 +36,11 @@ public:
 	};
 
 	/**
-	* Contains the transformation applied to a mesh for an instance
+	* GPU representation of objects
 	*/
-	struct ObjectTrans {
-		glm::mat4 model;
-		glm::mat3 normal;
-		ObjectTrans(const Object& obj);
+	struct ObjectShader {
+		glm::vec4 position_AND_scale;
+		glm::vec4 axis_AND_rotation;
 	};
 
 	/**
@@ -59,19 +58,19 @@ public:
 	 * Draws all instances of the specified mesh, or all instances which represent all meshes if no mesh name is passed.
 	 * 
 	 * @param shader Shader to draw with.
-	 * @param cull_face Whether to cull inside faces, generally true for 3D models.
-	 * @param mesh_name Name of mesh to draw all instances of, can be left as default.
+	 * @param mesh_name Name of mesh to draw all instances of, can be left as default to draw all instances of the entire model
+	 * @param options Names of shader uniforms, can be left as default for default shader uniform names
 	 */
-	void drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name = "", const ShaderOptions& options = default_shader_options);
+	void drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name = "", const TAGShaderManager::ShaderOptions& options = TAGShaderManager::default_options);
 	/**
 	 * Draws one instance of a specified mesh, or one instance of all meshes if no mesh name is passed.
 	 * 
-	 * @param shader Shader to draw with.
-	 * @param obj Instance of mesh to draw.
-	 * @param cull_face Whether to cull inside faces, generally true for 3D models.
-	 * @param mesh_name Name of mesh to draw all instances of, can be left as default.
+	 * @param shader Shader to draw with
+	 * @param obj Instance of mesh to draw
+	 * @param mesh_name Name of mesh to draw all instances of, can be left as default to draw all instances of the entire model
+	 * @param options Names of shader uniforms, can be left as default for default shader uniform names
 	 */
-	void drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name = "", const ShaderOptions& options = default_shader_options);
+	void drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name = "", const TAGShaderManager::ShaderOptions& options = TAGShaderManager::default_options);
 	/**
 	 * Sets the size of the instance buffer for the specified mesh.
 	 * This is not a hard cap, the buffer is resized if more instances are added than size permits.
@@ -105,10 +104,11 @@ public:
 	/**
 	* Add a mesh.
 	* 
+	* @param mesh_name Name of mesh
 	* @param vertices Vertices of mesh
 	* @param frags Fragments of mesh
 	* @param textures Textures of mesh
-	* @param material_mod Material modifiers
+	* @param materials Materials
 	*/
 	void addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const std::vector<TAGMesh::Material>& materials);
 	/**
@@ -118,15 +118,9 @@ public:
 	 */
 	void deleteMesh(const std::string& mesh_name);
 private:
-	static inline const ShaderOptions default_shader_options = {};
 	void loadModel(const std::string& path);
 	const TAGTexLoader::Texture loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const;
 protected:
-	struct ObjectShader {
-		glm::vec4 position_AND_scale;
-		glm::vec4 axis_AND_rotation;
-	};
-
 	struct InstanceDrawBuffer {
 		bool was_updated = true;
 		TAGResourceManager::RingBuffer<ObjectShader, 3> buffer;

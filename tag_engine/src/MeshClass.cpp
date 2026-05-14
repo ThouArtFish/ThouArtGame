@@ -252,62 +252,65 @@ void TAGMesh::setupMesh() {
 	generateBVH();
 }
 
-void TAGMesh::setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index) const {
-	unsigned int diffuseNr = 1;
-	unsigned int specularNr = 1;
+void TAGMesh::setupFragmentUniforms(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const unsigned int& material_index) const {
+	std::vector<unsigned int> diffuse, specular;
 	const Material& material = materials[material_index];
-	for (int i = 0; i < material.textures.size(); i++)
+	for (unsigned int i = 0; i < material.textures.size(); i++)
 	{
 		glActiveTexture(GL_TEXTURE0 + i);
-		std::string number;
-		std::string name;
 		switch (material.textures[i].type) {
 		case TAGTexType::DIFFUSE_MAP:
-			number = std::to_string(diffuseNr++);
-			name = "diffuse";
+			if (diffuse.size() < 16) {
+				diffuse.push_back(i);
+			}
 			break;
 		case TAGTexType::SPEC_MAP:
-			number = std::to_string(specularNr++);
-			name = "specular";
+			if (specular.size() < 16) {
+				specular.push_back(i);
+			}
 		}
-		shader.setInt(name + number, i);
 		glBindTexture(GL_TEXTURE_2D, material.textures[i].id);
 	}
 	glActiveTexture(GL_TEXTURE0);
-	if (diffuseNr == 1) {
-		shader.setVec3("colour", material.colour);
+
+	if (diffuse.size() == 0) {
+		shader.set<glm::vec3>(options.colour_vec_name, material.colour);
 	}
-	shader.setBool("spec_map", specularNr > 1);
-	shader.setFloat("spec_mod", material.spec_mod);
-	shader.setFloat("spec_exp", material.spec_exp);
-	shader.setFloat("opacity", material.opacity);
+	else {
+		shader.set<unsigned int>(options.diffuse_tex_array_name, diffuse[0], diffuse.size());
+	}
+	shader.set<unsigned int>(options.diffuse_tex_num_name, diffuse.size());
+	
+	shader.set<float>(options.specular_factor_name, material.spec_fac);
+	if (material.spec_fac > 0.0f) {
+		shader.set<float>(options.specular_exp_name, material.spec_exp);
+		if (specular.size() == 0) {
+			shader.set<glm::vec3>(options.specular_colour_vec_name, material.spec_colour);
+		}
+		else {
+			shader.set<unsigned int>(options.specular_tex_array_name, specular[0], specular.size());
+		}
+		shader.set<unsigned int>(options.specular_tex_num_name, specular.size());
+	}
+
+	shader.set<float>(options.opacity_value_name, material.opacity);
 }
 
-void TAGMesh::drawUninstanced(const TAGShaderManager::Shader& shader) {
+void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const unsigned int& number) {
 	if (vertices_updated || frags_updated) {
 		applyBufferUpdates();
 	}
 
 	glBindVertexArray(VAO);
 	for (const MaterialElementBuffer& material_ebo : material_ebos) {
-		setupFragmentUniforms(shader, material_ebo.material_index);
+		setupFragmentUniforms(shader, options, material_ebo.material_index);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebo.EBO);
-		glDrawElements(GL_TRIANGLES, (GLsizei)(frags.size() * 3), GL_UNSIGNED_INT, nullptr);
-	}
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-}
-
-void TAGMesh::drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number) {
-	if (vertices_updated || frags_updated) {
-		applyBufferUpdates();
-	}
-
-	glBindVertexArray(VAO);
-	for (const MaterialElementBuffer& material_ebo : material_ebos) {
-		setupFragmentUniforms(shader, material_ebo.material_index);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebo.EBO);
-		glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)(frags.size() * 3), GL_UNSIGNED_INT, nullptr, number);
+		if (number > 1) {
+			glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)(frags.size() * 3), GL_UNSIGNED_INT, nullptr, number);
+		}
+		else {
+			glDrawElements(GL_TRIANGLES, (GLsizei)(frags.size() * 3), GL_UNSIGNED_INT, nullptr);
+		}
 	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);

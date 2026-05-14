@@ -188,7 +188,7 @@ void TAGHUDManager::updateQuadBuffer() {
 	quads_changed = false;
 }
 
-void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader) {
+void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options) {
 	if (quads_changed) {
 		updateQuadBuffer();
 	}
@@ -202,7 +202,7 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader) {
 	}
 	glActiveTexture(GL_TEXTURE0);
 
-	shader.setInt("texture_indices", texture_indices[0], i);
+	shader.set<int>(options.diffuse_tex_array_name, texture_indices[0], i);
 
 	glDepthFunc(GL_ALWAYS);
 	glBindVertexArray(VAO);
@@ -218,11 +218,11 @@ void TAGHUDManager::initMesh() {
 	VBO = TAGResourceManager::createBuffer<GenericBuffer>();
 	EBO = TAGResourceManager::createBuffer<GenericBuffer>();
 
-	const std::array<float, 8> quad_vertices = {
+	const static std::array<float, 8> quad_vertices = {
 		0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f
 	};
 
-	const std::array<unsigned int, 6> quad_indices = {
+	const static std::array<unsigned int, 6> quad_indices = {
 		0, 1, 3, 1, 2, 3
 	};
 

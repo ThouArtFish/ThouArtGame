@@ -127,7 +127,7 @@ public:
 	* 
 	* @param shader Shader used for drawing
 	*/
-	void drawAll(const TAGShaderManager::Shader& shader);
+	void drawAll(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& = TAGShaderManager::default_options);
 private:
 	static inline unsigned int VAO = 0;
 	static inline unsigned int VBO = 0;

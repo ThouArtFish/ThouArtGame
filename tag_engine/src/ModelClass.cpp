@@ -9,9 +9,9 @@ TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const std::string& pa
 	}
 }
 
-void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name, const ShaderOptions& options) {
-	if (!options.cull_backface) {
-		glDisable(GL_CULL_FACE);
+void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
+	if (mesh_name != "" && meshes.find(mesh_name) == meshes.end()) {
+		return;
 	}
 
 	InstanceDrawBuffer& instance_buffer = instance_buffers[mesh_name];
@@ -40,16 +40,20 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 		instance_buffer.was_updated = false;
 	}
 
+	if (!options.cull_backface) {
+		glDisable(GL_CULL_FACE);
+	}
+
 	if (mesh_name != "") {
 		TAGMesh& mesh = meshes.at(mesh_name);
 		instance_buffer.buffer.bindBuffer(1, mesh.getVAO());
-		mesh.drawInstanced(shader, (unsigned int)size, options);
+		mesh.draw(shader, options, (unsigned int)size);
 	}
 	else {
 		for (const std::string& name : mesh_draw_order) {
 			TAGMesh& mesh = meshes.at(name);
 			instance_buffer.buffer.bindBuffer(1, mesh.getVAO());
-			mesh.drawInstanced(shader, (unsigned int)size, options);
+			mesh.draw(shader, options, (unsigned int)size);
 		}
 	}
 
@@ -58,20 +62,19 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 	}
 }
 
-void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name, const ShaderOptions& options) {
+void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
 	if (!options.cull_backface) {
 		glDisable(GL_CULL_FACE);
 	}
-
-	const glm::mat4 model = glm::rotate(glm::translate(glm::mat4(1.0f), obj.position), obj.angle, obj.rotation_axis);
-	shader.setMatrix3(options.model_matrix_name, glm::mat3(model));
-	shader.setMatrix4(options.normal_matrix_name, model * glm::mat4(glm::mat3(obj.scale)));
+	
+	const std::array<glm::vec4, 2> shader_object = { glm::vec4(obj.position, obj.scale), glm::vec4(obj.rotation_axis, obj.angle) };
+	shader.set<glm::vec4>(options.shader_object_name, shader_object[0], 2);
 	if (mesh_name != "") {
-		meshes.at(mesh_name).drawUninstanced(shader, options);
+		meshes.at(mesh_name).draw(shader, options);
 	}
 	else {
 		for (const std::string& mesh_name : mesh_draw_order) {
-			meshes.at(mesh_name).drawUninstanced(shader, options);
+			meshes.at(mesh_name).draw(shader, options);
 		}
 	}
 
@@ -265,7 +268,7 @@ void TAGModel::loadModel(const std::string& path) {
 
 			mesh_material.name = material.name;
 			mesh_material.spec_exp = material.shininess;
-			mesh_material.spec_mod = material.specular[0];
+			mesh_material.spec_fac = material.specular[0];
 			mesh_material.opacity = material.dissolve;
 			if (mesh_material.opacity < 1.0f) {
 				mesh.is_transparent = true;
@@ -299,12 +302,6 @@ std::vector<std::string> TAGModel::getMeshNames() const {
 		names.push_back(pair.first);
 	}
 	return names;
-}
-
-TAGModel::ObjectTrans::ObjectTrans(const Object& obj) {
-	this->model = glm::rotate(glm::translate(glm::mat4(1.0f), obj.position), obj.angle, obj.rotation_axis);
-	this->normal = glm::mat3(this->model);
-	this->model *= glm::mat4(glm::mat3(obj.scale));
 }
 
 TAGModel::InstanceDrawBuffer::InstanceDrawBuffer() : buffer(50) {}

@@ -52,10 +52,11 @@ class TAGMesh {
          */
         struct Material {
             std::string name = "Default";
-            float spec_mod = 0.0f;
+            float spec_fac = 0.0f;
             float spec_exp = 32.0f;
             float opacity = 1.0f;
             glm::vec3 colour = glm::vec3(1.0f, 0.0f, 0.0f);
+            glm::vec3 spec_colour = glm::vec3(1.0f);
             std::vector<TAGTexLoader::Texture> textures;
 
             TAGTexLoader::Texture& getTexture(const std::string& name);
@@ -194,22 +195,16 @@ class TAGMesh {
          * Not sufficient to draw a singular instance of a mesh.
          *
          * @param shader Shader program
+         * @param options Names of shader uniforms
          * @param options Shader options
          */
-        void setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index) const;
+        void setupFragmentUniforms(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const unsigned int& material_index) const;
         /**
          * Draw multiple instances of a mesh
          *
          * @param shader Shader program
-         * @param number Number of 
-         * @param options Shader options
+         * @param options Names of shader uniforms
+         * @param number Number of instances to draw
          */
-        void drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number);
-        /**
-        * Draw one instance of a mesh.
-        *
-        * @param shader Shader program
-        * @param options Shader options
-        */
-        void drawUninstanced(const TAGShaderManager::Shader& shader);
+        void draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const unsigned int& number = 1);
 };

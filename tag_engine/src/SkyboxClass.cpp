@@ -58,11 +58,11 @@ TAGSkybox::~TAGSkybox() {
 	}
 }
 
-void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& name) const {
+void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options) const {
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);
 	glActiveTexture(GL_TEXTURE0);
-	shader.setInt(name, 0);
+	shader.set<int>(options.cubemap_name, 0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_ID);
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);

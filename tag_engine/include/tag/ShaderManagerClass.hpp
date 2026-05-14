@@ -16,21 +16,21 @@
 #include "UtilClass.hpp"
 
 /**
-* Default shaders
+* Shader types
 */
-enum class TAGDefaultShader {
+enum class TAGShaderType {
     SKYBOX_DRAW = 0,
     BASIC_DRAW,
     HUD_DRAW,
     UNINSTANCED_MODEL_DRAW,
-    INSTANCED_MODEL_DRAW
+    INSTANCED_MODEL_DRAW,
+    CUSTOM_DRAW
 };
 
 /**
-* Concept for types allowed to be set as shader uniforms
+* Variant for all shader primitives
 */
-template<typename T>
-concept UniformType = isAnyOf<T,
+using ShaderUniform = std::variant<
     bool,
     int,
     unsigned int,
@@ -59,6 +59,11 @@ concept UniformType = isAnyOf<T,
 >;
 
 /**
+* Concept for types allowed to be set as shader uniforms
+*/
+template<typename T> concept UniformType = isVariantMember<T, ShaderUniform>::value;
+
+/**
 * Handles shader programs
 */
 class TAGShaderManager {
@@ -71,15 +76,38 @@ public:
         std::string fragment;
         std::string name;
         bool is_path = true;
+        TAGShaderType shader_type = TAGShaderType::CUSTOM_DRAW;
     };
+
     /**
     * Holds the ID for a shader program and functions for setting shader uniforms
     */
     struct Shader {
         unsigned int ID;
 
-        template<UniformType T> void set(const std::string& name, const T& value, const unsigned int& count) const;
+        template<UniformType T> void set(const std::string& name, const T& value, const unsigned int& count = 1) const;
     };
+
+    /**
+    * Default shader uniform names
+    */
+    struct ShaderOptions {
+        std::string shader_object_name = "object";
+        std::string colour_vec_name = "colour";
+        std::string specular_colour_vec_name = "spec_colour";
+        std::string opacity_value_name = "opacity";
+        std::string cubemap_name = "cubemap";
+        std::string specular_exp_name = "spec_exp";
+        std::string specular_factor_name = "spec_fac";
+        std::string diffuse_tex_num_name = "diff_tex_num";
+        std::string specular_tex_num_name = "spec_tex_num";
+        std::string diffuse_tex_array_name = "diff_texs";
+        std::string specular_tex_array_name = "spec_texs";
+        bool cull_backface = true;
+    };
+
+    static inline const ShaderOptions default_options = {};
+
     bool delete_on_death = true;
 
     /**
@@ -134,16 +162,19 @@ private:
         "out vec2 TexCoords;\n"
         "out vec3 Normal;\n"
         "out vec3 FragPos;\n"
-        "uniform mat4 model;\n"
+        "struct ShaderObject {\n"
+        "   vec4 position_AND_scale;\n"
+        "   vec4 axis_AND_rotation;\n}\n"
         "uniform mat4 view;\n"
         "uniform mat4 perspective;\n"
-        "uniform mat3 normal;\n"
+        "uniform ShaderObject object;\n"
+        "vec3 axisRotation(vec3 v, vec3 a, float r) {\n"
+        "   return v * cos(r) + cross(a, v) * sin(r) + a * dot(a, v) * (1.0f - cos(r));\n}\n"
         "void main() {\n"
         "   TexCoords = aTexCoords;\n"
-        "   Normal = normal * aNormal;\n"
-        "   vec4 game_pos = model * vec4(aPos, 1.0f);\n"
-        "   FragPos = vec3(game_pos);\n"
-        "   gl_Position = perspective * view * game_pos;\n}",
+        "   Normal = axisRotation(aNormal, object.axis_AND_rotation.xyz, object.axis_AND_rotation.w);\n"
+        "   FragPos = axisRotation(aPos, object.axis_AND_rotation.xyz, object.axis_AND_rotation.w) * object.position_AND_scale.w + object.position_AND_scale.xyz;\n"
+        "   gl_Position = perspective * view * vec4(FragPos, 1.0f);\n}",
         // Instanced vertex 1
         "layout (location = 0) in vec3 aPos;\n"
         "layout (location = 1) in vec3 aNormal;\n"
@@ -156,7 +187,7 @@ private:
         "uniform mat4 view;\n"
         "uniform mat4 perspective;\n"
         "vec3 axisRotation(vec3 v, vec3 a, float r) {\n"
-        "   return v * cos(r) + cross(a, v) * sin(r) + a * dot(a, v) * (1.0f - cos(r));\n}"
+        "   return v * cos(r) + cross(a, v) * sin(r) + a * dot(a, v) * (1.0f - cos(r));\n}\n"
         "void main() {\n"
         "   TexCoords = aTexCoords;\n"
         "   Normal = axisRotation(aNormal, ModelAxisRot.xyz, ModelAxisRot.w);\n"
