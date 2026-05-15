@@ -39,11 +39,6 @@ struct isVariantMember<T, std::variant<Ts...>>
 };
 
 /**
-* Like the Maybe type from Haskell
-*/
-template <typename T> using Maybe = std::variant<std::monostate, T>;
-
-/**
 * Provides useful functions
 */
 class TAGUtil {

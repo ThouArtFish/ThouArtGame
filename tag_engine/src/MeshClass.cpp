@@ -252,58 +252,86 @@ void TAGMesh::setupMesh() {
 	generateBVH();
 }
 
-void TAGMesh::setupFragmentUniforms(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const unsigned int& material_index) const {
-	std::vector<unsigned int> diffuse, specular;
-	const Material& material = materials[material_index];
-	for (unsigned int i = 0; i < material.textures.size(); i++)
-	{
-		glActiveTexture(GL_TEXTURE0 + i);
-		switch (material.textures[i].type) {
-		case TAGTexType::DIFFUSE_MAP:
-			if (diffuse.size() < 16) {
-				diffuse.push_back(i);
-			}
-			break;
-		case TAGTexType::SPEC_MAP:
-			if (specular.size() < 16) {
-				specular.push_back(i);
-			}
-		}
-		glBindTexture(GL_TEXTURE_2D, material.textures[i].id);
-	}
-	glActiveTexture(GL_TEXTURE0);
-
-	if (diffuse.size() == 0) {
-		shader.set<glm::vec3>(options.colour_vec_name, material.colour);
-	}
-	else {
-		shader.set<unsigned int>(options.diffuse_tex_array_name, diffuse[0], diffuse.size());
-	}
-	shader.set<unsigned int>(options.diffuse_tex_num_name, diffuse.size());
-	
-	shader.set<float>(options.specular_factor_name, material.spec_fac);
-	if (material.spec_fac > 0.0f) {
-		shader.set<float>(options.specular_exp_name, material.spec_exp);
-		if (specular.size() == 0) {
-			shader.set<glm::vec3>(options.specular_colour_vec_name, material.spec_colour);
-		}
-		else {
-			shader.set<unsigned int>(options.specular_tex_array_name, specular[0], specular.size());
-		}
-		shader.set<unsigned int>(options.specular_tex_num_name, specular.size());
-	}
-
-	shader.set<float>(options.opacity_value_name, material.opacity);
-}
-
 void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const unsigned int& number) {
 	if (vertices_updated || frags_updated) {
-		applyBufferUpdates();
+		if (vertices_updated) {
+			glBindBuffer(GL_ARRAY_BUFFER, VBO);
+			GLint vertices_size;
+			glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vertices_size);
+			GLint buffer_size = (GLint)vertices.size() * sizeof(Vertex);
+			if (buffer_size > vertices_size) {
+				glBufferData(GL_ARRAY_BUFFER, buffer_size, vertices.data(), GL_DYNAMIC_DRAW);
+			}
+			else {
+				glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_size, vertices.data());
+			}
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			vertices_updated = false;
+		}
+		if (frags_updated) {
+			material_ebos.clear();
+			std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 3>>> material_frags;
+			for (const Fragment& frag_struct : frags) {
+				material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
+			}
+			for (const auto& pair : material_frags) {
+				material_ebos.emplace_back(TAGResourceManager::createBuffer<GenericBuffer>(), pair.first);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
+				glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
+			}
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+			std::sort(material_ebos.begin(), material_ebos.end(),
+				[this](const MaterialElementBuffer& a, const MaterialElementBuffer& b) {
+					return this->materials[a.material_index].opacity > this->materials[b.material_index].opacity;
+				}
+			);
+			frags_updated = false;
+		}
+		generatePlanes();
+		generateBVH();
 	}
 
 	glBindVertexArray(VAO);
 	for (const MaterialElementBuffer& material_ebo : material_ebos) {
-		setupFragmentUniforms(shader, options, material_ebo.material_index);
+		std::vector<unsigned int> diffuse, specular;
+		const Material& material = materials[material_ebo.material_index];
+		for (unsigned int i = 0; i < material.textures.size(); i++)
+		{
+			glActiveTexture(GL_TEXTURE0 + i);
+			switch (material.textures[i].type) {
+			case TAGTexType::DIFFUSE_MAP:
+				if (diffuse.size() < 16) {
+					diffuse.push_back(i);
+				}
+				break;
+			case TAGTexType::SPEC_MAP:
+				if (specular.size() < 16) {
+					specular.push_back(i);
+				}
+			}
+			glBindTexture(GL_TEXTURE_2D, material.textures[i].id);
+		}
+		glActiveTexture(GL_TEXTURE0);
+
+		if (diffuse.size() == 0) {
+			shader.set<glm::vec3>(options.colour_vec, material.colour);
+		}
+		else {
+			shader.set<unsigned int>(options.diffuse_tex_array_name, diffuse[0], diffuse.size());
+		}
+		shader.set<unsigned int>(options.diffuse_tex_num_name, diffuse.size());
+
+		shader.set<float>(options.specular_factor_name, material.spec_fac);
+		if (material.spec_fac > 0.0f) {
+			shader.set<float>(options.specular_exp_name, material.spec_exp);
+			if (specular.size() > 0) {
+				shader.set<unsigned int>(options.specular_tex_array_name, specular[0], specular.size());
+			}
+			shader.set<unsigned int>(options.specular_tex_num_name, specular.size());
+		}
+
+		shader.set<float>(options.opacity_value, material.opacity);
+
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebo.EBO);
 		if (number > 1) {
 			glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)(frags.size() * 3), GL_UNSIGNED_INT, nullptr, number);
@@ -353,44 +381,6 @@ const std::vector<TAGMesh::MaterialElementBuffer>& TAGMesh::getEBOs() const {
 const unsigned int& TAGMesh::getVBO() const {
 	return VBO;
 };
-
-void TAGMesh::applyBufferUpdates() {
-	if (vertices_updated) {
-		glBindBuffer(GL_ARRAY_BUFFER, VBO);
-		GLint vertices_size;
-		glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vertices_size);
-		GLint buffer_size = (GLint)vertices.size() * sizeof(Vertex);
-		if (buffer_size > vertices_size) {
-			glBufferData(GL_ARRAY_BUFFER, buffer_size, vertices.data(), GL_DYNAMIC_DRAW);
-		}
-		else {
-			glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_size, vertices.data());
-		}
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		vertices_updated = false;
-	} 
-	if (frags_updated) {
-		material_ebos.clear();
-		std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 3>>> material_frags;
-		for (const Fragment& frag_struct : frags) {
-			material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
-		}
-		for (const auto& pair : material_frags) {
-			material_ebos.emplace_back(TAGResourceManager::createBuffer<GenericBuffer>(), pair.first);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
-		}
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		std::sort(material_ebos.begin(), material_ebos.end(),
-			[this](const MaterialElementBuffer& a, const MaterialElementBuffer& b) {
-				return this->materials[a.material_index].opacity > this->materials[b.material_index].opacity;
-			}
-		);
-		frags_updated = false;
-	}
-	generatePlanes();
-	generateBVH();
-}
 
 bool TAGMesh::FragWithPoint(const glm::vec3& point, const Plane& plane) {
 	const std::array<glm::vec3, 3> cross_prod = {

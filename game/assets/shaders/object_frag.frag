@@ -1,11 +1,15 @@
 #version 460 core
 
-struct Light {
-    vec4 a;
-    vec4 b;
+struct DoubleLight {
+    vec4 a, b;
 };
 
-layout(std430, binding = 0) buffer readonly scene_lights {
+struct TripleLight {
+    vec4 a, b, c;
+}
+
+layout(std430, binding = 0) buffer readonly double
+_lights {
     int lights_size;
     Light lights[];
 };

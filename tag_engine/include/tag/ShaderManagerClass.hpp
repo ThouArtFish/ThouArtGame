@@ -92,10 +92,9 @@ public:
     * Default shader uniform names
     */
     struct ShaderOptions {
-        std::string shader_object_name = "object";
-        std::string colour_vec_name = "colour";
-        std::string specular_colour_vec_name = "spec_colour";
-        std::string opacity_value_name = "opacity";
+        std::string shader_object = "object";
+        std::string colour_vec = "colour";
+        std::string opacity_value = "opacity";
         std::string cubemap_name = "cubemap";
         std::string specular_exp_name = "spec_exp";
         std::string specular_factor_name = "spec_fac";
@@ -106,7 +105,7 @@ public:
         bool cull_backface = true;
     };
 
-    static inline const ShaderOptions default_options = {};
+    static inline ShaderOptions default_options = {};
 
     bool delete_on_death = true;
 

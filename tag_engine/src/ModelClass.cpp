@@ -68,7 +68,7 @@ void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj
 	}
 	
 	const std::array<glm::vec4, 2> shader_object = { glm::vec4(obj.position, obj.scale), glm::vec4(obj.rotation_axis, obj.angle) };
-	shader.set<glm::vec4>(options.shader_object_name, shader_object[0], 2);
+	shader.set<glm::vec4>(options.shader_object, shader_object[0], 2);
 	if (mesh_name != "") {
 		meshes.at(mesh_name).draw(shader, options);
 	}

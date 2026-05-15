@@ -8,37 +8,32 @@
 #include "UtilClass.hpp"
 
 /**
+* Concept for allowing only the light structs
+*/
+template<class T> concept LightType = isAnyOf<T, TAGLightManager::PointLight, TAGLightManager::RayLight, TAGLightManager::FlashLight>;
+
+/**
  * Manages in-game lights. Stores Light structs in a vector for client-side access and also controls a shader storage buffer object
  * to store the lights GPU-side.
  */
 class TAGLightManager {
 	public:
-		/**
-		 * Convoluted way of representing multiple lighting types to cram as much information as possible into two 4D vectors.
-		 * The light can be point, directional or flashlight.
-		 * The formatting for each light is the following:
-		 * 
-		 * a.xyz = position (flash, point); = direction (direc)
-		 * b.xyz = color (point, direc); = direction (flash)
-		 * a.w = distance factor
-		 * b.w > 0 (cone scope for flash in radians); = 0 (declares light is point); < 0 (declares light is direc)
-		 * 
-		 * Yes flashlights can have only a single light colour.
-		 * This needs to be overhauled immediately.
-		 */
-		struct Light {
-			glm::vec4 a;
-			glm::vec4 b;
+		struct PointLight {
+			glm::vec4 position;
+			glm::vec4 colour;
 		};
-		/**
-		 * Describes how often the lights are changed. This is not a hard restriction and just improves the efficiency of data traversal.
-		 * STATIC means data changes basically never. DYNAMIC is for sometimes. STREAM if changes happen every frame.
-		 */
-		enum class ChangeFreq : GLenum {
-			STATIC = GL_STATIC_DRAW,
-			DYNAMIC = GL_DYNAMIC_DRAW,
-			STREAM = GL_STREAM_DRAW
+
+		struct RayLight {
+			glm::vec4 direction;
+			glm::vec4 colour;
 		};
+
+		struct FlashLight {
+			glm::vec4 position;
+			glm::vec4 direction;
+			glm::vec4 colour;
+		};
+
 		bool delete_on_death = true;
 
 		/**
