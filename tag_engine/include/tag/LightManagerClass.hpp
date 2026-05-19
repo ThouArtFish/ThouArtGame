@@ -8,73 +8,146 @@
 #include "UtilClass.hpp"
 
 /**
+* Client side light structs
+*/
+struct PointLight {
+	glm::vec3 position, colour;
+	glm::vec2 attenuation;
+};
+
+struct RayLight {
+	glm::vec3 direction, colour;
+};
+
+struct FlashLight {
+	glm::vec3 position, direction, colour;
+	glm::vec2 attenuation;
+	float angle;
+};
+
+/**
+* Shader side light structs
+*/
+struct ShaderPointLight {
+	glm::vec4 a, b;
+};
+
+struct ShaderRayLight {
+	glm::vec4 a;
+	glm::vec2 b;
+};
+
+struct ShaderFlashLight {
+	glm::vec4 a, b, c;
+};
+
+/**
 * Concept for allowing only the light structs
 */
-template<class T> concept LightType = isAnyOf<T, TAGLightManager::PointLight, TAGLightManager::RayLight, TAGLightManager::FlashLight>;
+template<class T> concept LightType = isAnyOf<T, PointLight, RayLight, FlashLight>;
+
+/**
+* Struct for extracting shader type of light
+*/
+template<LightType T> struct ShaderLightType { using type = T; static inline GLuint default_binding_point = 0; };
+template<> struct ShaderLightType<PointLight> { using type = ShaderPointLight; static inline GLuint default_binding_point = 0; };
+template<> struct ShaderLightType<RayLight> { using type = ShaderRayLight; static inline GLuint default_binding_point = 1; };
+template<> struct ShaderLightType<FlashLight> { using type = ShaderFlashLight; static inline GLuint default_binding_point = 2; };
 
 /**
  * Manages in-game lights. Stores Light structs in a vector for client-side access and also controls a shader storage buffer object
  * to store the lights GPU-side.
  */
-class TAGLightManager {
+template<LightType T> class TAGLightManager {
 	public:
-		struct PointLight {
-			glm::vec4 position;
-			glm::vec4 colour;
-		};
-
-		struct RayLight {
-			glm::vec4 direction;
-			glm::vec4 colour;
-		};
-
-		struct FlashLight {
-			glm::vec4 position;
-			glm::vec4 direction;
-			glm::vec4 colour;
-		};
-
 		bool delete_on_death = true;
 
+		static inline GLuint default_scene_binding_point = 3;
+		
+		static inline constexpr GLuint MAX_BINDING_INDEX = 6;
+
 		/**
-		 * Light buffer is initialized with no data.
-		 * The initial size of the buffer is not the hard limit and will dynamically change in size if 
-		 * more lights are added.
+		* Scene data for shaders
+		*/
+		struct Scene {
+			std::array<GLuint, MAX_BINDING_INDEX + 1> light_counts;
+			GLfloat ambience;
+		};
+
+		using ShaderT = ShaderLightType<T>::type;
+		using SceneObject = TAGResourceManager::ObjectBuffer<Scene, GLfloat, MAX_BINDING_INDEX + 2>;
+
+		/**
+		 * Initialize with a number of lights and access manager
 		 * 
-		 * @params size The size of the light buffer.
-		 * @params chnage_freq How often the buffer is changed.
+		 * @params lights Array of lights
+		 * @param access Access modifier for stored lights
+		 * @param size Size of buffer
 		 */
-		TAGLightManager(const unsigned int& size, const ChangeFreq& change_freq);
+		TAGLightManager(const std::vector<T>& lights, const TAGResourceManager::BufferAccess& access, const unsigned int& size = 1);
 		/**
-		 * Light buffer is initialized with light data and at max size.
-		 * The initial size of the buffer is not the hard limit and will dynamically change in size if
-		 * more lights are added.
-		 *
-		 * @params lights The lights to push to the buffer.
-		 * @params chnage_freq How often the buffer is changed.
+		 * Initialize by allocating a size for buffer and access manager
+		 * 
+		 * @param access Access modifier for stored lights
+		 * @params size Size of buffer
 		 */
-		TAGLightManager(const std::vector<Light>& lights, const ChangeFreq& change_freq);
-		~TAGLightManager();
+		TAGLightManager(const TAGResourceManager::BufferAccess& access, const unsigned int& size = 1);
+
 		/**
-		 * Returns all lights, but allows changes.
+		 * Set light at index.
+		 * Pushes to end of light array if no index is passed.
+		 * A buffer update function must be used for changes to be reflected in the GPU buffer.
+		 * 
+		 * @param light New light
+		 * @param index Index in light array
 		 */
-		std::vector<Light>& changeLights();
+		void setLight(const T& light, const int& index = -1);
 		/**
-		 * Returns all lights.
+		 * Get light at index.
+		 * Gets last light if no index is passed.
+		 * 
+		 * @param index Index in light array
 		 */
-		const std::vector<Light>& getLights() const;
+		const T& getLight(const int& index = -1) const;
+		/**
+		* Get all lights.
+		*/
+		const std::vector<T>& getAllLights() const;
 		/**
 		 * Binds the light buffer to all shaders at binding point index.
-		 * 
-		 * @param index Binding point os shader storage buffer object in any shader.
-		 */
-		void bindShaderData(const unsigned int& index);
-		/**
-		 * Unbinds the light buffer from all shaders at binding point index.
+		 * Also update GPU side buffer if update is required.
 		 * 
 		 * @param index Binding point of shader storage buffer object in any shader.
 		 */
-		void unbindShaderData(const unsigned int& index) const;
+		void bindToShader(const GLintptr& offset = 0, const GLuint& index = ShaderLightType<T>::default_binding_point);
+		/**
+		* Updates GPU side buffer with CPU side lights.
+		* Assumes this objects lights are currently bound to binding index at index.
+		* 
+		* @param index Binding point of shader storage buffer object in any shader.
+		*/
+		void updateLightBuffer(const GLuint& index = ShaderLightType<T>::default_binding_point);
+		/**
+		* Set scene ambient lighting
+		*
+		* @param ambience Ambient lighting of the scene
+		*/
+		static void setAmbience(const float& ambience);
+		/**
+		* Get scene ambient lighting
+		*/
+		static float getAmbience();
+		/**
+		* Set scene data to all shaders at binding point index.
+		* Also updates GPU side buffer if update is required
+		*
+		* @param Binding point of shader storage buffer object in any shader.
+		*/
+		static void bindSceneToShader(const GLuint& index = default_scene_binding_point);
+		/**
+		* Updates GPU side buffer with CPU side scene data
+		*/
+		static void updateSceneBuffer();
 		/**
 		 * Returns iterator for traversing lights
 		 */
@@ -84,12 +157,22 @@ class TAGLightManager {
 		 */
 		auto end() const;
 		/**
-		 * Returns number of lights
-		 */
+		* Returns number of lights in CPU array
+		*/
 		unsigned int size() const;
+		/**
+		 * Returns number of lights in GPU buffer
+		 */
+		unsigned int bufferSize() const;
 	private:
-		unsigned int buffer_size;
-		unsigned int buffer_ID = 0;
-		bool was_updated = true;
-		std::vector<Light> lights;
+		unsigned int last_size = 0;
+		TAGResourceManager::ObjectBuffer<T, ShaderT> lights;
+		static std::variant<std::monostate, SceneObject> scene;
+
+		void setLightCount(const GLuint& index);
+		static ShaderT shaderLightConverter(const T& light, const unsigned int& split = 0);
+		static GLfloat shaderSceneConverter(const Scene& scene, const unsigned int& split);
+		static void initSceneBuffer();
 };
+
+#include "../../src/LightManagerClass.inl"

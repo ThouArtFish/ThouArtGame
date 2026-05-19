@@ -16,18 +16,6 @@
 #include "UtilClass.hpp"
 
 /**
-* Shader types
-*/
-enum class TAGShaderType {
-    SKYBOX_DRAW = 0,
-    BASIC_DRAW,
-    HUD_DRAW,
-    UNINSTANCED_MODEL_DRAW,
-    INSTANCED_MODEL_DRAW,
-    CUSTOM_DRAW
-};
-
-/**
 * Variant for all shader primitives
 */
 using ShaderUniform = std::variant<
@@ -69,6 +57,18 @@ template<typename T> concept UniformType = isVariantMember<T, ShaderUniform>::va
 class TAGShaderManager {
 public:
     /**
+    * Shader types
+    */
+    enum class ShaderType {
+        SKYBOX_DRAW = 0,
+        BASIC_DRAW,
+        HUD_DRAW,
+        UNINSTANCED_MODEL_DRAW,
+        INSTANCED_MODEL_DRAW,
+        CUSTOM_DRAW
+    };
+
+    /**
     * Container for a shader program's source 
     */
     struct Source {
@@ -76,7 +76,7 @@ public:
         std::string fragment;
         std::string name;
         bool is_path = true;
-        TAGShaderType shader_type = TAGShaderType::CUSTOM_DRAW;
+        ShaderType shader_type = ShaderType::CUSTOM_DRAW;
     };
 
     /**
@@ -84,6 +84,7 @@ public:
     */
     struct Shader {
         unsigned int ID;
+        std::unordered_map<std::string, GLint> uniform_locations;
 
         template<UniformType T> void set(const std::string& name, const T& value, const unsigned int& count = 1) const;
     };
@@ -141,15 +142,13 @@ public:
     */
     const Shader& useShader(const std::string& name) const;
     /**
-    * Deactivates the current shader.
-    */
-    void stopShader() const;
-    /**
     * Gets all shader program names.
     */
     std::vector<std::string> getShaderNames() const;
-    auto begin() const;
-    auto end() const;
+    /**
+    * Deactivates the current shader.
+    */
+    static void stopShader();
 private:
     static constexpr unsigned int DEFAULT_SHADER_COUNT = 8;
     static constexpr std::string_view shader_version = "#version 460 core\n";
@@ -215,16 +214,40 @@ private:
         // Skybox fragment 4
         "out vec4 FragColor;\n"
         "in vec3 TexCoords;\n"
-        "uniform samplerCube skybox;\n"
+        "uniform samplerCube cubemap;\n"
         "void main() {\n"
-            "FragColor = texture(skybox, TexCoords);\n}",
+        "   FragColor = texture(cubemap, TexCoords);\n}",
         // Basic fragment 5
-        ""
+        "out vec4 FragColour;\n"
+        "in vec2 TexCoords;\n"
+        "in vec3 Normal;\n"
+        "in vec3 FragPos;\n"
+        "uniform int diff_tex_num;\n"
+        "uniform vec3 colour;\n"
+        "uniform sampler2D diff_texs[16];\n"
+        "void main() {\n"
+        "   if (diff_tex_num == 0)\n"
+        "      FragColour = vec4(colour, 1.0f);\n"
+        "   else\n"
+        "      FragColour = glm::vec4(1.0f);\n"
+        "      float factor = 1.0f / ((float)diff_tex_num);\n"
+        "      for (int i = 0; i < diff_tex_num; i++) {\n"
+        "          FragColour = mix(FragColour, texture(diff_texs[i], TexCoords), factor);\n"
+        "      }\n}",
+        // HUD fragment 6
+        "out vec4 FragColour;\n"
+        "in vec2 TexCoord;\n"
+        "flat in int tex_index;\n"
+        "uniform sampler2D diff_texs[16];\n"
+        "void main() {\n"
+        "   FragColour = texture(diff_texs[tex_index], TexCoord);\n"
+        "   if (FragColour.w < 0.01f)\n"
+        "      discard;\n}"
     };
     std::unordered_map<std::string, Shader> shaders;
 
-    static unsigned int loadShader(Source source);
-    static void loadFromFile(Source& source);
+    static Shader loadShader(const Source& source);
+    static void getSourceCodeFromFile(const Source& source, std::string& vertex_code, std::string& fragment_code);
 };
 
 #include "../../src/ShaderManagerClass.inl";

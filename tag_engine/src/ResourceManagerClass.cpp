@@ -1,57 +1,61 @@
 #include <ResourceManagerClass.hpp>
 
-const GLuint& OpenGLHandle::getID() const {
+const GLuint& TAGResourceManager::OpenGLHandle::getID() const {
 	return ID;
 }
 
-VertexArrayObject::VertexArrayObject() {
+TAGResourceManager::VertexArrayObject::VertexArrayObject() {
 	glCreateVertexArrays(1, &ID);
+	vao_binding_indices[ID] = {};
 }
 
-ProgramShader::ProgramShader() {
+TAGResourceManager::ProgramShader::ProgramShader() {
 	ID = glCreateProgram();
 }
 
-VertexShader::VertexShader() {
+TAGResourceManager::VertexShader::VertexShader() {
 	ID = glCreateShader(GL_VERTEX_SHADER);
 }
 
-FragmentShader::FragmentShader() {
+TAGResourceManager::FragmentShader::FragmentShader() {
 	ID = glCreateShader(GL_FRAGMENT_SHADER);
 }
 
-TextureBuffer::TextureBuffer() {
+TAGResourceManager::TextureBuffer::TextureBuffer() {
 	glGenTextures(1, &ID);
 }
 
-GenericBuffer::GenericBuffer() {
+TAGResourceManager::GenericBuffer::GenericBuffer() {
 	glCreateBuffers(1, &ID);
 }
 
-VertexArrayObject::~VertexArrayObject() {
+TAGResourceManager::VertexArrayObject::~VertexArrayObject() {
+	vao_binding_indices.erase(ID);
 	glDeleteVertexArrays(1, &ID);
 }
 
-ProgramShader::~ProgramShader() {
+TAGResourceManager::ProgramShader::~ProgramShader() {
 	glDeleteProgram(ID);
 }
 
-VertexShader::~VertexShader() {
+TAGResourceManager::VertexShader::~VertexShader() {
 	glDeleteShader(ID);
 }
 
-FragmentShader::~FragmentShader() {
+TAGResourceManager::FragmentShader::~FragmentShader() {
 	glDeleteShader(ID);
 }
 
-TextureBuffer::~TextureBuffer() {
+TAGResourceManager::TextureBuffer::~TextureBuffer() {
 	glDeleteTextures(1, &ID);
 }
 
-GenericBuffer::~GenericBuffer() {
+TAGResourceManager::GenericBuffer::~GenericBuffer() {
 	glDeleteBuffers(1, &ID);
 }
 
 void TAGResourceManager::clear() {
 	buffers.clear();
+	vao_binding_indices.clear();
+	shader_binding_indices.clear();
 }

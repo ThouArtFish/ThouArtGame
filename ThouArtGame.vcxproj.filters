@@ -71,9 +71,6 @@
     <ClCompile Include="tag_engine\src\glad.c">
       <Filter>ThouArtGame Files\Source</Filter>
     </ClCompile>
-    <ClCompile Include="tag_engine\src\LightManagerClass.cpp">
-      <Filter>ThouArtGame Files\Source</Filter>
-    </ClCompile>
     <ClCompile Include="tag_engine\src\MeshClass.cpp">
       <Filter>ThouArtGame Files\Source</Filter>
     </ClCompile>
@@ -125,6 +122,9 @@
       <Filter>ThouArtGame Files\Source</Filter>
     </None>
     <None Include="tag_engine\src\ShaderManagerClass.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
+    <None Include="tag_engine\src\LightManagerClass.inl">
       <Filter>ThouArtGame Files\Source</Filter>
     </None>
   </ItemGroup>

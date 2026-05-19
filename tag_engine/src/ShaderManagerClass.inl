@@ -2,13 +2,12 @@
 
 #include <ShaderManagerClass.hpp>
 
-template<UniformType T>
-void TAGShaderManager::Shader::set(const std::string& name, const T& value, const unsigned int& count) const {
-    if (name == "") {
+template<UniformType T> void TAGShaderManager::Shader::set(const std::string& name, const T& value, const unsigned int& count) const {
+    if (uniform_locations.find(name) == uniform_locations.end()) {
         return;
     }
 
-    const GLint loc = glGetUniformLocation(ID, name.c_str());
+    const GLint loc = uniform_locations[name];
 
     if constexpr (std::same_as<T, bool> || std::same_as<T, int>) {
         glUniform1iv(loc, count, (GLint*)&value);
@@ -70,7 +69,7 @@ void TAGShaderManager::Shader::set(const std::string& name, const T& value, cons
     else if constexpr (std::same_as<T, glm::mat4x2>) {
         glUniformMatrix4x2fv(loc, count, GL_FALSE, glm::value_ptr(value));
     }
-    else if constexpr (std::same_as<T, glm::mat4x3>) {
+    else { // glm::mat4x3
         glUniformMatrix4x3fv(loc, count, GL_FALSE, glm::value_ptr(value));
     }
 }

@@ -11,63 +11,87 @@ TAGShaderManager::TAGShaderManager(const std::vector<Source>& sources) {
 TAGShaderManager::~TAGShaderManager() {
 	if (delete_on_death) {
 		for (const auto& pair : shaders) {
-			TAGResourceManager::deleteBuffer<ProgramShader>(pair.second.ID);
+			TAGResourceManager::deleteBuffer<TAGResourceManager::ProgramShader>(pair.second.ID);
 		}
 	}
 }
 
-unsigned int TAGShaderManager::loadShader(Source source) {
+TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
+	std::string vertex_code, fragment_code;
 	if (source.is_path) {
-		loadFromFile(source);
+		getSourceCodeFromFile(source, vertex_code, fragment_code);
 	}
 
-	// Compile shaders
+	// Compile shader program stages
 	unsigned int vertex, fragment;
 	int success;
 	char infoLog[512];
 	static std::vector<GLchar*> source_ptr;
 
-	vertex = TAGResourceManager::createBuffer<VertexShader>();
-	source_ptr.push_back((GLchar*)source.vertex.c_str());
+	vertex = TAGResourceManager::createBuffer<TAGResourceManager::VertexShader>();
+	source_ptr.push_back((GLchar*)(source.is_path || source.shader_type != ShaderType::CUSTOM_DRAW ? vertex_code : source.vertex).c_str());
 	glShaderSource(vertex, 1, source_ptr.data(), NULL);
 	glCompileShader(vertex);
 	source_ptr.pop_back();
 	glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
+	if (!success) {
 		glGetShaderInfoLog(vertex, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
 	};
 
-	fragment = TAGResourceManager::createBuffer<FragmentShader>();
-	source_ptr.push_back((GLchar*)source.fragment.c_str());
+	fragment = TAGResourceManager::createBuffer<TAGResourceManager::FragmentShader>();
+	source_ptr.push_back((GLchar*)(source.is_path || source.shader_type != ShaderType::CUSTOM_DRAW ? fragment_code : source.fragment).c_str());
 	glShaderSource(fragment, 1, source_ptr.data(), NULL);
 	glCompileShader(fragment);
 	source_ptr.pop_back();
 	glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
+	if (!success) {
 		glGetShaderInfoLog(fragment, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
 	};
 
-	// shader Program
-	const unsigned int ID = TAGResourceManager::createBuffer<ProgramShader>();
+	// Compile final shader program
+	const unsigned int ID = TAGResourceManager::createBuffer<TAGResourceManager::ProgramShader>();
 	glAttachShader(ID, vertex);
 	glAttachShader(ID, fragment);
 	glLinkProgram(ID);
 	glGetProgramiv(ID, GL_LINK_STATUS, &success);
-	if (!success)
-	{
+	if (!success) {
 		glGetProgramInfoLog(ID, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
 	}
-	TAGResourceManager::deleteBuffer<VertexShader>(vertex);
-	TAGResourceManager::deleteBuffer<FragmentShader>(fragment);
-	return ID;
+	TAGResourceManager::deleteBuffer<TAGResourceManager::VertexShader>(vertex);
+	TAGResourceManager::deleteBuffer<TAGResourceManager::FragmentShader>(fragment);
+
+	// Get location and names of all uniforms
+	Shader shader = { .ID = ID };
+
+	GLint uniform_count;
+	glGetProgramiv(ID, GL_ACTIVE_UNIFORMS, &uniform_count);
+	GLint max_uniform_name_length;
+	glGetProgramiv(ID, GL_ACTIVE_UNIFORM_MAX_LENGTH, &max_uniform_name_length);
+
+	std::vector<GLchar> name(max_uniform_name_length);
+
+	for (GLint i = 0; i < uniform_count; i++) {
+		GLsizei length;
+		GLint size;
+		GLenum type;
+
+		glGetActiveUniform(ID, i, max_uniform_name_length, &length, &size, &type, name.data());
+		GLint location = glGetUniformLocation(ID, name.data());
+
+		auto bracket_loc = std::find(name.begin(), name.end(), '[');
+		if (bracket_loc != name.end()) {
+			length -= 3;
+		}
+		shader.uniform_locations[std::string(name.data(), length)] = location;
+	}
+
+	return shader;
 }
 
-void TAGShaderManager::loadFromFile(Source& source) {
+void TAGShaderManager::getSourceCodeFromFile(const Source& source, std::string& vertex_code, std::string& fragment_code) {
 	std::ifstream file;
 	std::stringstream stream;
 
@@ -78,12 +102,12 @@ void TAGShaderManager::loadFromFile(Source& source) {
 		file.open(TAGResourceManager::asset_path + source.vertex);
 		stream << file.rdbuf();
 		file.close();
-		source.vertex = stream.str();
+		vertex_code = stream.str();
 
 		file.open(TAGResourceManager::asset_path + source.fragment);
 		stream << file.rdbuf();
 		file.close();
-		source.fragment = stream.str();
+		fragment_code = stream.str();
 	}
 	catch (std::ifstream::failure e)
 	{
@@ -92,17 +116,17 @@ void TAGShaderManager::loadFromFile(Source& source) {
 }
 
 void TAGShaderManager::addShader(const Source& source) {
-	shaders.try_emplace(source.name, loadShader(source));
+	shaders.insert_or_assign(source.name, loadShader(source));
 }
 
 void TAGShaderManager::addShader(const std::vector<Source>& sources) {
 	for (const Source& source : sources) {
-		shaders.try_emplace(source.name, loadShader(source));
+		shaders.insert_or_assign(source.name, loadShader(source));
 	}
 }
 
 void TAGShaderManager::deleteShader(const std::string& name) {
-	TAGResourceManager::deleteBuffer<ProgramShader>(shaders.at(name).ID);
+	TAGResourceManager::deleteBuffer<TAGResourceManager::ProgramShader>(shaders.at(name).ID);
 	shaders.erase(name);
 }
 
@@ -117,9 +141,6 @@ const TAGShaderManager::Shader& TAGShaderManager::useShader(const std::string& n
 	glUseProgram(shader.ID);
 	return shader;
 }
-void TAGShaderManager::stopShader() const {
-	glUseProgram(0);
-}
 
 std::vector<std::string> TAGShaderManager::getShaderNames() const {
 	std::vector<std::string> names;
@@ -130,10 +151,6 @@ std::vector<std::string> TAGShaderManager::getShaderNames() const {
 	return names;
 }
 
-auto TAGShaderManager::begin() const {
-	return shaders.begin();
-}
-
-auto TAGShaderManager::end() const {
-	return shaders.end();
+void TAGShaderManager::stopShader() {
+	glUseProgram(0);
 }
