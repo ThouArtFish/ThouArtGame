@@ -94,55 +94,63 @@ public:
 		BufferHandler(const BufferHandler&) = delete;
 		BufferHandler& operator=(const BufferHandler&) = delete;
 
-		unsigned int getMaxObjects() const;
-		unsigned int getCurrentObjects() const;
+		const BufferAccess access;
+
+		GLuint getMaxObjects() const;
+		GLuint getCurrentObjects() const;
 		void bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBuffer& buffer_option);
 		void bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao);
 		void setFence();
-		virtual void updateBuffer(const std::vector<T>& data) = 0;
-		virtual void resizeBuffer(const unsigned int& new_size) = 0;
 	protected:
+		const GLuint include_size;
 		GLuint buffer_id, max_objs;
 		std::unique_ptr<GLsyncWrap[]> fences;
-		GLuint current_objs = 0, current_fence = 0;
 		std::vector<GLuint> bound_vaos;
 		std::vector<ShaderBuffer> bound_buffers;
+		GLuint current_objs = 0, current_fence = 0;
 		GLintptr internal_offset = 0;
 
+		BufferHandler(const bool& include_size, const BufferAccess& access);
 		void updateBindings(const GLuint& new_buffer_id);
+		virtual void updateBuffer(const std::vector<T>& data) = 0;
+		virtual void resizeBuffer(const GLuint& new_size) = 0;
 	};
 
 	/**
 	* Struct for handling ring buffers, for STREAM level buffers
 	*/
-	template<class T, unsigned int MAX_FENCES> class RingBuffer : public BufferHandler<T> {
+	template<class T, GLuint MAX_FENCES> class RingBuffer : public BufferHandler<T> {
 		static_assert(MAX_FENCES > 1 && MAX_FENCES < 6, "MAX_FENCES must be between 2 and 5");
+		friend class ObjectBuffer;
 	public:
-		RingBuffer(const unsigned int& max_objs);
+		RingBuffer(const GLuint& max_objs, const bool& include_size = false);
 		~RingBuffer();
-		void updateBuffer(const std::vector<T>& data) override;
-		void resizeBuffer(const unsigned int& new_size) override;
 	private:
-		T* buffer_ptr = nullptr;
+		GLchar* buffer_ptr = nullptr;
+
+		void updateBuffer(const std::vector<T>& data) override;
+		void resizeBuffer(const GLuint& new_size) override;
 	};
 
 	/**
 	* Struct for handling orphan buffers, for DYNAMIC and STATIC level buffers
 	*/
 	template<class T> class OrphanBuffer : public BufferHandler<T> {
+		friend class ObjectBuffer;
 	public:
-		OrphanBuffer(const unsigned int& max_objs);
+		OrphanBuffer(const GLuint& max_objs, const BufferAccess& access, const bool& include_size = false);
 		~OrphanBuffer();
+	private:
 		void updateBuffer(const std::vector<T>& data) override;
-		void resizeBuffer(const unsigned int& new_size) override;
+		void resizeBuffer(const GLuint& new_size) override;
 	};
 
 	/**
 	* Struct for handling buffer access
 	*/
-	template<class C, class G, unsigned int DIVISIONS = 0> class ObjectBuffer {
+	template<class C, class G, GLuint DIVISIONS = 0> class ObjectBuffer {
 	public:
-		ObjectBuffer(const unsigned int& max_objs, G(*converter)(const C&, const unsigned int&), const BufferAccess& access);
+		ObjectBuffer(const GLuint& max_objs, G(*converter)(const C&, const GLuint&), const BufferAccess& access, const bool& include_size = false);
 
 		const std::vector<C>& getObjects() const;
 		std::vector<C>& changeObjects();
@@ -151,7 +159,7 @@ public:
 		const std::unique_ptr<BufferHandler<G>>& getBuffer();
 		void updateBuffer();
 	private:
-		G(*converter)(const C&, const unsigned int&);
+		G(*converter)(const C&, const GLuint&);
 
 		bool objects_changed = false;
 		std::vector<C> objs;

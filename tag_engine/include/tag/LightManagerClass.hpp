@@ -28,16 +28,16 @@ struct FlashLight {
 /**
 * Shader side light structs
 */
-struct ShaderPointLight {
+struct alignas(16) ShaderPointLight {
 	glm::vec4 a, b;
 };
 
-struct ShaderRayLight {
+struct alignas(16) ShaderRayLight {
 	glm::vec4 a;
 	glm::vec2 b;
 };
 
-struct ShaderFlashLight {
+struct alignas(16) ShaderFlashLight {
 	glm::vec4 a, b, c;
 };
 
@@ -70,12 +70,11 @@ template<LightType T> class TAGLightManager {
 		* Scene data for shaders
 		*/
 		struct Scene {
-			std::array<GLuint, MAX_BINDING_INDEX + 1> light_counts;
 			GLfloat ambience;
 		};
 
 		using ShaderT = ShaderLightType<T>::type;
-		using SceneObject = TAGResourceManager::ObjectBuffer<Scene, GLfloat, MAX_BINDING_INDEX + 2>;
+		using SceneObject = TAGResourceManager::ObjectBuffer<Scene, GLfloat>;
 
 		/**
 		 * Initialize with a number of lights and access manager
@@ -122,32 +121,24 @@ template<LightType T> class TAGLightManager {
 		void bindToShader(const GLintptr& offset = 0, const GLuint& index = ShaderLightType<T>::default_binding_point);
 		/**
 		* Updates GPU side buffer with CPU side lights.
-		* Assumes this objects lights are currently bound to binding index at index.
-		* 
-		* @param index Binding point of shader storage buffer object in any shader.
 		*/
-		void updateLightBuffer(const GLuint& index = ShaderLightType<T>::default_binding_point);
+		void updateLightBuffer();
 		/**
-		* Set scene ambient lighting
+		* Set scene data
 		*
-		* @param ambience Ambient lighting of the scene
+		* @param scene New scene data.
 		*/
-		static void setAmbience(const float& ambience);
+		static void setScene(const Scene& scene);
 		/**
-		* Get scene ambient lighting
+		* Get scene data.
 		*/
-		static float getAmbience();
+		static const Scene& getScene();
 		/**
 		* Set scene data to all shaders at binding point index.
-		* Also updates GPU side buffer if update is required
 		*
-		* @param Binding point of shader storage buffer object in any shader.
+		* @param index Binding point of shader storage buffer object in any shader.
 		*/
 		static void bindSceneToShader(const GLuint& index = default_scene_binding_point);
-		/**
-		* Updates GPU side buffer with CPU side scene data
-		*/
-		static void updateSceneBuffer();
 		/**
 		 * Returns iterator for traversing lights
 		 */
@@ -165,13 +156,11 @@ template<LightType T> class TAGLightManager {
 		 */
 		unsigned int bufferSize() const;
 	private:
-		unsigned int last_size = 0;
 		TAGResourceManager::ObjectBuffer<T, ShaderT> lights;
 		static std::variant<std::monostate, SceneObject> scene;
 
-		void setLightCount(const GLuint& index);
 		static ShaderT shaderLightConverter(const T& light, const unsigned int& split = 0);
-		static GLfloat shaderSceneConverter(const Scene& scene, const unsigned int& split);
+		static GLfloat shaderSceneConverter(const Scene& scene, const unsigned int& split = 0);
 		static void initSceneBuffer();
 };
 

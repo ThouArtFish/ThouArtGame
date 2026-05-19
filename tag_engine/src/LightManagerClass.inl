@@ -6,7 +6,7 @@ template<LightType T> TAGLightManager<T>::TAGLightManager(const std::vector<T>& 
 	if (std::holds_alternative<std::monostate>(scene)) {
 		initSceneBuffer();
 	}
-	this->lights = TAGResourceManager::ObjectBuffer<T, ShaderT>(glm::max(size, lights.size()), shaderLightConverter<T>, access);
+	this->lights = TAGResourceManager::ObjectBuffer<T, ShaderT>(glm::max(size, lights.size()), shaderLightConverter<T>, access, true);
 	std::vector<T>& light_ref = this->lights.changeObjects();
 	light_ref = lights;
 	this->lights.updateBuffer();
@@ -16,7 +16,7 @@ template<LightType T> TAGLightManager<T>::TAGLightManager(const TAGResourceManag
 	if (std::holds_alternative<std::monostate>(scene)) {
 		initSceneBuffer();
 	}
-	lights = TAGResourceManager::ObjectBuffer<T, ShaderT>(size, shaderLightConverter<T>, access);
+	lights = TAGResourceManager::ObjectBuffer<T, ShaderT>(size, shaderLightConverter<T>, access, true);
 }
 
 template<LightType T> void TAGLightManager<T>::setLight(const T& light, const int& index) {
@@ -40,45 +40,35 @@ template<LightType T> const std::vector<T>& TAGLightManager<T>::getAllLights() c
 
 template<LightType T> void TAGLightManager<T>::bindToShader(const GLintptr& offset, const GLuint& index) {
 	if (lights.isObjectsChanged()) {
-		updateLightBuffer(index);
+		updateLightBuffer();
 	}
 	lights.getBuffer()->bindToShader(index, offset, TAGResourceManager::ShaderBuffer::SHADER_STORAGE);
 }
 
-template<LightType T> void TAGLightManager<T>::updateLightBuffer(const GLuint& index) {
+template<LightType T> void TAGLightManager<T>::updateLightBuffer() {
 	lights.updateBuffer();
-	setLightCount(index);
 }
 
-template<LightType T> void TAGLightManager<T>::setAmbience(const float& ambience) {
+template<LightType T> void TAGLightManager<T>::setScene(const Scene& scene) {
 	SceneObject* scene_ptr = std::get_if<SceneObject>(scene);
 	if (scene_ptr) {
-		scene_ptr->changeObjects()[0].ambience = ambience;
+		scene_ptr->changeObjects()[0] = scene;
+		scene_ptr->updateBuffer();
 	}
 }
 
-template<LightType T> float TAGLightManager<T>::getAmbience() {
+template<LightType T> const TAGLightManager<T>::Scene& TAGLightManager<T>::getScene() {
 	SceneObject* scene_ptr = std::get_if<SceneObject>(scene);
 	if (scene_ptr) {
-		return scene_ptr->getObjects()[0].ambience;
+		return scene_ptr->getObjects()[0];
 	}
-	return -1.0f;
+	return {};
 }
 
 template<LightType T> void TAGLightManager<T>::bindSceneToShader(const GLuint& index) {
 	SceneObject* scene_ptr = std::get_if<SceneObject>(scene);
 	if (scene_ptr) {
-		if (scene_ptr->isObjectsChanged()) {
-			scene_ptr->updateBuffer();
-		}
 		scene_ptr->getBuffer()->bindToShader(index, 0, TAGResourceManager::ShaderBuffer::SHADER_STORAGE);
-	}
-}
-
-template<LightType T> void TAGLightManager<T>::updateSceneBuffer() {
-	SceneObject* scene_ptr = std::get_if<SceneObject>(scene);
-	if (scene_ptr) {
-		scene_ptr->updateBuffer();
 	}
 }
 
@@ -98,14 +88,6 @@ template<LightType T> unsigned int TAGLightManager<T>::size() const {
 	return lights.getObjects().size();
 }
 
-template<LightType T> void TAGLightManager<T>::setLightCount(const GLuint& index) {
-	const int current_object_num = lights.getBuffer()->getCurrentObjects();
-	SceneObject& scene_obj = std::get<SceneObject>(scene);
-	scene_obj.changeObjects()[0].light_counts[index] = current_object_num;
-	scene_obj.updateBuffer();
-	last_size = current_object_num;
-}
-
 template<LightType T> TAGLightManager<T>::ShaderT TAGLightManager<T>::shaderLightConverter(const T& light, const unsigned int& split) {
 	if constexpr (std::same_as<T, PointLight>) {
 		return { glm::vec4(light.position, light.attenuation.x), glm::vec4(light.colour, light.attenuation.y) };
@@ -119,20 +101,12 @@ template<LightType T> TAGLightManager<T>::ShaderT TAGLightManager<T>::shaderLigh
 }
 
 template<LightType T> GLfloat TAGLightManager<T>::shaderSceneConverter(const Scene& scene, const unsigned int& split) {
-	if (split < MAX_BINDING_INDEX + 2) {
-		return (GLfloat)scene.light_counts[split];
-	}
 	return scene.ambience;
 }
 
 template<LightType T> void TAGLightManager<T>::initSceneBuffer() {
-	scene.emplace<SceneObject>(1, shaderSceneConverter<T>, TAGResourceManager::BufferAccess::STREAM);
+	scene.emplace<SceneObject>(1, shaderSceneConverter<T>, TAGResourceManager::BufferAccess::STATIC);
 	SceneObject& scene_buffer = std::get<1>(scene);
-	Scene new_scene;
-	for (unsigned int i = 0; i < MAX_BINDING_INDEX; i++) {
-		new_scene.binding_and_counts[i] = { i, 0 };
-	}
-	new_scene.ambience = 0.1f;
-	scene_buffer.changeObjects().push_back(new_scene);
+	scene_buffer.changeObjects().emplace_back(0.1f);
 	scene_buffer.updateBuffer();
 }
