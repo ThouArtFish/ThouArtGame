@@ -24,6 +24,16 @@
 class TAGModel {
 public:
 	/**
+	* Default binding location for object buffers in instanced drawing
+	*/
+	static inline GLuint default_vao_instance_binding_point = 1;
+
+	/**
+	* Default size allocation for instances in buffer
+	*/
+	static inline GLuint default_instance_buffer_size = 20;
+
+	/**
 	 * Container for various info describing an instance of a mesh in-game.
 	 */
 	struct Object {
@@ -38,7 +48,7 @@ public:
 	/**
 	* GPU representation of objects
 	*/
-	struct ObjectShader {
+	struct alignas(16) ShaderObject {
 		glm::vec4 position_AND_scale;
 		glm::vec4 axis_AND_rotation;
 	};
@@ -46,16 +56,19 @@ public:
 	/**
 	 * Path to the model file, and parameters for texture loading.
 	 * Path can be empty, so TAGMesh can be added later.
+	 * Access specifies the frequency at which instances are changed.
 	 *  
 	 * @param params Parameters for texture loading.
+	 * @param access Frequency of changes.
 	 * @param path Path to model file.
 	 */
-	TAGModel(const TAGTexLoader::Params& params, const std::string& path = "");
+	TAGModel(const TAGTexLoader::Params& params, const TAGResourceManager::BufferAccess& access, const std::string& path = "");
 	TAGModel(const TAGModel&) = delete;
 	TAGModel& operator=(const TAGModel&) = delete;
 
 	/**
 	 * Draws all instances of the specified mesh, or all instances which represent all meshes if no mesh name is passed.
+	 * Also updates instance buffers if they are being used and require updates.
 	 * 
 	 * @param shader Shader to draw with.
 	 * @param mesh_name Name of mesh to draw all instances of, can be left as default to draw all instances of the entire model
@@ -72,25 +85,48 @@ public:
 	 */
 	void drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name = "", const TAGShaderManager::ShaderOptions& options = TAGShaderManager::default_options);
 	/**
-	 * Sets the size of the instance buffer for the specified mesh.
-	 * This is not a hard cap, the buffer is resized if more instances are added than size permits.
-	 * 
-	 * @param size Maximum size of instance buffer.
-	 * @param mesh_name Name of mesh.
-	 */
-	void setMaxInstanceCount(const unsigned int& size, const std::string& mesh_name = "");
+	* Set an object for a particular mesh, or all meshes if no mesh_name is given.
+	* Index must be less than the object count, or pushes to back if no index is passed.
+	*  
+	* @param obj Instance to set.
+	* @param index Index in internal instance array to set to.
+	* @param mesh_name Name of mesh to set instance of.
+	*/
+	void setInstance(const Object& obj, const int& index = -1, const std::string& mesh_name = "");
 	/**
-	 * Get the instances of a specific mesh, or the instances that represent every mesh if no mesh name is passed.
-	 * 
-	 * @param mesh_name Name of mesh.
-	 */
-	const std::vector<Object>& getInstances(const std::string& mesh_name = "") const;
+	* Removes instance of a particular mesh, or an instance of all meshes if no mesh_name is given.
+	* Index must be less than the object count, pops last instance if no index is passed.
+	*
+	* @param index Index in light array
+	*/
+	Object removeInstance(const int& index = -1, const std::string& mesh_name = "");
 	/**
-	* Get the instances of a specific mesh, or instances that represent every mesh if no mesh name is passed.
+	* Clears all instances of a particular mesh, or all instances of all meshes if no mesh_name is given, and sets new lights from parameter.
+	* 
+	* @param objs New instances.
+	* @param mesh_name Name of mesh.
+	*/
+	void setAllInstances(const std::vector<Object>& objs, const std::string& mesh_name = "");
+	/**
+	* Get an object for a particular mesh, or all meshes if no mesh_name is given.
+	* Index must be less than the object count, or -1 to get last object.
+	*
+	* @param index Index in internal instance array to get from.
+	* @param mesh_name Name of mesh to get instance of.
+	*/
+	const Object& getInstance(const int& index = -1, const std::string& mesh_name = "") const;
+	/**
+	* Get all instances of mesh, or all instances that represent every mesh if no mesh_name is passed.
 	* 
 	* @param mesh_name Name of mesh.
 	*/
-	std::vector<Object>& changeInstances(const std::string& mesh_name = "");
+	const std::vector<Object>& getAllInstances(const std::string& mesh_name = "") const;
+	/**
+	* Updates GPU side buffer with CPU side instances.
+	* 
+	* @param mesh_name Name of mesh to update instances for, or the instances that represent every mesh if no mesh_name is passed.
+	*/
+	void updateInstanceBuffer(const std::string& mesh_name);
 	/**
 	 * Access mesh.
 	 * 
@@ -119,19 +155,13 @@ public:
 	void deleteMesh(const std::string& mesh_name);
 private:
 	void loadModel(const std::string& path);
+	static ShaderObject shaderConverter(const Object& obj, const GLuint& split);
 	const TAGTexLoader::Texture loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const;
 protected:
-	struct InstanceDrawBuffer {
-		bool was_updated = true;
-		TAGResourceManager::RingBuffer<ObjectShader, 3> buffer;
-
-		InstanceDrawBuffer();
-	};
-
 	std::string directory;
+	TAGResourceManager::BufferAccess access;
 	TAGTexLoader::Params tex_params;
 	std::vector<std::string> mesh_draw_order;
 	std::unordered_map<std::string, TAGMesh> meshes;
-	std::unordered_map<std::string, InstanceDrawBuffer> instance_buffers;
-	std::unordered_map<std::string, std::vector<Object>> instances;
+	std::unordered_map<std::string, TAGResourceManager::ObjectBuffer<Object, ShaderObject>> instance_buffers;
 };

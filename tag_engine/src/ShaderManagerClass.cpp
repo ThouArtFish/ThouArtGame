@@ -18,7 +18,9 @@ TAGShaderManager::~TAGShaderManager() {
 
 TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 	std::string vertex_code, fragment_code;
-	if (source.is_path) {
+	if (source.shader_type != ShaderType::CUSTOM_DRAW) {
+		getSourceCodeFromDefault(source, vertex_code, fragment_code);
+	} else if (source.is_path) {
 		getSourceCodeFromFile(source, vertex_code, fragment_code);
 	}
 
@@ -63,29 +65,56 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 	TAGResourceManager::deleteBuffer<TAGResourceManager::VertexShader>(vertex);
 	TAGResourceManager::deleteBuffer<TAGResourceManager::FragmentShader>(fragment);
 
-	// Get location and names of all uniforms
 	Shader shader = { .ID = ID };
 
-	GLint uniform_count;
-	glGetProgramiv(ID, GL_ACTIVE_UNIFORMS, &uniform_count);
-	GLint max_uniform_name_length;
-	glGetProgramiv(ID, GL_ACTIVE_UNIFORM_MAX_LENGTH, &max_uniform_name_length);
+	// Get location and names of all uniforms
+	GLint count;
 
-	std::vector<GLchar> name(max_uniform_name_length);
+	constexpr GLsizei data_size = 100;
+	std::array<GLint, data_size> data(data_size);
 
-	for (GLint i = 0; i < uniform_count; i++) {
+	glGetProgramiv(ID, GL_ACTIVE_UNIFORMS, &count);
+	for (GLint i = 0; i < count; i++) {
 		GLsizei length;
 		GLint size;
 		GLenum type;
 
-		glGetActiveUniform(ID, i, max_uniform_name_length, &length, &size, &type, name.data());
-		GLint location = glGetUniformLocation(ID, name.data());
+		glGetActiveUniform(ID, i, data.max_size(), &length, &size, &type, (GLchar*)data.data());
 
-		auto bracket_loc = std::find(name.begin(), name.end(), '[');
-		if (bracket_loc != name.end()) {
+		if (std::find(data.begin(), data.end(), (GLint)'[') != data.end()) {
 			length -= 3;
+			data[length] = 0;
 		}
-		shader.uniform_locations[std::string(name.data(), length)] = location;
+
+		GLint location = glGetUniformLocation(ID, (GLchar*) data.data());
+
+		shader.uniform_data[std::string((GLchar*)data.data(), length)] = { location, type };
+	}
+
+	// Get attribute data
+	glGetProgramiv(ID, GL_ACTIVE_ATTRIBUTES, &count);
+
+	for (GLint i = 0; i < count; i++) {
+		GLsizei length;
+		GLint size;
+		GLenum type;
+
+		glGetActiveAttrib(ID, i, data.max_size(), &length, &size, &type, (GLchar*)data.data());
+
+		GLint location = glGetAttribLocation(ID, (GLchar*)data.data());
+
+		shader.attribute_data[location] = { std::string((GLchar*)data.data(), length), type };
+	}
+
+	// Get data for each program interface
+	constexpr std::array<GLenum, 2> props = { GL_BUFFER_BINDING, GL_NUM_ACTIVE_VARIABLES };
+	for (const TAGResourceManager::ShaderBufferType& type : TAGResourceManager::buffer_types) {
+		glGetProgramInterfaceiv(ID, (GLenum)type, GL_ACTIVE_RESOURCES, &count);
+		for (GLint i = 0; i < count; i++) {
+			GLsizei length;
+			glGetProgramResourceiv(ID, (GLenum)type, i, props.max_size(), props.data(), sizeof(data), &length, data.data());
+			shader.buffer_locations[type].push_back(data[0]);
+		}
 	}
 
 	return shader;
@@ -112,6 +141,34 @@ void TAGShaderManager::getSourceCodeFromFile(const Source& source, std::string& 
 	catch (std::ifstream::failure e)
 	{
 		std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+	}
+}
+
+void TAGShaderManager::getSourceCodeFromDefault(const Source& source, std::string& vertex_code, std::string& fragment_code) {
+	switch (source.shader_type) {
+	case ShaderType::SKYBOX_DRAW:
+		vertex_code = default_source[2].substr();
+		fragment_code = default_source[4].substr();
+		break;
+	case ShaderType::UNINSTANCED_BASIC_DRAW:
+		vertex_code = default_source[0].substr();
+		fragment_code = default_source[5].substr();
+		break;
+	case ShaderType::INSTANCED_BASIC_DRAW:
+		vertex_code = default_source[1].substr();
+		fragment_code = default_source[5].substr();
+		break;
+	case ShaderType::HUD_DRAW:
+		vertex_code = default_source[3].substr();
+		fragment_code = default_source[6].substr();
+		break;
+	case ShaderType::UNINSTANCED_MODEL_DRAW:
+		vertex_code = default_source[0].substr();
+		fragment_code = default_source[7].substr();
+		break;
+	default: // INSTANCED_MODEL_DRAW
+		vertex_code = default_source[1].substr();
+		fragment_code = default_source[7].substr();
 	}
 }
 

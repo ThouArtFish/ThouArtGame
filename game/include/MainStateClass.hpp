@@ -32,12 +32,12 @@ class MainState : public TAGBaseState {
 		const float capsule_rad = 0.8f;
 		const float grav_accel = -10.0f;
 		const float jump_accel = 20.0f;
-		const float player_light_fact = 0.0005f;
-		const float lamp_light_fact = 0.001f;
 		const float sens = 0.001f;
 		const float fov = 60.0f;
 		const float near = 0.1f;
 		const float far = 100.0f;
+		const glm::vec2 player_light_atten = { 0.7f, 1.8f };
+		const glm::vec2 lamp_light_atten = { 0.14f, 0.07f };
 		const glm::vec3 floor_elevation = glm::vec3(0.0f, -20.0f, 0.0f);
 		const glm::vec4 player_light = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
 		const glm::vec4 lamp_light = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
@@ -54,30 +54,31 @@ class MainState : public TAGBaseState {
 		glm::vec3 lamp_pos;
 		glm::vec3 stable_position;
 
-		TAGLightManager light_manager = TAGLightManager(2, TAGLightManager::ChangeFreq::STREAM);
+		TAGLightManager<PointLight> light_manager = TAGLightManager<PointLight>(TAGResourceManager::BufferAccess::STREAM, 2);
 
 		TAGShaderManager shaders = TAGShaderManager({
-			{ "shaders/instanced.vert", "shaders/object_frag.frag", "instanced" },
-			{ "shaders/uninstanced.vert", "shaders/object_frag.frag", "uninstanced" },
-			{ "shaders/skybox.vert", "shaders/skybox.frag", "skybox" },
-			{ "shaders/hud_instanced.vert", "shaders/hud_instanced.frag", "hud" }
+			{ .shader_type = TAGShaderManager::ShaderType::INSTANCED_MODEL_DRAW },
+			{ .shader_type = TAGShaderManager::ShaderType::UNINSTANCED_MODEL_DRAW },
+			{ .shader_type = TAGShaderManager::ShaderType::HUD_DRAW },
+			{ .shader_type = TAGShaderManager::ShaderType::SKYBOX_DRAW }
 		});
 
 		TAGPaintingModel images = TAGPaintingModel(
 			{ "images/flat_man.png", "images/pineapple.png" },
 			{ TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, true },
+			TAGResourceManager::BufferAccess::DYNAMIC,
 			TAGMesh::Material()
 		);
 
-		TAGHUDManager hud = TAGHUDManager();
+		TAGHUDManager hud = TAGHUDManager(TAGResourceManager::BufferAccess::STREAM, 5);
 
 		TAGSkybox skybox = TAGSkybox("skybox", { TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, false });
 
 		static const inline TAGTexLoader::Params model_params = { TAGTexParam::REPEAT_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, true };
 
-		TAGModel lamp = TAGModel(model_params, "lamp.txt");
+		TAGModel lamp = TAGModel(model_params, TAGResourceManager::BufferAccess::STREAM, "lamp.txt");
 
-		TAGWorldModel playground = TAGWorldModel(model_params, "playground.txt");
+		TAGWorldModel playground = TAGWorldModel(model_params, TAGResourceManager::BufferAccess::STATIC, "playground.txt");
 
 		glm::vec3 processInput();
 		void setPerspectiveMatrix();
@@ -91,23 +92,27 @@ MainState::MainState() {
 
 	// Create paintings
 	glm::vec3 stand = glm::vec3(0, -images.getMesh("flat_man").mesh_bb.min.y * 2.0f, 0);
-	images.changeInstances("flat_man").push_back(
-		{
+	images.setInstance(
+		{ 
 			.position = stand + floor_elevation,
 			.scale = 2.0f
-		}
+		}, 
+		-1,
+		"flat_man"
 	);
 	stand = glm::vec3(0, -images.getMesh("pineapple").mesh_bb.min.y * 3.0f, 0);
-	images.changeInstances("pineapple").push_back(
+	images.setInstance(
 		{
 			.position = glm::vec3(4.0f, 0.0f, 0.0f) + stand + floor_elevation,
 			.angle = -glm::half_pi<float>(),
 			.scale = 3.0f
-		}
+		},
+		-1,
+		"pineapple"
 	);
 
 	// Create playground
-	playground.changeInstances().push_back(
+	playground.setInstance(
 		{
 			.position = floor_elevation,
 			.scale = 3.0f
@@ -115,12 +120,20 @@ MainState::MainState() {
 	);
 
 	hud.addImage(images.getMesh("pineapple").getMaterial("Default").textures.at(0));
-	hud.changeQuads().emplace_back(glm::vec2(0.0f), glm::vec2(0.1f), "pineapple", 0);
+	hud.addQuad(
+		{
+			.position = glm::vec2(0.0f),
+			.dimensions = glm::vec2(0.1f),
+			.image_name = "pineapple",
+			.layer = 0
+		}
+	);
 
 	// Create lights
-	std::vector<TAGLightManager::Light>& lights = light_manager.changeLights();
-	lights.emplace_back(glm::vec4(glm::vec3(0), player_light_fact), player_light);
-	lights.emplace_back(glm::vec4(lamp_pos, lamp_light_fact), lamp_light);
+	std::vector<PointLight> lights;
+	lights.emplace_back(camera_position, player_light, player_light_atten);
+	lights.emplace_back(lamp_pos, lamp_light, lamp_light_atten);
+	light_manager.setAllLights(lights);
 
 	// Place lamp
 	lamp_pos = glm::vec3(0, -lamp.getMesh("lampion").mesh_bb.min.y * 0.01f, -3.0f) + floor_elevation;
@@ -171,11 +184,13 @@ std::string MainState::mainLoop() {
 	}
 
 	// Rotate the man
-	for (TAGModel::Object& obj : images.changeInstances("flat_man")) {
-		images.faceDirec(camera_position, obj, true);
+	for (const TAGModel::Object& obj : images.getAllInstances("flat_man")) {
+		images.setInstance(TAGPaintingModel::faceDirec(camera_position, obj, true));
 	}
 
-	hud.changeQuads().at(0).position.x += 0.02f * (float)delta_time;
+	TAGHUDManager::Quad quad = hud.getQuad(0);
+	quad.position.x += 0.02f * (float)delta_time;
+	// hud changes
 
 	// Apply camera position changes
 	glm::vec3 bounce = glm::vec3(0);
@@ -290,14 +305,14 @@ glm::vec3 MainState::processInput() {
 
 void MainState::setPerspectiveMatrix() {
 	const glm::mat4 perspec = glm::perspective(glm::radians(fov), (float)width / (float)height, near, far);
-	shaders.useShader("uninstanced").setMatrix4("perspective", perspec);
-	shaders.useShader("instanced").setMatrix4("perspective", perspec);
-	shaders.useShader("skybox").setMatrix4("perspective", perspec);
+	shaders.useShader("uninstanced").set<glm::mat4>("perspective", perspec);
+	shaders.useShader("instanced").set<glm::mat4>("perspective", perspec);
+	shaders.useShader("skybox").set<glm::mat4>("perspective", perspec);
 }
 
 void MainState::setCameraMatrix() {
 	const glm::mat4 view = glm::lookAt(camera_position, camera_position + camera_direction, camera_up);
-	shaders.useShader("instanced").setMatrix4("view", view);
-	shaders.useShader("uninstanced").setMatrix4("view", view);
-	shaders.useShader("skybox").setMatrix4("view", glm::mat4(glm::mat3(view)));
+	shaders.useShader("instanced").set<glm::mat4>("view", view);
+	shaders.useShader("uninstanced").set<glm::mat4>("view", view);
+	shaders.useShader("skybox").set<glm::mat4>("view", glm::mat4(glm::mat3(view)));
 }

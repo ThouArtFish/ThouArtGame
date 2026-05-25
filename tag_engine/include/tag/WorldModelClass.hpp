@@ -63,9 +63,10 @@ public:
 	 * Path can be empty, so TAGMesh can be added later.
 	 *
 	 * @param params Parameters for texture loading.
+	 * @param Frequency of changes
 	 * @param path Path to model file.
 	 */
-	TAGWorldModel(const TAGTexLoader::Params& tex_params, const std::string& path = "");
+	TAGWorldModel(const TAGTexLoader::Params& tex_params, const TAGResourceManager::BufferAccess& access, const std::string& path = "");
 	/**
 	* Detects a collision between a sphere and each instance of every mesh.
 	* 

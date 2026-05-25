@@ -1,7 +1,8 @@
 #include <ModelClass.hpp>
 
-TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const std::string& path) {
+TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const TAGResourceManager::BufferAccess& access, const std::string& path) {
 	this->tex_params = tex_params;
+	this->access = access;
 	this->directory = TAGResourceManager::asset_path + path.substr(0, path.find_last_of("/") + 1);
 
 	if (path != "") {
@@ -10,62 +11,44 @@ TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const std::string& pa
 }
 
 void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
-	if (mesh_name != "" && meshes.find(mesh_name) == meshes.end()) {
-		return;
-	}
+	if ((mesh_name != "" && meshes.find(mesh_name) == meshes.end()) || instance_buffers.find(mesh_name) == instance_buffers.end()) return;
 
-	InstanceDrawBuffer& instance_buffer = instance_buffers[mesh_name];
-	std::vector<Object>& objs = instances[mesh_name];
-	const size_t size = instances.size();
+	TAGResourceManager::ObjectBuffer<Object, ShaderObject>& instance_buffer = instance_buffers[mesh_name];
 
-	if (instance_buffer.was_updated) {
-		if ((mesh_name == "" ? meshes.at(mesh_draw_order.back()).is_transparent : meshes.at(mesh_name).is_transparent)) {
-			std::sort(objs.begin(), objs.end(),
-				[](const Object& a, const Object& b) {
-					return TAGUtil::lengthSq(TAGBaseState::camera_position - a.position) > TAGUtil::lengthSq(TAGBaseState::camera_position - b.position);
-				}
-			);
-		}
-		std::vector<ObjectShader> mats;
-		mats.reserve(size);
-		for (const Object& obj : objs) {
-			mats.emplace_back(glm::vec4(obj.position, obj.scale), glm::vec4(obj.rotation_axis, obj.angle));
-		}
-		if (size > instance_buffer.buffer.getMaxObjects()) {
-			instance_buffer.buffer.resizeBuffer((unsigned int)size);
-		}
-		else {
-			instance_buffer.buffer.updateBuffer(mats);
-		}
-		instance_buffer.was_updated = false;
-	}
+	TAGResourceManager::updateReferencedBuffers(shader);
 
-	if (!options.cull_backface) {
-		glDisable(GL_CULL_FACE);
-	}
+	if (!options.cull_backface) glDisable(GL_CULL_FACE);
 
 	if (mesh_name != "") {
 		TAGMesh& mesh = meshes.at(mesh_name);
-		instance_buffer.buffer.bindBuffer(1, mesh.getVAO());
-		mesh.draw(shader, options, (unsigned int)size);
+
+		if (instance_buffer.isObjectsChanged()) instance_buffer.updateBuffer();
+
+		instance_buffer.getBuffer()->bindToVertexArrayObject(1, 0, mesh.getVAO());
+
+		mesh.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
 	}
 	else {
 		for (const std::string& name : mesh_draw_order) {
 			TAGMesh& mesh = meshes.at(name);
-			instance_buffer.buffer.bindBuffer(1, mesh.getVAO());
-			mesh.draw(shader, options, (unsigned int)size);
+
+			if (instance_buffer.isObjectsChanged()) instance_buffer.updateBuffer();
+
+			instance_buffer.getBuffer()->bindToVertexArrayObject(1, 0, mesh.getVAO());
+
+			mesh.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
 		}
 	}
 
-	if (!options.cull_backface) {
-		glEnable(GL_CULL_FACE);
-	}
+	if (!options.cull_backface) glEnable(GL_CULL_FACE);
 }
 
 void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
-	if (!options.cull_backface) {
-		glDisable(GL_CULL_FACE);
-	}
+	if (mesh_name != "" && meshes.find(mesh_name) == meshes.end()) return;
+
+	TAGResourceManager::updateReferencedBuffers(shader);
+
+	if (!options.cull_backface) glDisable(GL_CULL_FACE);
 	
 	const std::array<glm::vec4, 2> shader_object = { glm::vec4(obj.position, obj.scale), glm::vec4(obj.rotation_axis, obj.angle) };
 	shader.set<glm::vec4>(options.shader_object, shader_object[0], 2);
@@ -78,25 +61,55 @@ void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj
 		}
 	}
 
-	if (!options.cull_backface) {
-		glEnable(GL_CULL_FACE);
+	if (!options.cull_backface) glEnable(GL_CULL_FACE);
+}
+
+void TAGModel::setInstance(const Object& obj, const int& index, const std::string& mesh_name) {
+	if (mesh_name != "" && meshes.find(mesh_name) == meshes.end()) return;
+
+	auto& obj_buffer = instance_buffers.try_emplace(mesh_name, default_instance_buffer_size, shaderConverter, access).first->second;
+	if (index < 0) {
+		obj_buffer.pushObject(obj);
+	}
+	else if (index < obj_buffer.getAllObjects().size()) {
+		obj_buffer.setObject(obj, index);
 	}
 }
 
-void TAGModel::setMaxInstanceCount(const unsigned int& size, const std::string& mesh_name) {
-	InstanceDrawBuffer& instance_buffer = instance_buffers[mesh_name];
-	instance_buffer.buffer.resizeBuffer(size);
+TAGModel::Object TAGModel::removeInstance(const int& index, const std::string& mesh_name) {
+	auto& obj_buffer = instance_buffers.at(mesh_name);
+
+	return (index < 0 ? obj_buffer.popObject() : obj_buffer.removeObject(index));
 }
 
-const std::vector<TAGModel::Object>& TAGModel::getInstances(const std::string& mesh_name) const {
-	static const std::vector<Object> empty;
-	const auto& it = instances.find(mesh_name);
-	return (it != instances.end() ? it->second : empty);
+void TAGModel::setAllInstances(const std::vector<Object>& objs, const std::string& mesh_name) {
+	if (mesh_name != "" && meshes.find(mesh_name) == meshes.end()) return;
+
+	auto& obj_buffer = instance_buffers.try_emplace(mesh_name, default_instance_buffer_size, shaderConverter, access).first->second;
+	obj_buffer.setAllObjects(objs);
 }
 
-std::vector<TAGModel::Object>& TAGModel::changeInstances(const std::string& mesh_name) {
-	instance_buffers[mesh_name].was_updated = true;
-	return instances[mesh_name];
+const TAGModel::Object& TAGModel::getInstance(const int& index, const std::string& mesh_name) const {
+	auto& obj_buffer = instance_buffers.at(mesh_name);
+
+	return (index < 0 ? obj_buffer.peekObject() : obj_buffer.getObject(index));
+}
+
+const std::vector<TAGModel::Object>& TAGModel::getAllInstances(const std::string& mesh_name) const {
+	return instance_buffers.at(mesh_name).getAllObjects();
+}
+
+void TAGModel::updateInstanceBuffer(const std::string& mesh_name) {
+	auto& instance_buffer = instance_buffers.at(mesh_name);
+	std::vector<Object>& object_vec = instance_buffer.changeObjects();
+	if (mesh_name == "" ? meshes.at(mesh_draw_order.back()).is_transparent : meshes.at(mesh_name).is_transparent) {
+		std::sort(object_vec.begin(), object_vec.end(),
+			[](const Object& a, const Object& b) {
+				return TAGUtil::lengthSq(TAGBaseState::camera_position - a.position) > TAGUtil::lengthSq(TAGBaseState::camera_position - b.position);
+			}
+		);
+	}
+	instance_buffer.updateBuffer();
 }
 
 TAGMesh& TAGModel::getMesh(const std::string& mesh_name) {
@@ -117,7 +130,6 @@ void TAGModel::addMesh(const std::string& mesh_name, const std::vector<TAGMesh::
 void TAGModel::deleteMesh(const std::string& mesh_name) {
 	meshes.erase(mesh_name);
 	instance_buffers.erase(mesh_name);
-	instances.erase(mesh_name);
 
 	mesh_draw_order.erase(std::find(mesh_draw_order.begin(), mesh_draw_order.end(), mesh_name));
 }
@@ -289,6 +301,10 @@ void TAGModel::loadModel(const std::string& path) {
 	}
 }
 
+TAGModel::ShaderObject TAGModel::shaderConverter(const Object& obj, const GLuint& split) {
+	return { glm::vec4(obj.position, obj.scale), glm::vec4(obj.rotation_axis, obj.angle) };
+}
+
 const TAGTexLoader::Texture TAGModel::loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const {
 	TAGTexLoader::Texture texture = TAGTexLoader::textureFromFile(this->directory + tex_path, this->tex_params);
 	texture.type = tex_type;
@@ -303,5 +319,3 @@ std::vector<std::string> TAGModel::getMeshNames() const {
 	}
 	return names;
 }
-
-TAGModel::InstanceDrawBuffer::InstanceDrawBuffer() : buffer(50) {}

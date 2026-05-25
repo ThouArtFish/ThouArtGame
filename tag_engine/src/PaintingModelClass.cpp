@@ -1,12 +1,12 @@
 #include <PaintingModelClass.hpp>
 
-TAGPaintingModel::TAGPaintingModel(const std::vector<std::string>& paths, const TAGTexLoader::Params& tex_params, const TAGMesh::Material& material) : TAGModel(tex_params) {
+TAGPaintingModel::TAGPaintingModel(const std::vector<std::string>& paths, const TAGTexLoader::Params& tex_params, const TAGResourceManager::BufferAccess& access, const TAGMesh::Material& material) : TAGModel(tex_params, access) {
 	for (const std::string& path : paths) {
 		loadPainting(path, tex_params, material);
 	}
 }
 
-TAGPaintingModel::TAGPaintingModel(const TAGTexLoader::Params& tex_params, const std::string& path, const TAGMesh::Material& material) : TAGModel(tex_params) {
+TAGPaintingModel::TAGPaintingModel(const TAGTexLoader::Params& tex_params, const TAGResourceManager::BufferAccess& access, const std::string& path, const TAGMesh::Material& material) : TAGModel(tex_params, access) {
 	if (path != "") {
 		loadPainting(path, tex_params, material);
 	}
@@ -46,16 +46,19 @@ void TAGPaintingModel::addPainting(const std::string& name, const TAGTexLoader::
 	addMesh(name, vertices, { frag_1, frag_2 }, { new_material });
 }
 
-void TAGPaintingModel::faceDirec(const glm::vec3& point, Object& obj, const bool& lock_axis) {
-	const glm::vec3 new_normal = glm::normalize(point - obj.position);
+TAGModel::Object TAGPaintingModel::faceDirec(const glm::vec3& point, const Object& obj, const bool& lock_axis) {
+	Object new_obj = obj;
+	const glm::vec3 new_normal = glm::normalize(point - new_obj.position);
 	const glm::vec3 axis = glm::cross(new_normal, defNormal);
 	float angle;
 	if (lock_axis) {
-		angle = glm::acos(glm::dot(glm::normalize(new_normal - obj.rotation_axis * glm::dot(obj.rotation_axis, new_normal)), defNormal));
+		angle = glm::acos(glm::dot(glm::normalize(new_normal - new_obj.rotation_axis * glm::dot(new_obj.rotation_axis, new_normal)), defNormal));
 	}
 	else {
-		obj.rotation_axis = glm::normalize(axis);
+		new_obj.rotation_axis = glm::normalize(axis);
 		angle = glm::acos(glm::dot(new_normal, defNormal));
 	}
-	obj.angle = (glm::dot(axis, obj.rotation_axis) > 0.0f ? -angle : angle);
+	new_obj.angle = (glm::dot(axis, new_obj.rotation_axis) > 0.0f ? -angle : angle);
+
+	return new_obj;
 }

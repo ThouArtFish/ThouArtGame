@@ -10,11 +10,13 @@
 #include <memory>
 #include <glm/glm.hpp>
 #include <glad/glad.h>
+#include <ShaderManagerClass.hpp>
 
 /**
 * Manages OpenGL buffer objects
 */
 class TAGResourceManager {
+	template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 public:
 	/**
 	* Structs for storing OpenGL buffer IDs
@@ -66,12 +68,13 @@ public:
 	/**
 	* Type of buffer bound to shader
 	*/
-	enum class ShaderBuffer {
+	enum class ShaderBufferType {
 		SHADER_STORAGE = GL_SHADER_STORAGE_BUFFER,
 		ATOMIC_COUNTER = GL_ATOMIC_COUNTER_BUFFER,
 		UNIFORM = GL_UNIFORM_BUFFER,
 		TRANSFORM_FEEDBACK = GL_TRANSFORM_FEEDBACK_BUFFER
 	};
+	static constexpr inline std::array<ShaderBufferType, 4> buffer_types = { ShaderBufferType::SHADER_STORAGE, ShaderBufferType::ATOMIC_COUNTER, ShaderBufferType::UNIFORM, ShaderBufferType::TRANSFORM_FEEDBACK };
 
 	/**
 	* The base path from the executable to loadable assets
@@ -89,24 +92,26 @@ public:
 	* Interface for implementing buffer handling structs
 	*/
 	template<class T> class BufferHandler {
+		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
 		virtual ~BufferHandler() = default;
 		BufferHandler(const BufferHandler&) = delete;
 		BufferHandler& operator=(const BufferHandler&) = delete;
 
 		const BufferAccess access;
+		const GLuint include_size;
 
 		GLuint getMaxObjects() const;
 		GLuint getCurrentObjects() const;
-		void bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBuffer& buffer_option);
+		GLuint getBufferID() const;
+		void bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option);
 		void bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao);
 		void setFence();
 	protected:
-		const GLuint include_size;
 		GLuint buffer_id, max_objs;
 		std::unique_ptr<GLsyncWrap[]> fences;
 		std::vector<GLuint> bound_vaos;
-		std::vector<ShaderBuffer> bound_buffers;
+		std::vector<ShaderBufferType> bound_buffers;
 		GLuint current_objs = 0, current_fence = 0;
 		GLintptr internal_offset = 0;
 
@@ -121,7 +126,7 @@ public:
 	*/
 	template<class T, GLuint MAX_FENCES> class RingBuffer : public BufferHandler<T> {
 		static_assert(MAX_FENCES > 1 && MAX_FENCES < 6, "MAX_FENCES must be between 2 and 5");
-		friend class ObjectBuffer;
+		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
 		RingBuffer(const GLuint& max_objs, const bool& include_size = false);
 		~RingBuffer();
@@ -136,7 +141,7 @@ public:
 	* Struct for handling orphan buffers, for DYNAMIC and STATIC level buffers
 	*/
 	template<class T> class OrphanBuffer : public BufferHandler<T> {
-		friend class ObjectBuffer;
+		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
 		OrphanBuffer(const GLuint& max_objs, const BufferAccess& access, const bool& include_size = false);
 		~OrphanBuffer();
@@ -146,26 +151,86 @@ public:
 	};
 
 	/**
+	* Wrapper to allow instance tracking in a map
+	*/
+	class ObjectBufferWrapper {
+	public:
+		virtual ~ObjectBufferWrapper() = default;
+		ObjectBufferWrapper(const ObjectBufferWrapper&) = delete;
+		ObjectBufferWrapper& operator=(const ObjectBufferWrapper&) = delete;
+
+		virtual void updateBuffer() = 0;
+		bool isObjectsChanged() const;
+	private:
+		bool objects_changed = false;
+	};
+
+	/**
 	* Struct for handling buffer access
 	*/
-	template<class C, class G, GLuint DIVISIONS = 0> class ObjectBuffer {
+	template<class C, class G, GLuint DIVISIONS = 0> class ObjectBuffer : public ObjectBufferWrapper {
 	public:
 		ObjectBuffer(const GLuint& max_objs, G(*converter)(const C&, const GLuint&), const BufferAccess& access, const bool& include_size = false);
+		~ObjectBuffer();
 
-		const std::vector<C>& getObjects() const;
+		const std::vector<C>& getAllObjects() const;
+		const C& getObject(const GLuint& index) const;
+		const C& peekObject() const;
+		void pushObject(const C& obj);
+		void setObject(const C& obj, const GLuint& index);
+		void insertObject(const C& obj, const GLuint& index);
+		C popObject();
+		C removeObject(const GLuint& index);
+		void setAllObjects(const std::vector<C>& objs);
 		std::vector<C>& changeObjects();
-		bool isObjectsChanged() const;
 
 		const std::unique_ptr<BufferHandler<G>>& getBuffer();
-		void updateBuffer();
+		void updateBuffer() override;
+
+		auto begin() const;
+		auto end() const;
 	private:
 		G(*converter)(const C&, const GLuint&);
 
-		bool objects_changed = false;
 		std::vector<C> objs;
 		std::unique_ptr<BufferHandler<G>> buffer;
 	};
 
+	/**
+	* Updates every buffer attached to a vertex array object, if it requires an update to its contents.
+	* 
+	* @param vao Vertex array object ID
+	*/
+	static void updateAttachedBuffers(const GLuint& vao);
+	/**
+	* Updates every buffer attached to any shader of the buffer type, if it requires an update to its contents.
+	* 
+	* @param buffer_type Type of buffer object to update instances of.
+	*/
+	static void updateAttachedBuffers(const ShaderBufferType& buffer_type);
+	/**
+	* Updates every buffer attached to any shader of any buffer type, if it requires an update to its contents.
+	*/
+	static void updateAttachedBuffers();
+	/**
+	* Updates every buffer that a vertex array object contains a binding index for, if it exists and requires an update to its contents
+	*
+	* @param vao VAO ID.
+	*/
+	static void updateReferencedBuffers(const GLuint& vao);
+	/**
+	* Updates every buffer of a particular buffer type a shader contains a binding index for, if it exists and requires an update to its contents
+	* 
+	* @param buffer_type Type of buffer object to update instances of.
+	* @param shader Shader object.
+	*/
+	static void updateReferencedBuffers(const ShaderBufferType& buffer_type, const TAGShaderManager::Shader& shader);
+	/**
+	* Updates every buffer that a shader contains a binding index for, if it exists and requires an update to its contents
+	*
+	* @param shader Shader object.
+	*/
+	static void updateReferencedBuffers(const TAGShaderManager::Shader& shader);
 	/**
 	* Deletes the buffer with the passed ID and of type T
 	* 
@@ -188,14 +253,15 @@ public:
 	static void clear();
 private:
 	struct BindingData {
-		GLuint binding_index, buffer_id;
-		GLintptr offset;
+		ObjectBufferWrapper* ptr = nullptr;
+		GLuint binding_index, buffer_id = 0;
+		GLintptr offset = 0;
 	};
 
 	using BufferVariant = std::variant<VertexArrayObject, ProgramShader, VertexShader, FragmentShader, TextureBuffer, GenericBuffer>;
 	static inline std::list<BufferVariant> buffers;
 	static inline std::map<GLuint, std::vector<BindingData>> vao_binding_indices;
-	static inline std::map<ShaderBuffer, std::vector<BindingData>> shader_binding_indices;
+	static inline std::map<ShaderBufferType, std::vector<BindingData>> shader_binding_indices;
 };
 
 #include "../../src/ResourceManagerClass.inl"

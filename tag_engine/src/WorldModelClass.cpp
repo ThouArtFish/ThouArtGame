@@ -1,6 +1,6 @@
 #include <WorldModelClass.hpp>
 
-TAGWorldModel::TAGWorldModel(const TAGTexLoader::Params& tex_params, const std::string& path) : TAGModel(tex_params, path) {}
+TAGWorldModel::TAGWorldModel(const TAGTexLoader::Params& tex_params, const TAGResourceManager::BufferAccess& access, const std::string& path) : TAGModel(tex_params, access, path) {}
 
 
 TAGMesh::PlaneVolume TAGWorldModel::planeToGameSpace(const TAGMesh::PlaneVolume& plane, const Object& obj) {

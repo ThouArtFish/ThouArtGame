@@ -12,11 +12,11 @@ TAGMesh::TAGMesh() {}
 
 TAGMesh::~TAGMesh() {
 	if (delete_on_death) {
-		TAGResourceManager::deleteBuffer<GenericBuffer>(this->VBO);
+		TAGResourceManager::deleteBuffer<TAGResourceManager::GenericBuffer>(this->VBO);
 		for (const MaterialElementBuffer& material_ebo : material_ebos) {
-			TAGResourceManager::deleteBuffer<GenericBuffer>(material_ebo.EBO);
+			TAGResourceManager::deleteBuffer<TAGResourceManager::GenericBuffer>(material_ebo.EBO);
 		}
-		TAGResourceManager::deleteBuffer<VertexArrayObject>(this->VAO);
+		TAGResourceManager::deleteBuffer<TAGResourceManager::VertexArrayObject>(this->VAO);
 	}
 }
 
@@ -25,7 +25,7 @@ TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) {
 }
 
 TAGMesh::MaterialElementBuffer::~MaterialElementBuffer() {
-	TAGResourceManager::deleteBuffer<GenericBuffer>(this->EBO);
+	TAGResourceManager::deleteBuffer<TAGResourceManager::GenericBuffer>(this->EBO);
 }
 
 void TAGMesh::generatePlanes() {
@@ -198,8 +198,8 @@ void TAGMesh::generateBVH() {
 }
 
 void TAGMesh::setupMesh() {
-	TAGResourceManager::deleteBuffer<GenericBuffer>(VBO);
-	TAGResourceManager::deleteBuffer<VertexArrayObject>(VAO);
+	TAGResourceManager::deleteBuffer<TAGResourceManager::GenericBuffer>(VBO);
+	TAGResourceManager::deleteBuffer<TAGResourceManager::VertexArrayObject>(VAO);
 	material_ebos.clear();
 
 	std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 3>>> material_frags;
@@ -207,7 +207,7 @@ void TAGMesh::setupMesh() {
 		material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
 	}
 	for (const auto& pair : material_frags) {
-		material_ebos.emplace_back(TAGResourceManager::createBuffer<GenericBuffer>(), pair.first);
+		material_ebos.emplace_back(TAGResourceManager::createBuffer<TAGResourceManager::GenericBuffer>(), pair.first);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
 	}
@@ -218,8 +218,8 @@ void TAGMesh::setupMesh() {
 		}
 	);
 
-	VBO = TAGResourceManager::createBuffer<GenericBuffer>();
-	VAO = TAGResourceManager::createBuffer<VertexArrayObject>();
+	VBO = TAGResourceManager::createBuffer<TAGResourceManager::GenericBuffer>();
+	VAO = TAGResourceManager::createBuffer<TAGResourceManager::VertexArrayObject>();
 
 	glBindVertexArray(VAO);
 
@@ -237,7 +237,7 @@ void TAGMesh::setupMesh() {
 	glVertexAttribBinding(base_attrib + 2, 0);
 
 	for (unsigned int i = 0; i < 2; i++) {
-		const unsigned int& base = base_attrib + i + 3;
+		const unsigned int base = base_attrib + i + 3;
 		glEnableVertexAttribArray(base);
 		glVertexAttribFormat(base, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4) * i);
 		glVertexAttribBinding(base, 1);
@@ -275,7 +275,7 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 				material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
 			}
 			for (const auto& pair : material_frags) {
-				material_ebos.emplace_back(TAGResourceManager::createBuffer<GenericBuffer>(), pair.first);
+				material_ebos.emplace_back(TAGResourceManager::createBuffer<TAGResourceManager::GenericBuffer>(), pair.first);
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
 				glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
 			}
@@ -317,20 +317,19 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 			shader.set<glm::vec3>(options.colour_vec, material.colour);
 		}
 		else {
-			shader.set<unsigned int>(options.diffuse_tex_array_name, diffuse[0], diffuse.size());
+			shader.set<unsigned int>(options.diffuse_tex_array, diffuse[0], diffuse.size());
 		}
-		shader.set<unsigned int>(options.diffuse_tex_num_name, diffuse.size());
+		shader.set<unsigned int>(options.diffuse_tex_num, diffuse.size());
 
-		shader.set<float>(options.specular_factor_name, material.spec_fac);
-		if (material.spec_fac > 0.0f) {
-			shader.set<float>(options.specular_exp_name, material.spec_exp);
-			if (specular.size() > 0) {
-				shader.set<unsigned int>(options.specular_tex_array_name, specular[0], specular.size());
-			}
-			shader.set<unsigned int>(options.specular_tex_num_name, specular.size());
+		if (material.spec_fac > 0.0f && specular.size() > 0) {
+			shader.set<unsigned int>(options.specular_tex_array, specular[0], specular.size());
 		}
+		shader.set<float>(options.specular_factor, material.spec_fac);
+		shader.set<float>(options.specular_exp, material.spec_exp);
+		shader.set<unsigned int>(options.specular_tex_num, specular.size());
 
 		shader.set<float>(options.opacity_value, material.opacity);
+		shader.set<glm::vec3>(options.camera_pos, TAGBaseState::camera_position);
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebo.EBO);
 		if (number > 1) {

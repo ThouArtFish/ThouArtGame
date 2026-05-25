@@ -77,21 +77,20 @@ template<LightType T> class TAGLightManager {
 		using SceneObject = TAGResourceManager::ObjectBuffer<Scene, GLfloat>;
 
 		/**
-		 * Initialize with a number of lights and access manager
-		 * 
-		 * @params lights Array of lights
-		 * @param access Access modifier for stored lights
-		 * @param size Size of buffer
-		 */
+		* Initialize with a number of lights and access manager
+		* 
+		* @params lights Array of lights
+		* @param access Access modifier for stored lights
+		* @param size Size of buffer
+		*/
 		TAGLightManager(const std::vector<T>& lights, const TAGResourceManager::BufferAccess& access, const unsigned int& size = 1);
 		/**
-		 * Initialize by allocating a size for buffer and access manager
-		 * 
-		 * @param access Access modifier for stored lights
-		 * @params size Size of buffer
-		 */
+		* Initialize by allocating a size for buffer and access manager
+		* 
+		* @param access Access modifier for stored lights
+		* @params size Size of buffer
+		*/
 		TAGLightManager(const TAGResourceManager::BufferAccess& access, const unsigned int& size = 1);
-
 		/**
 		 * Set light at index.
 		 * Pushes to end of light array if no index is passed.
@@ -101,6 +100,21 @@ template<LightType T> class TAGLightManager {
 		 * @param index Index in light array
 		 */
 		void setLight(const T& light, const int& index = -1);
+		/**
+		* Removes light at index.
+		* Pops last light if no index is passed.
+		* A buffer update function must be used for changes to be reflected in the GPU buffer.
+		* 
+		* @param index Index in light array
+		*/
+		T removeLight(const int& index = -1);
+		/**
+		* Clears all lights and sets new lights from parameter.
+		* A buffer update function must be used for changes to be reflected in the GPU buffer.
+		* 
+		* @param lights New lights.
+		*/
+		void setAllLights(const std::vector<T>& lights);
 		/**
 		 * Get light at index.
 		 * Gets last light if no index is passed.
@@ -148,19 +162,15 @@ template<LightType T> class TAGLightManager {
 		 */
 		auto end() const;
 		/**
-		* Returns number of lights in CPU array
+		* Returns number of lights in GPU buffer
 		*/
-		unsigned int size() const;
-		/**
-		 * Returns number of lights in GPU buffer
-		 */
 		unsigned int bufferSize() const;
 	private:
 		TAGResourceManager::ObjectBuffer<T, ShaderT> lights;
 		static std::variant<std::monostate, SceneObject> scene;
 
-		static ShaderT shaderLightConverter(const T& light, const unsigned int& split = 0);
-		static GLfloat shaderSceneConverter(const Scene& scene, const unsigned int& split = 0);
+		static ShaderT shaderLightConverter(const T& light, const GLuint& split = 0);
+		static GLfloat shaderSceneConverter(const Scene& scene, const GLuint& split = 0);
 		static void initSceneBuffer();
 };
 
