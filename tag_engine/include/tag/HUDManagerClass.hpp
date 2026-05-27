@@ -107,6 +107,14 @@ public:
 	*/
 	void addQuad(const Quad& quad);
 	/**
+	* Sets a quad in internal array.
+	* Layer ID will be changed to the layer ID of the quad originally at that position to maintain order.
+	* 
+	* @param quad New quad
+	* @param index Index in array
+	*/
+	void setQuad(const Quad& quad, const GLuint& index);
+	/**
 	* Removes quad at index.
 	* Pops last quad if no index is passed.
 	* A buffer update function must be used for changes to be reflected in the GPU buffer.
@@ -146,8 +154,10 @@ private:
 	* Holds data about a layer
 	*/
 	struct LayerData {
+		GLuint id;
+		GLuint start_index;
+		GLuint count;
 		bool is_hidden;
-		std::vector<Quad> hidden_quads;
 	};
 
 	static inline GLuint VAO = 0;
@@ -158,9 +168,10 @@ private:
 	glm::ivec2 screen_dimensions = { 1, 1 };
 	std::vector<TAGTexLoader::Texture> images;
 	TAGResourceManager::ObjectBuffer<Quad, ShaderQuad> quads;
-	std::map<GLuint, LayerData> layers;
+	TAGResourceManager::ObjectBuffer<LayerData, OpenGLIndirectCommand> layers = { 10, commandConverter, TAGResourceManager::BufferAccess::DYNAMIC };
 	std::vector<unsigned int> used_images;
 
 	static void initMesh();
+	static OpenGLIndirectCommand commandConverter(const LayerData& layer_data, const GLuint& split);
 	ShaderQuad shaderConverter(const Quad& quad, const GLuint& split);
 };

@@ -1,8 +1,6 @@
 #include <HUDManagerClass.hpp>
 
-TAGHUDManager::TAGHUDManager(const std::vector<std::string>& paths, const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params) {
-	quads = TAGResourceManager::ObjectBuffer<Quad, ShaderQuad>(size, shaderConverter, access);
-
+TAGHUDManager::TAGHUDManager(const std::vector<std::string>& paths, const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params) : quads(size, shaderConverter, access) {
 	if (VAO == 0) {
 		initMesh();
 	}
@@ -12,9 +10,7 @@ TAGHUDManager::TAGHUDManager(const std::vector<std::string>& paths, const TAGRes
 	}
 }
 
-TAGHUDManager::TAGHUDManager(const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params, const std::string& path) {
-	quads = TAGResourceManager::ObjectBuffer<Quad, ShaderQuad>(size, shaderConverter, access);
-
+TAGHUDManager::TAGHUDManager(const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params, const std::string& path) : quads(size, shaderConverter, access) {
 	if (VAO == 0) {
 		initMesh();
 	}
@@ -50,9 +46,32 @@ void TAGHUDManager::deleteImage(const std::string& name, const bool& global_dele
 
 	images.erase(pos);
 
+	std::unordered_map<GLuint, GLuint> layer_removed_count;
 	for (int i = 0; i < quads.getAllObjects().size(); i++) {
 		if (quads.getObject(i).image_name == name) {
-			quads.removeObject(i--);
+			const Quad quad = quads.removeObject(i--);
+			if (layer_removed_count.contains(quad.layer)) {
+				layer_removed_count[quad.layer]++;
+			}
+			else {
+				layer_removed_count[quad.layer] = 1;
+			}
+		}
+	}
+
+	if (!layer_removed_count.empty()) {
+		const std::vector<Quad>& quad_vec = quads.getAllObjects();
+		for (int i = 0; i < layers.getAllObjects().size(); i++) {
+			LayerData layer_data = layers.getObject(i);
+			auto it = std::find_if(quad_vec.begin(), quad_vec.end(), [&layer_data](const Quad& quad) { return quad.layer == layer_data.id; });
+			layer_data.start_index = (GLuint) std::distance(quad_vec.begin(), it);
+			layer_data.count -= (layer_removed_count.contains(layer_data.id) ? layer_removed_count[layer_data.id] : 0);
+			if (layer_data.count == 0) {
+				layers.removeObject(i--);
+			}
+			else {
+				layers.setObject(layer_data, i);
+			}
 		}
 	}
 }
@@ -67,44 +86,64 @@ std::vector<std::string> TAGHUDManager::getImageNames() const {
 }
 
 void TAGHUDManager::setLayerVisibility(const unsigned int& layer, const TAGEnum& state) {
-	if (!layers.contains(layer)) {
-		layers.emplace(layer, false);
+	auto vec_it = std::find_if(layers.begin(), layers.end(), [&layer](const LayerData& layer_data) { return layer == layer_data.id; });
+	if (vec_it == layers.end() || (vec_it->is_hidden && state == TAGEnum::FALSE) || (!vec_it->is_hidden && state == TAGEnum::TRUE)) return;
+
+	const GLuint layer_index = (GLuint) std::distance(layers.begin(), vec_it);
+	std::vector<LayerData>& layer_vec = layers.changeObjects();
+	if ((state == TAGEnum::FALSE || state == TAGEnum::TOGGLE) && !layer_vec[layer_index].is_hidden) {
+		layer_vec[layer_index].is_hidden = true;
 	}
-	LayerData& layer_data = layers[layer];
-	if ((state == TAGEnum::FALSE || state == TAGEnum::TOGGLE) && !layer_data.is_hidden) {
-		layer_data.is_hidden = true;
-		for (int i = 0; i < quads.getAllObjects().size(); i++) {
-			if (quads.getObject(i).layer == layer) {
-				layer_data.hidden_quads.push_back(quads.removeObject(i--));
-			}
-		}
-	}
-	else if ((state == TAGEnum::TRUE || state == TAGEnum::TOGGLE) && layer_data.is_hidden) {
-		layer_data.is_hidden = false;
-		for (const Quad& quad : layer_data.hidden_quads) {
-			addQuad(quad);
-		}
-		layer_data.hidden_quads.clear();
+	else if ((state == TAGEnum::TRUE || state == TAGEnum::TOGGLE) && layer_vec[layer_index].is_hidden) {
+		layer_vec[layer_index].is_hidden = false;
 	}
 }
 
 void TAGHUDManager::addQuad(const Quad& quad) {
-	auto layer_data = layers.find(quad.layer);
-	if (layer_data != layers.end() && layer_data->second.is_hidden) {
-		layer_data->second.hidden_quads.push_back(quad);
+	std::vector<LayerData>& layer_vec = layers.changeObjects();
+	auto layer_it = std::find_if(layer_vec.begin(), layer_vec.end(), [&quad](const LayerData& layer) { return quad.layer == layer.id; });
+	if (layer_it == layer_vec.end()) {
+		layer_vec.emplace_back(quad.layer, 0, quads.getAllObjects().size(), false);
+		layer_vec = layers.changeObjects();
+		layer_it = layer_vec.begin() + layer_vec.size() - 1;
 	}
-	else if (quads.getAllObjects().empty()) {
-		quads.pushObject(quad);
+	
+	layer_it->count++;
+	auto quad_it = std::find_if(quads.begin(), quads.end(), [&quad](const Quad& other_quad) { return other_quad.layer <= quad.layer; });
+	if (quad_it == quads.end()) { 
+		quads.pushObject(quad); 
 	}
-	else {
-		auto it = std::find_if(quads.begin(), quads.end(), [&quad](const Quad& other_quad) { return other_quad.layer > quad.layer; });
-		if (it == quads.end()) quads.pushObject(quad);
-		else quads.insertObject(quad, std::distance(quads.begin(), it));
+	else { 
+		layer_it->start_index = (GLuint) std::distance(quads.begin(), quad_it);
+		quads.insertObject(quad, layer_it->start_index);
+		for (LayerData& layer_data : layer_vec) {
+			if (layer_data.id < quad.layer) {
+				layer_data.start_index++;
+			}
+		}
 	}
 }
 
+void TAGHUDManager::setQuad(const Quad& quad, const GLuint& index) {
+	Quad other_quad = quads.getObject(index);
+	quads.setObject(quad, index);
+	quads.changeObjects()[index].layer = other_quad.layer;
+}
+
 TAGHUDManager::Quad TAGHUDManager::removeQuad(const int& index) {
-	return (index < 0 ? quads.popObject() : quads.removeObject(index));
+	Quad quad = (index < 0 ? quads.popObject() : quads.removeObject(index));
+	std::vector<LayerData>& layer_vec = layers.changeObjects();
+	auto layer_it = std::find_if(layer_vec.begin(), layer_vec.end(), [&quad](const LayerData& layer) { return quad.layer == layer.id; });
+	if (--layer_it->count == 0) {
+		layer_vec.erase(layer_it);
+		layer_vec = layers.changeObjects();
+	}
+	for (LayerData& layer_data : layer_vec) {
+		if (layer_data.id < quad.layer) {
+			layer_data.start_index--;
+		}
+	}
+	return quad;
 }
 
 const TAGHUDManager::Quad& TAGHUDManager::getQuad(const int& index) const {
@@ -135,12 +174,17 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 	// Bind quad buffer if it is not bound
 	quads.getBuffer()->bindToVertexArrayObject(base_attrib + 1, 0, VAO);
 
-	// Update any other buffers referenced by the shader
+	// Update any other buffers referenced by the shader, including the quad buffer that was just bound
 	TAGResourceManager::updateReferencedBuffers(shader);
+
+	// Update indirect draw buffer which controls which layer of images are drawn
+	if (layers.isObjectsChanged()) layers.updateBuffer();
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, layers.getBuffer()->getBufferID());
 
 	std::array<int, MAX_TEXTURES> texture_indices;
 	unsigned int i;
-	for (i = 0; i < used_images.size(); i++) {
+	for (i = 0; i < glm::min(MAX_TEXTURES, (GLuint) used_images.size()); i++) {
 		texture_indices[i] = i;
 		glActiveTexture(GL_TEXTURE0 + i);
 		glBindTexture(GL_TEXTURE_2D, used_images[i]);
@@ -151,9 +195,11 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 
 	glDepthFunc(GL_ALWAYS);
 	glBindVertexArray(VAO);
-	glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, quads.getBuffer()->getCurrentObjects());
+	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, (GLsizei) layers.getAllObjects().size(), sizeof(OpenGLIndirectCommand));
 	glBindVertexArray(0);
 	glDepthFunc(GL_LESS);
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
 	quads.getBuffer()->setFence();
 }
@@ -199,6 +245,10 @@ void TAGHUDManager::initMesh() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
+OpenGLIndirectCommand TAGHUDManager::commandConverter(const LayerData& layer_data, const GLuint& split) {
+	return { .count = 6, .instance_count = (!layer_data.is_hidden ? layer_data.count : 0), .base_instance = layer_data.start_index };
+}
+
 TAGHUDManager::ShaderQuad TAGHUDManager::shaderConverter(const Quad& quad, const GLuint& split) {
 	ShaderQuad buffer_quad;
 	glm::vec2 data1, data2;
@@ -216,15 +266,12 @@ TAGHUDManager::ShaderQuad TAGHUDManager::shaderConverter(const Quad& quad, const
 	buffer_quad.texel_data = glm::vec4(data1, data2);
 
 	const auto& pos = std::find(used_images.begin(), used_images.end(), tex_pos->id);
-	if (pos == used_images.end() && used_images.size() < MAX_TEXTURES) {
-		buffer_quad.tex_index = (GLuint)used_images.size();
+	if (pos == used_images.end()) {
+		buffer_quad.tex_index = (GLuint)used_images.size() % MAX_TEXTURES;
 		used_images.push_back(tex_pos->id);
 	}
-	else if (pos != used_images.end()) {
-		buffer_quad.tex_index = (GLuint)std::distance(used_images.begin(), pos);
-	}
 	else {
-		buffer_quad.tex_index = 0;
+		buffer_quad.tex_index = (GLuint)std::distance(used_images.begin(), pos) % MAX_TEXTURES;
 	}
 
 	return buffer_quad;

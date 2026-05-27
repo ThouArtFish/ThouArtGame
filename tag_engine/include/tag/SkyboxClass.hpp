@@ -29,9 +29,9 @@ class TAGSkybox {
 		* Draws the skybox.
 		* 
 		* @param shader The shader to draw the skybox with
-		* @param options Names of shader uniforms
+		* @param cubemap_name Name of cubemap shader uniform
 		*/
-		void draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options = TAGShaderManager::default_options) const;
+		void draw(const TAGShaderManager::Shader& shader, const std::string& cubemap_name = TAGShaderManager::default_options.cubemap) const;
 	private:
 		unsigned int VBO, EBO, VAO, cubemap_ID;
 };

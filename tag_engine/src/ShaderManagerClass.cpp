@@ -71,7 +71,7 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 	GLint count;
 
 	constexpr GLsizei data_size = 100;
-	std::array<GLint, data_size> data(data_size);
+	std::array<GLint, data_size> data;
 
 	glGetProgramiv(ID, GL_ACTIVE_UNIFORMS, &count);
 	for (GLint i = 0; i < count; i++) {
@@ -79,7 +79,7 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 		GLint size;
 		GLenum type;
 
-		glGetActiveUniform(ID, i, data.max_size(), &length, &size, &type, (GLchar*)data.data());
+		glGetActiveUniform(ID, i, (GLsizei) data.max_size(), &length, &size, &type, (GLchar*)data.data());
 
 		if (std::find(data.begin(), data.end(), (GLint)'[') != data.end()) {
 			length -= 3;
@@ -99,7 +99,7 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 		GLint size;
 		GLenum type;
 
-		glGetActiveAttrib(ID, i, data.max_size(), &length, &size, &type, (GLchar*)data.data());
+		glGetActiveAttrib(ID, i, (GLsizei) data.max_size(), &length, &size, &type, (GLchar*)data.data());
 
 		GLint location = glGetAttribLocation(ID, (GLchar*)data.data());
 
@@ -112,8 +112,8 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 		glGetProgramInterfaceiv(ID, (GLenum)type, GL_ACTIVE_RESOURCES, &count);
 		for (GLint i = 0; i < count; i++) {
 			GLsizei length;
-			glGetProgramResourceiv(ID, (GLenum)type, i, props.max_size(), props.data(), sizeof(data), &length, data.data());
-			shader.buffer_locations[type].push_back(data[0]);
+			glGetProgramResourceiv(ID, (GLenum) type, i, (GLsizei) props.max_size(), props.data(), sizeof(data), &length, data.data());
+			shader.buffer_locations[(GLuint) type].push_back(data[0]);
 		}
 	}
 

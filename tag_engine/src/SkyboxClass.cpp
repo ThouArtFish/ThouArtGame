@@ -58,13 +58,13 @@ TAGSkybox::~TAGSkybox() {
 	TAGResourceManager::deleteBuffer<TAGResourceManager::VertexArrayObject>(VAO);
 }
 
-void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options) const {
+void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& cubemap_name) const {
 	TAGResourceManager::updateReferencedBuffers(shader);
 
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);
 	glActiveTexture(GL_TEXTURE0);
-	shader.set<int>(options.cubemap, 0);
+	shader.set<int>(cubemap_name, 0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_ID);
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);

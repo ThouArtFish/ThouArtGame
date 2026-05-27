@@ -10,7 +10,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 #include <glad/glad.h>
-#include <ShaderManagerClass.hpp>
+#include "ShaderManagerClass.hpp"
 
 /**
 * Manages OpenGL buffer objects
@@ -68,7 +68,7 @@ public:
 	/**
 	* Type of buffer bound to shader
 	*/
-	enum class ShaderBufferType {
+	enum class ShaderBufferType : GLuint {
 		SHADER_STORAGE = GL_SHADER_STORAGE_BUFFER,
 		ATOMIC_COUNTER = GL_ATOMIC_COUNTER_BUFFER,
 		UNIFORM = GL_UNIFORM_BUFFER,
@@ -161,7 +161,7 @@ public:
 
 		virtual void updateBuffer() = 0;
 		bool isObjectsChanged() const;
-	private:
+	protected:
 		bool objects_changed = false;
 	};
 

@@ -57,10 +57,10 @@ class MainState : public TAGBaseState {
 		TAGLightManager<PointLight> light_manager = TAGLightManager<PointLight>(TAGResourceManager::BufferAccess::STREAM, 2);
 
 		TAGShaderManager shaders = TAGShaderManager({
-			{ .shader_type = TAGShaderManager::ShaderType::INSTANCED_MODEL_DRAW },
-			{ .shader_type = TAGShaderManager::ShaderType::UNINSTANCED_MODEL_DRAW },
-			{ .shader_type = TAGShaderManager::ShaderType::HUD_DRAW },
-			{ .shader_type = TAGShaderManager::ShaderType::SKYBOX_DRAW }
+			{ .name = "instanced", .shader_type = TAGShaderManager::ShaderType::INSTANCED_MODEL_DRAW },
+			{ .name = "uninstanced", .shader_type = TAGShaderManager::ShaderType::UNINSTANCED_MODEL_DRAW },
+			{ .name = "hud", .shader_type = TAGShaderManager::ShaderType::HUD_DRAW },
+			{ .name = "skybox", .shader_type = TAGShaderManager::ShaderType::SKYBOX_DRAW }
 		});
 
 		TAGPaintingModel images = TAGPaintingModel(
@@ -188,9 +188,10 @@ std::string MainState::mainLoop() {
 		images.setInstance(TAGPaintingModel::faceDirec(camera_position, obj, true));
 	}
 
+	// Move hud
 	TAGHUDManager::Quad quad = hud.getQuad(0);
 	quad.position.x += 0.02f * (float)delta_time;
-	// hud changes
+	hud.setQuad(quad, 0);
 
 	// Apply camera position changes
 	glm::vec3 bounce = glm::vec3(0);
@@ -221,24 +222,25 @@ std::string MainState::mainLoop() {
 	setCameraMatrix();
 
 	// Update lights
-	light_manager.changeLights().at(0).a = glm::vec4(camera_position, player_light_fact);
+	PointLight player_light = light_manager.getLight(0);
+	player_light.position = camera_position;
+	light_manager.setLight(player_light);
 
 	// Draw game objects
-	light_manager.bindShaderData(0);
+	light_manager.bindToShader();
 
 	TAGShaderManager::Shader shader = shaders.useShader("uninstanced");
-	lamp.drawOne(shader, { .position = lamp_pos, .scale = 0.01f }, true);
+	lamp.drawOne(shader, { .position = lamp_pos, .scale = 0.01f });
 
 	shader = shaders.useShader("instanced");
-	playground.drawAll(shader, true);
+	playground.drawAll(shader);
 	for (const std::string& mesh_name : images.getMeshNames()) {
-		images.drawAll(shader, (mesh_name == "flat_man"), mesh_name);
+		const TAGShaderManager::ShaderOptions options = { .cull_backface = (mesh_name == "flat_man") };
+		images.drawAll(shader, mesh_name, options);
 	}
 
-	light_manager.unbindShaderData(0);
-
 	shader = shaders.useShader("skybox");
-	skybox.draw(shader, "skybox");
+	skybox.draw(shader, TAGShaderManager::default_options.cubemap);
 
 	shader = shaders.useShader("hud");
 	hud.drawAll(shader);

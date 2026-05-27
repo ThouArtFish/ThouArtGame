@@ -6,16 +6,15 @@ template<LightType T> TAGLightManager<T>::TAGLightManager(const std::vector<T>& 
 	if (std::holds_alternative<std::monostate>(scene)) {
 		initSceneBuffer();
 	}
-	this->lights = TAGResourceManager::ObjectBuffer<T, ShaderT>(glm::max(size, lights.size()), shaderLightConverter<T>, access, true);
+	this->lights = TAGResourceManager::ObjectBuffer<T, ShaderT>(glm::max(size, lights.size()), shaderLightConverter, access, true);
 	this->lights.setAllObjects(lights);
 	this->lights.updateBuffer();
 }
 
-template<LightType T> TAGLightManager<T>::TAGLightManager(const TAGResourceManager::BufferAccess& access, const unsigned int& size) {
+template<LightType T> TAGLightManager<T>::TAGLightManager(const TAGResourceManager::BufferAccess& access, const unsigned int& size) : lights(size, shaderLightConverter, access, true) {
 	if (std::holds_alternative<std::monostate>(scene)) {
 		initSceneBuffer();
 	}
-	lights = TAGResourceManager::ObjectBuffer<T, ShaderT>(size, shaderLightConverter<T>, access, true);
 }
 
 template<LightType T> void TAGLightManager<T>::setLight(const T& light, const int& index) {
@@ -102,7 +101,7 @@ template<LightType T> GLfloat TAGLightManager<T>::shaderSceneConverter(const Sce
 }
 
 template<LightType T> void TAGLightManager<T>::initSceneBuffer() {
-	scene.emplace<SceneObject>(1, shaderSceneConverter<T>, TAGResourceManager::BufferAccess::STATIC);
+	scene.emplace<SceneObject>(1, shaderSceneConverter, TAGResourceManager::BufferAccess::STATIC);
 	SceneObject& scene_buffer = std::get<1>(scene);
 	scene_buffer.pushObject({ 0.1f });
 	scene_buffer.updateBuffer();

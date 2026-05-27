@@ -1,7 +1,21 @@
 #pragma once
+
 #include <random>
 #include <concepts>
+#include <variant>
+#include <glad/glad.h>
 #include <glm/glm.hpp>
+
+/**
+* Interal structs used for indirect draws
+*/
+struct OpenGLIndirectCommand {
+	GLuint count = 0;
+	GLuint instance_count = 0;
+	GLuint first_index = 0;
+	GLint base_vertex = 0;
+	GLuint base_instance = 0;
+};
 
 /**
 * Tri state constant for manipulating certain states easier
@@ -30,8 +44,16 @@ template <typename T, typename... Ts> concept isAnyOf = (std::same_as<T, Ts> || 
 /**
 * Bool for checking if type is in std::variant
 */
-template<typename T, typename Variant> bool isVariantMember = true;
-template<typename T, typename... Ts> bool isVariantMember<T, std::variant<Ts...>> = isAnyOf<T, Ts...>;
+template<typename T, typename Variant>
+struct is_variant_member;
+
+template<typename T, typename... Ts>
+struct is_variant_member<T, std::variant<Ts...>>
+	: std::bool_constant<(std::is_same_v<T, Ts> || ...)> {
+};
+
+template<typename T, typename Variant>
+concept isVariantMember = is_variant_member<T, Variant>::value;
 
 /**
 * Provides useful functions

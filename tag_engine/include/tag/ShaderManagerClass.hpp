@@ -16,11 +16,6 @@
 #include "UtilClass.hpp"
 
 /**
-* Concept for types allowed to be set as shader uniforms
-*/
-template<typename T> concept UniformType = isVariantMember<T, TAGShaderManager::ShaderUniform>;
-
-/**
 * Handles shader programs
 */
 class TAGShaderManager {
@@ -99,9 +94,9 @@ public:
         GLuint ID;
         std::unordered_map<GLint, ShaderAttributeInfo> attribute_data;
         std::unordered_map<std::string, ShaderUniformInfo> uniform_data;
-        std::unordered_map<TAGResourceManager::ShaderBufferType, std::vector<GLint>> buffer_locations;
+        std::unordered_map<GLuint, std::vector<GLint>> buffer_locations;
 
-        template<UniformType T> void set(const std::string& name, const T& value, const unsigned int& count = 1) const;
+        template<typename T, typename V = ShaderUniform> requires isVariantMember<T, V> void set(const std::string& name, const T& value, const unsigned int& count = 1) const;
     };
 
     /**
@@ -354,7 +349,7 @@ private:
     static Shader loadShader(const Source& source);
     static void getSourceCodeFromFile(const Source& source, std::string& vertex_code, std::string& fragment_code);
     static void getSourceCodeFromDefault(const Source&, std::string& vertex_code, std::string& fragment_code);
-    template<UniformType T> static GLenum getEnumType();
+    template<typename T, typename V = ShaderUniform> requires isVariantMember<T, V> static GLenum getEnumType();
 };
 
-#include "../../src/ShaderManagerClass.inl";
+#include "../../src/ShaderManagerClass.inl"

@@ -33,9 +33,10 @@ void TAGResourceManager::updateReferencedBuffers(const GLuint& vao) {
 }
 
 void TAGResourceManager::updateReferencedBuffers(const ShaderBufferType& buffer_type, const TAGShaderManager::Shader& shader) {
-	if (!shader.buffer_locations.contains(buffer_type) || !shader_binding_indices.contains(buffer_type)) return;
+	if (!shader.buffer_locations.contains((GLuint) buffer_type) || !shader_binding_indices.contains(buffer_type)) return;
 
-	for (const GLint& index : shader.buffer_locations.at(buffer_type)) {
+	const std::vector<GLint>& vec = shader.buffer_locations.at((GLuint) buffer_type);
+	for (const GLint& index : vec) {
 		auto& vec = shader_binding_indices[buffer_type];
 		auto it = std::find_if(vec.begin(), vec.end(), [&index](const BindingData& data) { return index == data.binding_index; });
 		if (it != vec.end() && it->ptr->isObjectsChanged()) it->ptr->updateBuffer();

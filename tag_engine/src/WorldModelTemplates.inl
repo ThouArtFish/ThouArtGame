@@ -7,11 +7,12 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollision(const glm::vec3& s
 	t = -1.0;
 	Collision::Info info;
 
-	for (const auto& instance_pair : instances) {
+	for (const auto& instance_pair : instance_buffers) {
+		const auto& instances = instance_pair.second.getAllObjects();
 		if (!instance_pair.second.empty()) {
 			if (instance_pair.first == "") {
 				for (const auto& mesh_pair : meshes) {
-					info = rayCollisionWithMeshInstances<T>(start, ray_dir, max, mesh_pair.second, instance_pair.second);
+					info = rayCollisionWithMeshInstances<T>(start, ray_dir, max, mesh_pair.second, instances);
 					if constexpr (std::same_as<T, Collision::ANY>) {
 						if (info.index >= 0) {
 							return info;
@@ -20,7 +21,7 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollision(const glm::vec3& s
 				}
 			}
 			else {
-				info = rayCollisionWithMeshInstances<T>(start, ray_dir, max, meshes.at(instance_pair.first), instance_pair.second);
+				info = rayCollisionWithMeshInstances<T>(start, ray_dir, max, meshes.at(instance_pair.first), instances);
 				if constexpr (std::same_as<T, Collision::ANY>) {
 					if (info.index >= 0) {
 						return info;
@@ -75,11 +76,12 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollision(const glm
 	ret.emplace<T>(T());
 	Collision::Info info;
 
-	for (const auto& instance_pair : instances) {
-		if (!instance_pair.second.empty()) {
+	for (const auto& instance_pair : instance_buffers) {
+		const auto& instances = instance_pair.second.getAllObjects();
+		if (!instances.empty()) {
 			if (instance_pair.first == "") {
 				for (const auto& mesh_pair : meshes) {
-					info = capsuleCollisionMeshInstances<T>(foot, spine, radius, mesh_pair.second, instance_pair.second);
+					info = capsuleCollisionMeshInstances<T>(foot, spine, radius, mesh_pair.second, instances);
 					if constexpr (std::same_as<T, Collision::ANY>) {
 						if (info.index >= 0) {
 							return info;
@@ -88,7 +90,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollision(const glm
 				}
 			}
 			else {
-				info = capsuleCollisionMeshInstances<T>(foot, spine, radius, meshes.at(instance_pair.first), instance_pair.second);
+				info = capsuleCollisionMeshInstances<T>(foot, spine, radius, meshes.at(instance_pair.first), instances);
 				if constexpr (std::same_as<T, Collision::ANY>) {
 					if (info.index >= 0) {
 						return info;
@@ -104,11 +106,12 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollision(const glm:
 	ret.emplace<T>(T());
 	Collision::Info info;
 
-	for (const auto& instance_pair : instances) {
-		if (!instance_pair.second.empty()) {
+	for (const auto& instance_pair : instance_buffers) {
+		const auto& instances = instance_pair.second.getAllObjects();
+		if (!instances.empty()) {
 			if (instance_pair.first == "") {
 				for (const auto& mesh_pair : meshes) {
-					info = sphereCollisionWithMeshInstances<T>(centre, radius, mesh_pair.second, instance_pair.second);
+					info = sphereCollisionWithMeshInstances<T>(centre, radius, mesh_pair.second, instances);
 					if constexpr (std::same_as<T, Collision::ANY>) {
 						if (info.index >= 0) {
 							return info;
@@ -117,7 +120,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollision(const glm:
 				}
 			}
 			else {
-				info = sphereCollisionWithMeshInstances<T>(centre, radius, meshes.at(instance_pair.first), instance_pair.second);
+				info = sphereCollisionWithMeshInstances<T>(centre, radius, meshes.at(instance_pair.first), instances);
 				if constexpr (std::same_as<T, Collision::ANY>) {
 					if (info.index >= 0) {
 						return info;
