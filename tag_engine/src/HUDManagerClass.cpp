@@ -1,6 +1,6 @@
 #include <HUDManagerClass.hpp>
 
-TAGHUDManager::TAGHUDManager(const std::vector<std::string>& paths, const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params) : quads(size, shaderConverter, access) {
+TAGHUDManager::TAGHUDManager(const std::vector<std::string>& paths, const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params) : quads(size, [this](const Quad& quad, const GLuint& split) { return this->shaderConverter(quad, split); }, access) {
 	if (VAO == 0) {
 		initMesh();
 	}
@@ -10,7 +10,7 @@ TAGHUDManager::TAGHUDManager(const std::vector<std::string>& paths, const TAGRes
 	}
 }
 
-TAGHUDManager::TAGHUDManager(const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params, const std::string& path) : quads(size, shaderConverter, access) {
+TAGHUDManager::TAGHUDManager(const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params, const std::string& path) : quads(size, [this](const Quad& quad, const GLuint& split) { return this->shaderConverter(quad, split); }, access) {
 	if (VAO == 0) {
 		initMesh();
 	}
@@ -23,7 +23,7 @@ TAGHUDManager::TAGHUDManager(const TAGResourceManager::BufferAccess& access, con
 TAGHUDManager::~TAGHUDManager() {
 	if (delete_on_death) {
 		for (const TAGTexLoader::Texture& tex : images) {
-			TAGResourceManager::deleteBuffer<TAGResourceManager::TextureBuffer>(tex.id);
+			TAGResourceManager::deleteBuffer(tex.id, TAGResourceManager::OpenGLObjectType::TEXTURE_BUFFER);
 		}
 	}
 }
@@ -42,7 +42,7 @@ void TAGHUDManager::deleteImage(const std::string& name, const bool& global_dele
 
 	if (pos == images.end()) return;
 
-	if (global_delete) TAGResourceManager::deleteBuffer<TAGResourceManager::TextureBuffer>(pos->id);
+	if (global_delete) TAGResourceManager::deleteBuffer(pos->id, TAGResourceManager::OpenGLObjectType::TEXTURE_BUFFER);
 
 	images.erase(pos);
 
@@ -171,11 +171,14 @@ void TAGHUDManager::updateQuadBuffer() {
 }
 
 void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::string& texture_array_name) {
+	// Update quad buffer if any changes
+	if (quads.isObjectsChanged()) quads.updateBuffer();
+
 	// Bind quad buffer if it is not bound
 	quads.getBuffer()->bindToVertexArrayObject(base_attrib + 1, 0, VAO);
 
-	// Update any other buffers referenced by the shader, including the quad buffer that was just bound
-	TAGResourceManager::updateReferencedBuffers(shader);
+	// Update any other buffers referenced by the shader
+	TAGResourceManager::updateAttachedBuffers(shader);
 
 	// Update indirect draw buffer which controls which layer of images are drawn
 	if (layers.isObjectsChanged()) layers.updateBuffer();
@@ -205,9 +208,9 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 }
 
 void TAGHUDManager::initMesh() {
-	VAO = TAGResourceManager::createBuffer<TAGResourceManager::VertexArrayObject>();
-	VBO = TAGResourceManager::createBuffer<TAGResourceManager::GenericBuffer>();
-	EBO = TAGResourceManager::createBuffer<TAGResourceManager::GenericBuffer>();
+	VAO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::VERTEX_ARRAY_OBJECT);
+	VBO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
+	EBO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
 
 	const static std::array<float, 8> quad_vertices = {
 		0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f
@@ -246,7 +249,7 @@ void TAGHUDManager::initMesh() {
 }
 
 OpenGLIndirectCommand TAGHUDManager::commandConverter(const LayerData& layer_data, const GLuint& split) {
-	return { .count = 6, .instance_count = (!layer_data.is_hidden ? layer_data.count : 0), .base_instance = layer_data.start_index };
+	return { .count = 6, .instance_count = (layer_data.is_hidden ? 0 : layer_data.count), .base_instance = layer_data.start_index };
 }
 
 TAGHUDManager::ShaderQuad TAGHUDManager::shaderConverter(const Quad& quad, const GLuint& split) {
@@ -265,13 +268,13 @@ TAGHUDManager::ShaderQuad TAGHUDManager::shaderConverter(const Quad& quad, const
 	data2 = (quad.texel_bottom_right - quad.texel_top_left) / dim;
 	buffer_quad.texel_data = glm::vec4(data1, data2);
 
-	const auto& pos = std::find(used_images.begin(), used_images.end(), tex_pos->id);
+	auto pos = std::find(used_images.begin(), used_images.end(), tex_pos->id);
 	if (pos == used_images.end()) {
 		buffer_quad.tex_index = (GLuint)used_images.size() % MAX_TEXTURES;
 		used_images.push_back(tex_pos->id);
 	}
 	else {
-		buffer_quad.tex_index = (GLuint)std::distance(used_images.begin(), pos) % MAX_TEXTURES;
+		buffer_quad.tex_index = (GLuint)std::distance(used_images.begin(), pos);
 	}
 
 	return buffer_quad;

@@ -3,11 +3,9 @@
 TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const TAGResourceManager::BufferAccess& access, const std::string& path) {
 	this->tex_params = tex_params;
 	this->access = access;
-	this->directory = TAGResourceManager::asset_path + path.substr(0, path.find_last_of("/") + 1);
+	directory = TAGResourceManager::asset_path + path.substr(0, path.find_last_of("/") + 1);
 
-	if (path != "") {
-		loadModel(TAGResourceManager::asset_path + path);
-	}
+	if (path != "") loadModel(TAGResourceManager::asset_path + path);
 }
 
 void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
@@ -15,14 +13,14 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 
 	TAGResourceManager::ObjectBuffer<Object, ShaderObject>& instance_buffer = instance_buffers[mesh_name];
 
-	TAGResourceManager::updateReferencedBuffers(shader);
+	TAGResourceManager::updateAttachedBuffers(shader);
 
 	if (!options.cull_backface) glDisable(GL_CULL_FACE);
 
 	if (mesh_name != "") {
 		TAGMesh& mesh = meshes.at(mesh_name);
 
-		if (instance_buffer.isObjectsChanged()) instance_buffer.updateBuffer();
+		if (instance_buffer.isObjectsChanged()) updateInstanceBuffer(mesh_name);
 
 		instance_buffer.getBuffer()->bindToVertexArrayObject(1, 0, mesh.getVAO());
 
@@ -32,7 +30,7 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 		for (const std::string& name : mesh_draw_order) {
 			TAGMesh& mesh = meshes.at(name);
 
-			if (instance_buffer.isObjectsChanged()) instance_buffer.updateBuffer();
+			if (instance_buffer.isObjectsChanged()) updateInstanceBuffer(mesh_name);
 
 			instance_buffer.getBuffer()->bindToVertexArrayObject(1, 0, mesh.getVAO());
 
@@ -46,7 +44,7 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
 	if (mesh_name != "" && meshes.find(mesh_name) == meshes.end()) return;
 
-	TAGResourceManager::updateReferencedBuffers(shader);
+	TAGResourceManager::updateAttachedBuffers(shader);
 
 	if (!options.cull_backface) glDisable(GL_CULL_FACE);
 	

@@ -10,6 +10,22 @@
 #include "ShaderManagerClass.hpp"
 #include "UtilClass.hpp"
 
+namespace QuadMemberName {
+	struct MarkerStruct {};
+	using POSITION = MarkerStruct;
+	using DIMENSIONS = MarkerStruct;
+	using IMAGE_NAME = MarkerStruct;
+	using POSITION_FORMAT = MarkerStruct;
+	using DIMENSION_FORMAT = MarkerStruct;
+	using TEXEL_FORMAT = MarkerStruct;
+	using TEXEL_TOP_FORMAT = MarkerStruct;
+	using TEXEL_BOTTOM_RIGHT = MarkerStruct;
+
+	void namespace_marker_check(MarkerStruct);
+};
+
+template<typename T> concept QuadMemberConcept = requires(T t) { namespace_marker_check(t); };
+
 class TAGHUDManager {
 public:
 	/**
@@ -115,6 +131,13 @@ public:
 	*/
 	void setQuad(const Quad& quad, const GLuint& index);
 	/**
+	* Set an attribute of an existing quad struct, based on the offset of the attribute in the Quad struct
+	* 
+	* @param value Value to set
+	* @param index Index in array
+	*/
+	template<QuadMemberConcept T> 
+	/**
 	* Removes quad at index.
 	* Pops last quad if no index is passed.
 	* A buffer update function must be used for changes to be reflected in the GPU buffer.
@@ -172,6 +195,7 @@ private:
 	std::vector<unsigned int> used_images;
 
 	static void initMesh();
+	template<typename T, unsigned int POSITION> requires isAnyOf<T, glm::vec2, std::string, DimensionFormat> static unsigned int quadMemberOffset();
 	static OpenGLIndirectCommand commandConverter(const LayerData& layer_data, const GLuint& split);
 	ShaderQuad shaderConverter(const Quad& quad, const GLuint& split);
 };

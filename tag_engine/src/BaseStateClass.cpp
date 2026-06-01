@@ -209,9 +209,7 @@ bool TAGBaseState::isKeyPressed(const int& key) {
 		}
 		return true;
 	}
-	else {
-		return false;
-	}
+	return false;
 }
 
 bool TAGBaseState::isKeyStillPressed(const int& key) {

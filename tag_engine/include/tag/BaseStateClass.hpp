@@ -143,11 +143,11 @@ protected:
 	 */
 	virtual void mouseCallback() = 0;
 	/**
-	 * Run when the size of the window changes
+	 * Run when the size of the window changes.
 	 */
 	virtual void framebufferSizeCallback() = 0;
 	/**
-	 * Run when the window is iconified. Whatever the hell that means.
+	 * Run when the window is iconified.
 	 */
 	virtual void iconifyCallback() = 0;
 };

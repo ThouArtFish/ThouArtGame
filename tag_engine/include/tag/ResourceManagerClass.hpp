@@ -1,6 +1,5 @@
 #pragma once
 
-#include <list>
 #include <string>
 #include <map>
 #include <concepts>
@@ -8,6 +7,7 @@
 #include <vector>
 #include <algorithm>
 #include <memory>
+#include <functional>
 #include <glm/glm.hpp>
 #include <glad/glad.h>
 #include "ShaderManagerClass.hpp"
@@ -17,49 +17,38 @@
 */
 class TAGResourceManager {
 	template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
+	friend class OpenGLHandle;
 public:
+	/**
+	* Types of OpenGL obejcts
+	*/
+	enum class OpenGLObjectType {
+		VERTEX_ARRAY_OBJECT,
+		SHADER_PROGRAM,
+		VERTEX_SHADER,
+		FRAGMENT_SHADER,
+		TEXTURE_BUFFER,
+		GENERIC_BUFFER
+	};
+
 	/**
 	* Structs for storing OpenGL buffer IDs
 	*/
 	class OpenGLHandle {
 	public:
-		const GLuint& getID() const;
-	protected:
-		GLuint ID = 0;
-	};
+		OpenGLHandle(const OpenGLObjectType& type);
+		~OpenGLHandle();
 
-	/**
-	* Buffer types
-	*/
-	struct VertexArrayObject : public OpenGLHandle {
-		VertexArrayObject();
-		~VertexArrayObject();
-	};
-	struct ProgramShader : public OpenGLHandle {
-		ProgramShader();
-		~ProgramShader();
-	};
-	struct VertexShader : public OpenGLHandle {
-		VertexShader();
-		~VertexShader();
-	};
-	struct FragmentShader : public OpenGLHandle {
-		FragmentShader();
-		~FragmentShader();
-	};
-	struct TextureBuffer : public OpenGLHandle {
-		TextureBuffer();
-		~TextureBuffer();
-	};
-	struct GenericBuffer : public OpenGLHandle {
-		GenericBuffer();
-		~GenericBuffer();
+		const OpenGLObjectType type;
+		const GLuint ID;
+	private:
+		static GLuint createObject(const OpenGLObjectType& type);
 	};
 
 	/**
 	* Buffer access levels
 	*/
-	enum class BufferAccess {
+	enum class BufferAccess : GLuint {
 		STATIC = GL_STATIC_DRAW,
 		DYNAMIC = GL_DYNAMIC_DRAW,
 		STREAM = GL_STREAM_DRAW
@@ -95,8 +84,6 @@ public:
 		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
 		virtual ~BufferHandler() = default;
-		BufferHandler(const BufferHandler&) = delete;
-		BufferHandler& operator=(const BufferHandler&) = delete;
 
 		const BufferAccess access;
 		const GLuint include_size;
@@ -170,7 +157,7 @@ public:
 	*/
 	template<class C, class G, GLuint DIVISIONS = 0> class ObjectBuffer : public ObjectBufferWrapper {
 	public:
-		ObjectBuffer(const GLuint& max_objs, G(*converter)(const C&, const GLuint&), const BufferAccess& access, const bool& include_size = false);
+		ObjectBuffer(const GLuint& max_objs,  const std::function<G(const C&, const GLuint&)>& converter, const BufferAccess& access, const bool& include_size = false);
 		~ObjectBuffer();
 
 		const std::vector<C>& getAllObjects() const;
@@ -178,9 +165,11 @@ public:
 		const C& peekObject() const;
 		void pushObject(const C& obj);
 		void setObject(const C& obj, const GLuint& index);
+		template<typename T> void setObjectMember(const T& value, const GLuint& offset, const GLuint& index);
 		void insertObject(const C& obj, const GLuint& index);
 		C popObject();
 		C removeObject(const GLuint& index);
+		void clearObjects();
 		void setAllObjects(const std::vector<C>& objs);
 		std::vector<C>& changeObjects();
 
@@ -190,7 +179,7 @@ public:
 		auto begin() const;
 		auto end() const;
 	private:
-		G(*converter)(const C&, const GLuint&);
+		std::function<G(const C&, const GLuint&)> converter;
 
 		std::vector<C> objs;
 		std::unique_ptr<BufferHandler<G>> buffer;
@@ -203,50 +192,37 @@ public:
 	*/
 	static void updateAttachedBuffers(const GLuint& vao);
 	/**
-	* Updates every buffer attached to any shader of the buffer type, if it requires an update to its contents.
-	* 
-	* @param buffer_type Type of buffer object to update instances of.
-	*/
-	static void updateAttachedBuffers(const ShaderBufferType& buffer_type);
-	/**
-	* Updates every buffer attached to any shader of any buffer type, if it requires an update to its contents.
-	*/
-	static void updateAttachedBuffers();
-	/**
-	* Updates every buffer that a vertex array object contains a binding index for, if it exists and requires an update to its contents
-	*
-	* @param vao VAO ID.
-	*/
-	static void updateReferencedBuffers(const GLuint& vao);
-	/**
 	* Updates every buffer of a particular buffer type a shader contains a binding index for, if it exists and requires an update to its contents
-	* 
+	*
 	* @param buffer_type Type of buffer object to update instances of.
 	* @param shader Shader object.
 	*/
-	static void updateReferencedBuffers(const ShaderBufferType& buffer_type, const TAGShaderManager::Shader& shader);
+	static void updateAttachedBuffers(const ShaderBufferType& buffer_type, const TAGShaderManager::Shader& shader);
 	/**
-	* Updates every buffer that a shader contains a binding index for, if it exists and requires an update to its contents
-	*
-	* @param shader Shader object.
+	* Updates every buffer of every type that is attached to a shader.
+	* 
+	* @param shader Shader object
 	*/
-	static void updateReferencedBuffers(const TAGShaderManager::Shader& shader);
+	static void updateAttachedBuffers(const TAGShaderManager::Shader& shader);
 	/**
 	* Deletes the buffer with the passed ID and of type T
 	* 
 	* @param ID The ID of the buffer to be deleted
+	* @param type Type of OpenGL object
 	*/
-	template<class T> requires std::derived_from<T, TAGResourceManager::OpenGLHandle> static void deleteBuffer(const GLuint& ID);
+	static void deleteBuffer(const GLuint& ID, const OpenGLObjectType& type);
 	/**
 	* Creates a buffer of type T
+	* 
+	* @param type Type of OpenGL object
 	*/
-	template<class T> requires std::derived_from<T, TAGResourceManager::OpenGLHandle> static GLuint createBuffer();
+	static GLuint createBuffer(const OpenGLObjectType& type);
 	/**
 	* Check if buffer of BufferType T exists with buffer handle ID
 	* 
 	* @param ID The ID of the buffer to check
 	*/
-	template<class T> requires std::derived_from<T, TAGResourceManager::OpenGLHandle> static bool isBuffer(const GLuint& ID);
+	static bool isBuffer(const GLuint& ID, const OpenGLObjectType& type);
 	/**
 	* Clears all buffers
 	*/
@@ -258,10 +234,9 @@ private:
 		GLintptr offset = 0;
 	};
 
-	using BufferVariant = std::variant<VertexArrayObject, ProgramShader, VertexShader, FragmentShader, TextureBuffer, GenericBuffer>;
-	static inline std::list<BufferVariant> buffers;
+	static inline std::vector<OpenGLHandle> buffers;
 	static inline std::map<GLuint, std::vector<BindingData>> vao_binding_indices;
-	static inline std::map<ShaderBufferType, std::vector<BindingData>> shader_binding_indices;
+	static inline std::map<GLuint, std::vector<BindingData>> shader_binding_indices;
 };
 
 #include "../../src/ResourceManagerClass.inl"

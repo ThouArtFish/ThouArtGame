@@ -12,11 +12,11 @@ TAGMesh::TAGMesh() {}
 
 TAGMesh::~TAGMesh() {
 	if (delete_on_death) {
-		TAGResourceManager::deleteBuffer<TAGResourceManager::GenericBuffer>(this->VBO);
+		TAGResourceManager::deleteBuffer(VBO, TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
 		for (const MaterialElementBuffer& material_ebo : material_ebos) {
-			TAGResourceManager::deleteBuffer<TAGResourceManager::GenericBuffer>(material_ebo.EBO);
+			TAGResourceManager::deleteBuffer(material_ebo.EBO, TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
 		}
-		TAGResourceManager::deleteBuffer<TAGResourceManager::VertexArrayObject>(this->VAO);
+		TAGResourceManager::deleteBuffer(VAO, TAGResourceManager::OpenGLObjectType::VERTEX_ARRAY_OBJECT);
 	}
 }
 
@@ -25,7 +25,7 @@ TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) {
 }
 
 TAGMesh::MaterialElementBuffer::~MaterialElementBuffer() {
-	TAGResourceManager::deleteBuffer<TAGResourceManager::GenericBuffer>(this->EBO);
+	TAGResourceManager::deleteBuffer(EBO, TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
 }
 
 void TAGMesh::generatePlanes() {
@@ -198,8 +198,8 @@ void TAGMesh::generateBVH() {
 }
 
 void TAGMesh::setupMesh() {
-	TAGResourceManager::deleteBuffer<TAGResourceManager::GenericBuffer>(VBO);
-	TAGResourceManager::deleteBuffer<TAGResourceManager::VertexArrayObject>(VAO);
+	TAGResourceManager::deleteBuffer(VBO, TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
+	TAGResourceManager::deleteBuffer(VAO, TAGResourceManager::OpenGLObjectType::VERTEX_ARRAY_OBJECT);
 	material_ebos.clear();
 
 	std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 3>>> material_frags;
@@ -207,7 +207,7 @@ void TAGMesh::setupMesh() {
 		material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
 	}
 	for (const auto& pair : material_frags) {
-		material_ebos.emplace_back(TAGResourceManager::createBuffer<TAGResourceManager::GenericBuffer>(), pair.first);
+		material_ebos.emplace_back(TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER), pair.first);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
 	}
@@ -218,8 +218,8 @@ void TAGMesh::setupMesh() {
 		}
 	);
 
-	VBO = TAGResourceManager::createBuffer<TAGResourceManager::GenericBuffer>();
-	VAO = TAGResourceManager::createBuffer<TAGResourceManager::VertexArrayObject>();
+	VBO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
+	VAO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::VERTEX_ARRAY_OBJECT);
 
 	glBindVertexArray(VAO);
 
@@ -275,7 +275,7 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 				material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
 			}
 			for (const auto& pair : material_frags) {
-				material_ebos.emplace_back(TAGResourceManager::createBuffer<TAGResourceManager::GenericBuffer>(), pair.first);
+				material_ebos.emplace_back(TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER), pair.first);
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
 				glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
 			}

@@ -7,7 +7,7 @@
 #include <glm/glm.hpp>
 
 /**
-* Interal structs used for indirect draws
+* Internal structs used for indirect draws
 */
 struct OpenGLIndirectCommand {
 	GLuint count = 0;

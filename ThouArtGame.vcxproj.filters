@@ -127,5 +127,8 @@
     <None Include="tag_engine\src\LightManagerClass.inl">
       <Filter>ThouArtGame Files\Source</Filter>
     </None>
+    <None Include="tag_engine\src\HUDManagerClass.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
   </ItemGroup>
 </Project>

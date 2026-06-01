@@ -11,7 +11,7 @@ TAGShaderManager::TAGShaderManager(const std::vector<Source>& sources) {
 TAGShaderManager::~TAGShaderManager() {
 	if (delete_on_death) {
 		for (const auto& pair : shaders) {
-			TAGResourceManager::deleteBuffer<TAGResourceManager::ProgramShader>(pair.second.ID);
+			TAGResourceManager::deleteBuffer(pair.second.ID, TAGResourceManager::OpenGLObjectType::SHADER_PROGRAM);
 		}
 	}
 }
@@ -30,7 +30,7 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 	char infoLog[512];
 	static std::vector<GLchar*> source_ptr;
 
-	vertex = TAGResourceManager::createBuffer<TAGResourceManager::VertexShader>();
+	vertex = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::VERTEX_SHADER);
 	source_ptr.push_back((GLchar*)(source.is_path || source.shader_type != ShaderType::CUSTOM_DRAW ? vertex_code : source.vertex).c_str());
 	glShaderSource(vertex, 1, source_ptr.data(), NULL);
 	glCompileShader(vertex);
@@ -41,7 +41,7 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
 	};
 
-	fragment = TAGResourceManager::createBuffer<TAGResourceManager::FragmentShader>();
+	fragment = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::FRAGMENT_SHADER);
 	source_ptr.push_back((GLchar*)(source.is_path || source.shader_type != ShaderType::CUSTOM_DRAW ? fragment_code : source.fragment).c_str());
 	glShaderSource(fragment, 1, source_ptr.data(), NULL);
 	glCompileShader(fragment);
@@ -53,7 +53,7 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 	};
 
 	// Compile final shader program
-	const unsigned int ID = TAGResourceManager::createBuffer<TAGResourceManager::ProgramShader>();
+	const unsigned int ID = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::SHADER_PROGRAM);
 	glAttachShader(ID, vertex);
 	glAttachShader(ID, fragment);
 	glLinkProgram(ID);
@@ -62,8 +62,8 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 		glGetProgramInfoLog(ID, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
 	}
-	TAGResourceManager::deleteBuffer<TAGResourceManager::VertexShader>(vertex);
-	TAGResourceManager::deleteBuffer<TAGResourceManager::FragmentShader>(fragment);
+	TAGResourceManager::deleteBuffer(vertex, TAGResourceManager::OpenGLObjectType::VERTEX_SHADER);
+	TAGResourceManager::deleteBuffer(fragment, TAGResourceManager::OpenGLObjectType::FRAGMENT_SHADER);
 
 	Shader shader = { .ID = ID };
 
@@ -183,7 +183,7 @@ void TAGShaderManager::addShader(const std::vector<Source>& sources) {
 }
 
 void TAGShaderManager::deleteShader(const std::string& name) {
-	TAGResourceManager::deleteBuffer<TAGResourceManager::ProgramShader>(shaders.at(name).ID);
+	TAGResourceManager::deleteBuffer(shaders.at(name).ID, TAGResourceManager::OpenGLObjectType::SHADER_PROGRAM);
 	shaders.erase(name);
 }
 

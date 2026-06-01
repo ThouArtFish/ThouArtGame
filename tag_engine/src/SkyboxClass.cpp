@@ -29,9 +29,9 @@ TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& p
 		3, 0, 7
 	};
 
-	VBO = TAGResourceManager::createBuffer<TAGResourceManager::GenericBuffer>();
-	EBO = TAGResourceManager::createBuffer<TAGResourceManager::GenericBuffer>();
-	VAO = TAGResourceManager::createBuffer<TAGResourceManager::VertexArrayObject>();
+	VBO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
+	EBO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
+	VAO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::VERTEX_ARRAY_OBJECT);
 
 	glBindVertexArray(VAO);
 
@@ -51,15 +51,15 @@ TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& p
 
 TAGSkybox::~TAGSkybox() {
 	if (delete_on_death) {
-		TAGResourceManager::deleteBuffer<TAGResourceManager::TextureBuffer>(cubemap_ID);
+		TAGResourceManager::deleteBuffer(cubemap_ID, TAGResourceManager::OpenGLObjectType::TEXTURE_BUFFER);
 	}
-	TAGResourceManager::deleteBuffer<TAGResourceManager::GenericBuffer>(VBO);
-	TAGResourceManager::deleteBuffer<TAGResourceManager::GenericBuffer>(EBO);
-	TAGResourceManager::deleteBuffer<TAGResourceManager::VertexArrayObject>(VAO);
+	TAGResourceManager::deleteBuffer(VBO, TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
+	TAGResourceManager::deleteBuffer(EBO, TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
+	TAGResourceManager::deleteBuffer(VAO, TAGResourceManager::OpenGLObjectType::VERTEX_ARRAY_OBJECT);
 }
 
 void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& cubemap_name) const {
-	TAGResourceManager::updateReferencedBuffers(shader);
+	TAGResourceManager::updateAttachedBuffers(shader);
 
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);

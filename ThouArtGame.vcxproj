@@ -175,6 +175,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="tag_engine\src\BaseStateClass.inl" />
+    <None Include="tag_engine\src\HUDManagerClass.inl" />
     <None Include="tag_engine\src\LightManagerClass.inl" />
     <None Include="tag_engine\src\ResourceManagerClass.inl" />
     <None Include="tag_engine\src\ShaderManagerClass.inl" />
