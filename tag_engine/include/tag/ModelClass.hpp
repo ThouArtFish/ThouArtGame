@@ -15,6 +15,16 @@
 #include "ShaderManagerClass.hpp"
 #include "MeshClass.hpp"
 
+namespace ObjectMemberName {
+	struct TagStruct {};
+	struct POSITION;
+	struct ROTATION_AXIS;
+	struct ANGLE;
+	struct SCALE;
+
+	template<typename T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
+};
+
 /**
  * Stores the contents of the "model" at the path passed to the constructor, which can consist of many meshes.
  * Handles in-game instances of meshes through the Object struct and its associated functions.
@@ -39,9 +49,7 @@ public:
 	struct Object {
 		glm::vec3 position = glm::vec3(0.0f);
 		glm::vec3 rotation_axis = glm::vec3(0.0f, 1.0f, 0.0f);
-		glm::vec3 velocity = glm::vec3(0.0f);
 		float angle = 0.0f;
-		float angular_velocity = 0.0f;
 		float scale = 1.0f;
 	};
 
@@ -93,6 +101,14 @@ public:
 	* @param mesh_name Name of mesh to set instance of.
 	*/
 	void setInstance(const Object& obj, const int& index = -1, const std::string& mesh_name = "");
+	/**
+	* Set an attribute of an existing instance struct, based on the offset of the attribute in the Object struct
+	*
+	* @param value Value to set
+	* @param index Index in array
+	* @param mesh_name Name of mesh
+	*/
+	template<ObjectMemberName::Concept T> void setInstanceMember(const T::TYPE& value, const GLuint& index, const std::string& mesh_name = "");
 	/**
 	* Removes instance of a particular mesh, or an instance of all meshes if no mesh_name is given.
 	* Index must be less than the object count, pops last instance if no index is passed.
@@ -164,4 +180,11 @@ protected:
 	std::vector<std::string> mesh_draw_order;
 	std::unordered_map<std::string, TAGMesh> meshes;
 	std::unordered_map<std::string, TAGResourceManager::ObjectBuffer<Object, ShaderObject>> instance_buffers;
+};
+
+namespace ObjectMemberName {
+	struct POSITION : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGModel::Object, position); };
+	struct ROTATION_AXIS : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGModel::Object, rotation_axis); };
+	struct ANGLE : TagStruct { using TYPE = float; static constexpr std::size_t OFFSET = offsetof(TAGModel::Object, angle); };
+	struct SCALE : TagStruct { using TYPE = float; static constexpr std::size_t OFFSET = offsetof(TAGModel::Object, scale); };
 };

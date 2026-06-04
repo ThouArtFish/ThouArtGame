@@ -18,6 +18,10 @@
  */
 class TAGBaseState {
 public:
+	virtual ~TAGBaseState() = default;
+	TAGBaseState(const TAGBaseState&) = delete;
+	TAGBaseState& operator=(const TAGBaseState&) = delete;
+
 	/**
 	 * Container for passing info required for initializing a game
 	 */
@@ -36,17 +40,13 @@ public:
 	static inline glm::vec3 camera_position = glm::vec3(0.0f);
 	static inline glm::vec3 camera_direction = glm::vec3(0.0f, 0.0f, -1.0f);
 
-	virtual ~TAGBaseState() = default;
-	TAGBaseState(const TAGBaseState&) = delete;
-	TAGBaseState& operator=(const TAGBaseState&) = delete;
-
 	/**
 	 * Add a state class to the state machine. The class must be derived from TAGBaseState.
 	 * The first state added is the starting state of the game.
 	 * 
 	 * @param name A unique identifier for the state.
 	 */
-	template<class C> static void addState(const std::string& name);
+	template<class T> requires (std::derived_from<T, TAGBaseState> && !std::same_as<T, TAGBaseState>) static void addState(const std::string& name);
 	/**
 	 * Removes a state from the state machine. Cannot be the current state.
 	 * 

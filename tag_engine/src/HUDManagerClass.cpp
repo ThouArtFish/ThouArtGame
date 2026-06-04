@@ -103,7 +103,7 @@ void TAGHUDManager::addQuad(const Quad& quad) {
 	std::vector<LayerData>& layer_vec = layers.changeObjects();
 	auto layer_it = std::find_if(layer_vec.begin(), layer_vec.end(), [&quad](const LayerData& layer) { return quad.layer == layer.id; });
 	if (layer_it == layer_vec.end()) {
-		layer_vec.emplace_back(quad.layer, 0, quads.getAllObjects().size(), false);
+		layer_vec.emplace_back(quad.layer, 0, (GLuint) quads.getAllObjects().size(), false);
 		layer_vec = layers.changeObjects();
 		layer_it = layer_vec.begin() + layer_vec.size() - 1;
 	}
@@ -175,10 +175,10 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 	if (quads.isObjectsChanged()) quads.updateBuffer();
 
 	// Bind quad buffer if it is not bound
-	quads.getBuffer()->bindToVertexArrayObject(base_attrib + 1, 0, VAO);
+	quads.bindToVertexArrayObject(base_attrib + 1, 0, VAO);
 
 	// Update any other buffers referenced by the shader
-	TAGResourceManager::updateAttachedBuffers(shader);
+	TAGResourceManager::updateAttachedBuffers(shader.buffer_locations);
 
 	// Update indirect draw buffer which controls which layer of images are drawn
 	if (layers.isObjectsChanged()) layers.updateBuffer();

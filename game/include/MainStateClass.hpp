@@ -54,7 +54,7 @@ class MainState : public TAGBaseState {
 		glm::vec3 lamp_pos;
 		glm::vec3 stable_position;
 
-		TAGLightManager<PointLight> light_manager = TAGLightManager<PointLight>(TAGResourceManager::BufferAccess::STREAM, 2);
+		TAGLightManager<TAGLight::Point> light_manager = TAGLightManager<TAGLight::Point>(TAGResourceManager::BufferAccess::STREAM, 2);
 
 		TAGShaderManager shaders = TAGShaderManager({
 			{ .name = "instanced", .shader_type = TAGShaderManager::ShaderType::INSTANCED_MODEL_DRAW },
@@ -130,13 +130,17 @@ MainState::MainState() {
 	);
 
 	// Create lights
-	std::vector<PointLight> lights;
+	std::vector<TAGLight::Point> lights;
 	lights.emplace_back(camera_position, player_light, player_light_atten);
 	lights.emplace_back(lamp_pos, lamp_light, lamp_light_atten);
 	light_manager.setAllLights(lights);
 
 	// Place lamp
 	lamp_pos = glm::vec3(0, -lamp.getMesh("lampion").mesh_bb.min.y * 0.01f, -3.0f) + floor_elevation;
+
+	// Set scene data
+	light_manager.setScene({ .ambience = 0.1f });
+	light_manager.bindSceneToShader();
 
 	setPerspectiveMatrix();
 }
@@ -189,9 +193,8 @@ std::string MainState::mainLoop() {
 	}
 
 	// Move hud
-	TAGHUDManager::Quad quad = hud.getQuad(0);
-	quad.position.x += 0.02f * (float)delta_time;
-	hud.setQuad(quad, 0);
+	auto& quad = hud.getQuad(0);
+	hud.setQuadMember<QuadMemberName::POSITION>({ quad.position.x + 0.02f * (float)delta_time, quad.position.y }, 0);
 
 	// Apply camera position changes
 	glm::vec3 bounce = glm::vec3(0);
@@ -222,9 +225,7 @@ std::string MainState::mainLoop() {
 	setCameraMatrix();
 
 	// Update lights
-	PointLight player_light = light_manager.getLight(0);
-	player_light.position = camera_position;
-	light_manager.setLight(player_light);
+	light_manager.setLightMember<PointLightMemberName::POSITION>(camera_position, 0);
 
 	// Draw game objects
 	light_manager.bindToShader();
@@ -240,7 +241,7 @@ std::string MainState::mainLoop() {
 	}
 
 	shader = shaders.useShader("skybox");
-	skybox.draw(shader, TAGShaderManager::default_options.cubemap);
+	skybox.draw(shader);
 
 	shader = shaders.useShader("hud");
 	hud.drawAll(shader);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <string>
 #include <map>
 #include <concepts>
@@ -10,7 +11,6 @@
 #include <functional>
 #include <glm/glm.hpp>
 #include <glad/glad.h>
-#include "ShaderManagerClass.hpp"
 
 /**
 * Manages OpenGL buffer objects
@@ -39,8 +39,8 @@ public:
 		OpenGLHandle(const OpenGLObjectType& type);
 		~OpenGLHandle();
 
-		const OpenGLObjectType type;
-		const GLuint ID;
+		OpenGLObjectType type;
+		GLuint ID;
 	private:
 		static GLuint createObject(const OpenGLObjectType& type);
 	};
@@ -91,18 +91,15 @@ public:
 		GLuint getMaxObjects() const;
 		GLuint getCurrentObjects() const;
 		GLuint getBufferID() const;
-		void bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option);
-		void bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao);
 		void setFence();
 	protected:
-		GLuint buffer_id, max_objs;
+		GLuint buffer_id = 0, current_objs = 0, current_fence = 0, max_objs;
 		std::unique_ptr<GLsyncWrap[]> fences;
 		std::vector<GLuint> bound_vaos;
 		std::vector<ShaderBufferType> bound_buffers;
-		GLuint current_objs = 0, current_fence = 0;
 		GLintptr internal_offset = 0;
 
-		BufferHandler(const bool& include_size, const BufferAccess& access);
+		BufferHandler(const bool& include_size, const GLuint& max_objs, const BufferAccess& access);
 		void updateBindings(const GLuint& new_buffer_id);
 		virtual void updateBuffer(const std::vector<T>& data) = 0;
 		virtual void resizeBuffer(const GLuint& new_size) = 0;
@@ -145,9 +142,10 @@ public:
 		virtual ~ObjectBufferWrapper() = default;
 		ObjectBufferWrapper(const ObjectBufferWrapper&) = delete;
 		ObjectBufferWrapper& operator=(const ObjectBufferWrapper&) = delete;
+		ObjectBufferWrapper() {};
 
 		virtual void updateBuffer() = 0;
-		bool isObjectsChanged() const;
+		inline bool isObjectsChanged() const { return objects_changed; }
 	protected:
 		bool objects_changed = false;
 	};
@@ -175,6 +173,8 @@ public:
 
 		const std::unique_ptr<BufferHandler<G>>& getBuffer();
 		void updateBuffer() override;
+		void bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option);
+		void bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao);
 
 		auto begin() const;
 		auto end() const;
@@ -195,15 +195,15 @@ public:
 	* Updates every buffer of a particular buffer type a shader contains a binding index for, if it exists and requires an update to its contents
 	*
 	* @param buffer_type Type of buffer object to update instances of.
-	* @param shader Shader object.
+	* @param buffer_locations Indices of buffer binding points used in shader.
 	*/
-	static void updateAttachedBuffers(const ShaderBufferType& buffer_type, const TAGShaderManager::Shader& shader);
+	static void updateAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations);
 	/**
 	* Updates every buffer of every type that is attached to a shader.
 	* 
-	* @param shader Shader object
+	* @param buffer_locations Indices of buffer binding points used in a shader, for each buffer type
 	*/
-	static void updateAttachedBuffers(const TAGShaderManager::Shader& shader);
+	static void updateAttachedBuffers(const std::unordered_map<GLuint, std::vector<int>>& buffer_locations);
 	/**
 	* Deletes the buffer with the passed ID and of type T
 	* 
@@ -230,8 +230,8 @@ public:
 private:
 	struct BindingData {
 		ObjectBufferWrapper* ptr = nullptr;
-		GLuint binding_index, buffer_id = 0;
-		GLintptr offset = 0;
+		GLuint binding_index, buffer_id;
+		GLintptr offset;
 	};
 
 	static inline std::vector<OpenGLHandle> buffers;
