@@ -250,7 +250,7 @@ std::string MainState::mainLoop() {
 }
 
 void MainState::enter() {
-	setWindowFullscreen(TAGEnum::TRUE);
+	//setWindowFullscreen(TAGEnum::TRUE);
 	setMouseLock(TAGEnum::TRUE);
 }
 

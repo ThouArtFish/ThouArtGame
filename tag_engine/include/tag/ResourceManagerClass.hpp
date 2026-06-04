@@ -68,7 +68,7 @@ public:
 	/**
 	* The base path from the executable to loadable assets
 	*/
-	static inline std::string asset_path = "../assets/";
+	static inline std::string asset_path = "game/assets/";
 
 	/**
 	* Default constructible wrapper for GLsync objects
