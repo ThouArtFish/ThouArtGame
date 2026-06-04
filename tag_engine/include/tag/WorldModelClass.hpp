@@ -21,7 +21,7 @@ namespace Collision {
 	* Collision info for a single plane, negative index means no collision at all
 	*/
 	struct Info {
-		TAGMesh::PlaneVolume plane;
+		TAGMesh::PlaneVolume plane = {};
 		int index = -1;
 	};
 

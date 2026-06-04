@@ -1,3 +1,4 @@
+#include <ShaderManagerClass.hpp>
 #include <ResourceManagerClass.hpp>
 
 TAGResourceManager::OpenGLHandle::OpenGLHandle(const OpenGLObjectType& type) : type(type), ID(createObject(type)) {}
@@ -25,10 +26,10 @@ TAGResourceManager::OpenGLHandle::~OpenGLHandle() {
 GLuint TAGResourceManager::OpenGLHandle::createObject(const OpenGLObjectType& type) {
 	switch (type) {
 	case OpenGLObjectType::VERTEX_ARRAY_OBJECT:
-		GLuint ID;
-		glCreateVertexArrays(1, &ID);
-		vao_binding_indices[ID] = {};
-		return ID;
+		GLuint vao_ID;
+		glCreateVertexArrays(1, &vao_ID);
+		vao_binding_indices[vao_ID] = {};
+		return vao_ID;
 	case OpenGLObjectType::SHADER_PROGRAM:
 		return glCreateProgram();
 	case OpenGLObjectType::VERTEX_SHADER:
@@ -36,13 +37,13 @@ GLuint TAGResourceManager::OpenGLHandle::createObject(const OpenGLObjectType& ty
 	case OpenGLObjectType::FRAGMENT_SHADER:
 		return glCreateShader(GL_FRAGMENT_SHADER);
 	case OpenGLObjectType::TEXTURE_BUFFER:
-		GLuint ID;
-		glGenTextures(1, &ID);
-		return ID;
+		GLuint tex_ID;
+		glGenTextures(1, &tex_ID);
+		return tex_ID;
 	default: // GENERIC_BUFFER
-		GLuint ID;
-		glGenBuffers(1, &ID);
-		return ID;
+		GLuint buf_ID;
+		glGenBuffers(1, &buf_ID);
+		return buf_ID;
 	}
 }
 
@@ -54,20 +55,19 @@ void TAGResourceManager::updateAttachedBuffers(const GLuint& vao) {
 	}
 }
 
-void TAGResourceManager::updateAttachedBuffers(const ShaderBufferType& buffer_type, const TAGShaderManager::Shader& shader) {
-	if (!shader.buffer_locations.contains((GLuint)buffer_type) || !shader_binding_indices.contains((GLuint)buffer_type)) return;
+void TAGResourceManager::updateAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations) {
+	if (!shader_binding_indices.contains((GLuint) buffer_type)) return;
 
-	const std::vector<GLint>& index_vec = shader.buffer_locations.at((GLuint)buffer_type);
 	std::vector<BindingData>& data_vec = shader_binding_indices[(GLuint)buffer_type];
-	for (const GLint& index : index_vec) {
+	for (const GLint& index : buffer_locations) {
 		auto it = std::find_if(data_vec.begin(), data_vec.end(), [&index](const BindingData& data) { return index == data.binding_index; });
 		if (it != data_vec.end() && it->ptr && it->ptr->isObjectsChanged()) it->ptr->updateBuffer();
 	}
 }
 
-void TAGResourceManager::updateAttachedBuffers(const TAGShaderManager::Shader& shader) {
+void TAGResourceManager::updateAttachedBuffers(const std::unordered_map<GLuint, std::vector<int>>& buffer_locations) {
 	for (const ShaderBufferType& type : buffer_types) {
-		updateAttachedBuffers(type, shader);
+		if (buffer_locations.contains((GLuint) type)) updateAttachedBuffers(type, buffer_locations.at((GLuint) type));
 	}
 }
 

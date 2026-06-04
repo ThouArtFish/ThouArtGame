@@ -11,9 +11,9 @@ TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const TAGResourceMana
 void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
 	if ((mesh_name != "" && meshes.find(mesh_name) == meshes.end()) || instance_buffers.find(mesh_name) == instance_buffers.end()) return;
 
-	TAGResourceManager::ObjectBuffer<Object, ShaderObject>& instance_buffer = instance_buffers[mesh_name];
+	TAGResourceManager::ObjectBuffer<Object, ShaderObject>& instance_buffer = instance_buffers.at(mesh_name);
 
-	TAGResourceManager::updateAttachedBuffers(shader);
+	TAGResourceManager::updateAttachedBuffers(shader.buffer_locations);
 
 	if (!options.cull_backface) glDisable(GL_CULL_FACE);
 
@@ -22,7 +22,7 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 
 		if (instance_buffer.isObjectsChanged()) updateInstanceBuffer(mesh_name);
 
-		instance_buffer.getBuffer()->bindToVertexArrayObject(1, 0, mesh.getVAO());
+		instance_buffer.bindToVertexArrayObject(default_vao_instance_binding_point, 0, mesh.getVAO());
 
 		mesh.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
 	}
@@ -32,7 +32,7 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 
 			if (instance_buffer.isObjectsChanged()) updateInstanceBuffer(mesh_name);
 
-			instance_buffer.getBuffer()->bindToVertexArrayObject(1, 0, mesh.getVAO());
+			instance_buffer.bindToVertexArrayObject(default_vao_instance_binding_point, 0, mesh.getVAO());
 
 			mesh.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
 		}
@@ -44,7 +44,7 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
 	if (mesh_name != "" && meshes.find(mesh_name) == meshes.end()) return;
 
-	TAGResourceManager::updateAttachedBuffers(shader);
+	TAGResourceManager::updateAttachedBuffers(shader.buffer_locations);
 
 	if (!options.cull_backface) glDisable(GL_CULL_FACE);
 	
@@ -128,7 +128,6 @@ void TAGModel::addMesh(const std::string& mesh_name, const std::vector<TAGMesh::
 void TAGModel::deleteMesh(const std::string& mesh_name) {
 	meshes.erase(mesh_name);
 	instance_buffers.erase(mesh_name);
-
 	mesh_draw_order.erase(std::find(mesh_draw_order.begin(), mesh_draw_order.end(), mesh_name));
 }
 

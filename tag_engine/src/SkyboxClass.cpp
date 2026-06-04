@@ -59,7 +59,7 @@ TAGSkybox::~TAGSkybox() {
 }
 
 void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& cubemap_name) const {
-	TAGResourceManager::updateAttachedBuffers(shader);
+	TAGResourceManager::updateAttachedBuffers(shader.buffer_locations);
 
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);

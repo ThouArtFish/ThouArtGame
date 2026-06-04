@@ -7,57 +7,100 @@
 #include "ResourceManagerClass.hpp"
 #include "UtilClass.hpp"
 
+namespace TAGLight {
+	/**
+	* Client side light structs
+	*/
+	struct Point {
+		glm::vec3 position, colour;
+		glm::vec2 attenuation;
+	};
+
+	struct Ray {
+		glm::vec3 direction, colour;
+	};
+
+	struct Flash {
+		glm::vec3 position, direction, colour;
+		glm::vec2 attenuation;
+		float angle;
+	};
+
+	/**
+	* Shader side light structs
+	*/
+	struct alignas(16) ShaderPoint {
+		glm::vec4 a, b;
+	};
+
+	struct alignas(16) ShaderRay {
+		glm::vec4 a;
+		glm::vec2 b;
+	};
+
+	struct alignas(16) ShaderFlash {
+		glm::vec4 a, b, c;
+	};
+};
+
 /**
-* Client side light structs
+* Names for light type members when setting individual attributes
 */
-struct PointLight {
-	glm::vec3 position, colour;
-	glm::vec2 attenuation;
+namespace PointLightMemberName {
+	struct TagStruct {};
+	struct POSITION : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Point, position); };
+	struct COLOUR : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Point, colour); };
+	struct ATTENUATION : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGLight::Point, attenuation); };
+
+	template<typename T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
 };
 
-struct RayLight {
-	glm::vec3 direction, colour;
+namespace RayLightMemberName {
+	struct TagStruct {};
+	struct DIRECTION : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Ray, direction); };
+	struct COLOUR : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Ray, colour); };
+
+	template<typename T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
 };
 
-struct FlashLight {
-	glm::vec3 position, direction, colour;
-	glm::vec2 attenuation;
-	float angle;
+namespace FlashLightMemberName {
+	struct TagStruct {};
+	struct POSITION : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Flash, position); };
+	struct DIRECTION : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Flash, direction); };
+	struct COLOUR : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Flash, colour); };
+	struct ATTENUATION : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGLight::Flash, attenuation); };
+	struct ANGLE : TagStruct { using TYPE = float; static constexpr std::size_t OFFSET = offsetof(TAGLight::Flash, angle); };
+
+	template<typename T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
 };
 
 /**
-* Shader side light structs
+* Concept for checking if light struct member name is correct, depending on the type of light the current instance of TAGLightManager is storing
 */
-struct alignas(16) ShaderPointLight {
-	glm::vec4 a, b;
-};
-
-struct alignas(16) ShaderRayLight {
-	glm::vec4 a;
-	glm::vec2 b;
-};
-
-struct alignas(16) ShaderFlashLight {
-	glm::vec4 a, b, c;
+namespace VariableLightMemberName {
+	template<typename L, typename V> concept Concept =
+		(std::same_as<L, TAGLight::Point> && PointLightMemberName::Concept<V>) ||
+		(std::same_as<L, TAGLight::Ray> && RayLightMemberName::Concept<V>) ||
+		(std::same_as<L, TAGLight::Flash> && FlashLightMemberName::Concept<V>);
 };
 
 /**
 * Concept for allowing only the light structs
 */
-template<class T> concept LightType = isAnyOf<T, PointLight, RayLight, FlashLight>;
+template<class T> concept LightType = isAnyOf<T, TAGLight::Point, TAGLight::Ray, TAGLight::Flash>;
 
 /**
 * Struct for extracting shader type of light
 */
-template<LightType T> struct ShaderLightType { using type = T; static inline GLuint default_binding_point = 0; };
-template<> struct ShaderLightType<PointLight> { using type = ShaderPointLight; static inline GLuint default_binding_point = 0; };
-template<> struct ShaderLightType<RayLight> { using type = ShaderRayLight; static inline GLuint default_binding_point = 1; };
-template<> struct ShaderLightType<FlashLight> { using type = ShaderFlashLight; static inline GLuint default_binding_point = 2; };
+template<LightType T> struct ShaderLightType { using TYPE = T; static constexpr GLuint default_binding_point = 0; };
+template<> struct ShaderLightType<TAGLight::Point> { using TYPE = TAGLight::ShaderPoint; static constexpr GLuint default_binding_point = 0; };
+template<> struct ShaderLightType<TAGLight::Ray> { using TYPE = TAGLight::ShaderRay; static constexpr GLuint default_binding_point = 1; };
+template<> struct ShaderLightType<TAGLight::Flash> { using TYPE = TAGLight::ShaderFlash; static constexpr GLuint default_binding_point = 2; };
 
 /**
- * Manages in-game lights. Stores Light structs in a vector for client-side access and also controls a shader storage buffer object
- * to store the lights GPU-side.
- */
+* Manages in-game lights. Stores Light structs in a vector for client-side access and also controls a shader storage buffer object
+* to store the lights GPU-side.
+*/
 template<LightType T> class TAGLightManager {
 	public:
 		bool delete_on_death = true;
@@ -73,7 +116,7 @@ template<LightType T> class TAGLightManager {
 			GLfloat ambience;
 		};
 
-		using ShaderT = ShaderLightType<T>::type;
+		using ShaderT = ShaderLightType<T>::TYPE;
 		using SceneObject = TAGResourceManager::ObjectBuffer<Scene, GLfloat>;
 
 		/**
@@ -100,6 +143,13 @@ template<LightType T> class TAGLightManager {
 		 * @param index Index in light array
 		 */
 		void setLight(const T& light, const int& index = -1);
+		/**
+		* Set an attribute of an existing light struct, based on the offset of the attribute in the Light struct
+		*
+		* @param value Value to set
+		* @param index Index in array
+		*/
+		template<typename V> requires VariableLightMemberName::Concept<T, V> void setLightMember(const V::TYPE& value, const GLuint& index);
 		/**
 		* Removes light at index.
 		* Pops last light if no index is passed.
@@ -167,7 +217,7 @@ template<LightType T> class TAGLightManager {
 		unsigned int bufferSize() const;
 	private:
 		TAGResourceManager::ObjectBuffer<T, ShaderT> lights;
-		static std::variant<std::monostate, SceneObject> scene;
+		static inline std::variant<std::monostate, SceneObject> scene;
 
 		static ShaderT shaderLightConverter(const T& light, const GLuint& split = 0);
 		static GLfloat shaderSceneConverter(const Scene& scene, const GLuint& split = 0);

@@ -11,20 +11,17 @@
 #include "UtilClass.hpp"
 
 namespace QuadMemberName {
-	struct MarkerStruct {};
-	using POSITION = MarkerStruct;
-	using DIMENSIONS = MarkerStruct;
-	using IMAGE_NAME = MarkerStruct;
-	using POSITION_FORMAT = MarkerStruct;
-	using DIMENSION_FORMAT = MarkerStruct;
-	using TEXEL_FORMAT = MarkerStruct;
-	using TEXEL_TOP_FORMAT = MarkerStruct;
-	using TEXEL_BOTTOM_RIGHT = MarkerStruct;
+	struct TagStruct {};
+	struct POSITION;
+	struct DIMENSIONS;
+	struct IMAGE_NAME;
+	struct POSITION_FORMAT;
+	struct DIMENSION_FORMAT;
+	struct TEXEL_FORMAT;
+	struct TEXEL_TOP_LEFT;
 
-	void namespace_marker_check(MarkerStruct);
+	template<typename T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
 };
-
-template<typename T> concept QuadMemberConcept = requires(T t) { namespace_marker_check(t); };
 
 class TAGHUDManager {
 public:
@@ -136,7 +133,7 @@ public:
 	* @param value Value to set
 	* @param index Index in array
 	*/
-	template<QuadMemberConcept T> 
+	template<QuadMemberName::Concept T> void setQuadMember(const T::TYPE& value, const GLuint& index);
 	/**
 	* Removes quad at index.
 	* Pops last quad if no index is passed.
@@ -195,7 +192,18 @@ private:
 	std::vector<unsigned int> used_images;
 
 	static void initMesh();
-	template<typename T, unsigned int POSITION> requires isAnyOf<T, glm::vec2, std::string, DimensionFormat> static unsigned int quadMemberOffset();
 	static OpenGLIndirectCommand commandConverter(const LayerData& layer_data, const GLuint& split);
 	ShaderQuad shaderConverter(const Quad& quad, const GLuint& split);
 };
+
+namespace QuadMemberName {
+	struct POSITION : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, position); };
+	struct DIMENSIONS : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, dimensions); };
+	struct IMAGE_NAME : TagStruct { using TYPE = std::string; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, image_name); };
+	struct POSITION_FORMAT : TagStruct { using TYPE = TAGHUDManager::DimensionFormat; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, position_format); };
+	struct DIMENSION_FORMAT : TagStruct { using TYPE = TAGHUDManager::DimensionFormat; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, dimension_format); };
+	struct TEXEL_FORMAT : TagStruct { using TYPE = TAGHUDManager::DimensionFormat; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, texel_format); };
+	struct TEXEL_TOP_LEFT : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, texel_top_left); };
+};
+
+#include "../../src/HUDManagerClass.inl"

@@ -26,6 +26,10 @@ template<LightType T> void TAGLightManager<T>::setLight(const T& light, const in
 	}
 }
 
+template<LightType T> template<typename V> requires VariableLightMemberName::Concept<T, V> void TAGLightManager<T>::setLightMember(const V::TYPE& value, const GLuint& index) {
+	lights.setObjectMember<typename V::TYPE>(value, V::OFFSET, index);
+}
+
 template<LightType T> T TAGLightManager<T>::removeLight(const int& index) {
 	return (index < 0 ? lights.popObject() : lights.removeObject(index));
 }
@@ -46,38 +50,38 @@ template<LightType T> void TAGLightManager<T>::bindToShader(const GLintptr& offs
 	if (lights.isObjectsChanged()) {
 		updateLightBuffer();
 	}
-	lights.getBuffer()->bindToShader(index, offset, TAGResourceManager::ShaderBufferType::SHADER_STORAGE);
+	lights.bindToShader(index, offset, TAGResourceManager::ShaderBufferType::SHADER_STORAGE);
 }
 
 template<LightType T> void TAGLightManager<T>::updateLightBuffer() {
 	lights.updateBuffer();
 }
 
-template<LightType T> void TAGLightManager<T>::setScene(const Scene& scene) {
-	SceneObject* scene_ptr = std::get_if<SceneObject>(scene);
+template<LightType T> void TAGLightManager<T>::setScene(const Scene& scene_struct) {
+	SceneObject* scene_ptr = std::get_if<SceneObject>(&scene);
 	if (scene_ptr) {
-		scene_ptr->setObject(scene);
+		scene_ptr->setObject(scene_struct, 0);
 		scene_ptr->updateBuffer();
 	}
 }
 
 template<LightType T> const TAGLightManager<T>::Scene& TAGLightManager<T>::getScene() {
-	return std::get_if<SceneObject>(scene)->peekObject();
+	return std::get_if<SceneObject>(&scene)->peekObject();
 }
 
 template<LightType T> void TAGLightManager<T>::bindSceneToShader(const GLuint& index) {
-	SceneObject* scene_ptr = std::get_if<SceneObject>(scene);
+	SceneObject* scene_ptr = std::get_if<SceneObject>(&scene);
 	if (scene_ptr) {
-		scene_ptr->getBuffer()->bindToShader(index, 0, TAGResourceManager::ShaderBufferType::SHADER_STORAGE);
+		scene_ptr->bindToShader(index, 0, TAGResourceManager::ShaderBufferType::SHADER_STORAGE);
 	}
 }
 
 template<LightType T> auto TAGLightManager<T>::begin() const {
-	return lights.getAllObjects().begin();
+	return lights.begin();
 }
 
 template<LightType T> auto TAGLightManager<T>::end() const {
-	return lights.getAllObjects().end();
+	return lights.end();
 }
 
 template<LightType T> unsigned int TAGLightManager<T>::bufferSize() const {
@@ -85,10 +89,10 @@ template<LightType T> unsigned int TAGLightManager<T>::bufferSize() const {
 }
 
 template<LightType T> TAGLightManager<T>::ShaderT TAGLightManager<T>::shaderLightConverter(const T& light, const GLuint& split) {
-	if constexpr (std::same_as<T, PointLight>) {
+	if constexpr (std::same_as<T, TAGLight::Point>) {
 		return { glm::vec4(light.position, light.attenuation.x), glm::vec4(light.colour, light.attenuation.y) };
 	}
-	else if constexpr (std::same_as<T, RayLight>) {
+	else if constexpr (std::same_as<T, TAGLight::Ray>) {
 		return { glm::vec4(light.direction, light.colour.x), glm::vec2(light.colour.y, light.colour.z) };
 	}
 	else {
