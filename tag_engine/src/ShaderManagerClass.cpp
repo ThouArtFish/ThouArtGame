@@ -145,30 +145,31 @@ void TAGShaderManager::getSourceCodeFromFile(const Source& source, std::string& 
 }
 
 void TAGShaderManager::getSourceCodeFromDefault(const Source& source, std::string& vertex_code, std::string& fragment_code) {
+	vertex_code = fragment_code = shader_version.substr();
 	switch (source.shader_type) {
 	case ShaderType::SKYBOX_DRAW:
-		vertex_code = default_source[2].substr();
-		fragment_code = default_source[4].substr();
+		vertex_code += default_source[2].substr();
+		fragment_code += default_source[4].substr();
 		break;
 	case ShaderType::UNINSTANCED_BASIC_DRAW:
-		vertex_code = default_source[0].substr();
-		fragment_code = default_source[5].substr();
+		vertex_code += default_source[0].substr();
+		fragment_code += default_source[5].substr();
 		break;
 	case ShaderType::INSTANCED_BASIC_DRAW:
-		vertex_code = default_source[1].substr();
-		fragment_code = default_source[5].substr();
+		vertex_code += default_source[1].substr();
+		fragment_code += default_source[5].substr();
 		break;
 	case ShaderType::HUD_DRAW:
-		vertex_code = default_source[3].substr();
-		fragment_code = default_source[6].substr();
+		vertex_code += default_source[3].substr();
+		fragment_code += default_source[6].substr();
 		break;
 	case ShaderType::UNINSTANCED_MODEL_DRAW:
-		vertex_code = default_source[0].substr();
-		fragment_code = default_source[7].substr();
+		vertex_code += default_source[0].substr();
+		fragment_code += default_source[7].substr();
 		break;
 	default: // INSTANCED_MODEL_DRAW
-		vertex_code = default_source[1].substr();
-		fragment_code = default_source[7].substr();
+		vertex_code += default_source[1].substr();
+		fragment_code += default_source[7].substr();
 	}
 }
 

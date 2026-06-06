@@ -63,6 +63,9 @@
     <ClInclude Include="tag_engine\include\tag\HUDManagerClass.hpp">
       <Filter>ThouArtGame Files\Headers</Filter>
     </ClInclude>
+    <ClInclude Include="game\include\TestStateClass.hpp">
+      <Filter>Game Files\Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="tag_engine\src\BaseStateClass.cpp">

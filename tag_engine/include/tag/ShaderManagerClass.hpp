@@ -174,7 +174,7 @@ private:
         "out vec3 FragPos;\n"
         "struct ShaderObject {\n"
         "   vec4 position_AND_scale;\n"
-        "   vec4 axis_AND_rotation;\n}\n"
+        "   vec4 axis_AND_rotation;\n};\n"
         "uniform mat4 view;\n"
         "uniform mat4 perspective;\n"
         "uniform ShaderObject object;\n"
@@ -341,8 +341,7 @@ private:
         "            colour * spec_frag * pow(max(dot(Normal, normalize(normalize(camera_pos - FragPos) + flash_lights[i].b.xyz)), 0.0), spec_exp)\n"
         "        ) * atten;\n"
         "    }\n"
-        "    FragColour = vec4(obj_base.xyz * final_shade, obj_base.z * opacity);\n"
-        "}\n"
+        "    FragColour = vec4(obj_base.xyz * final_shade, obj_base.z * opacity);\n}"
     };
     std::unordered_map<std::string, Shader> shaders;
 
