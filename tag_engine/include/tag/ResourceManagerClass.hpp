@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <iostream>
 #include <string>
 #include <map>
 #include <concepts>
@@ -12,6 +13,18 @@
 #include <glm/glm.hpp>
 #include <glad/glad.h>
 
+namespace OpenGLObjectType {
+	struct TagStruct {};
+	struct VertexArrayObject : TagStruct { constexpr static GLuint TYPE_ID = 0; constexpr inline static std::string_view NAME = "VAO"; };
+	struct ShaderProgram : TagStruct { constexpr static GLuint TYPE_ID = 1; constexpr inline static std::string_view NAME = "ShaderProgram"; };
+	struct VertexShader : TagStruct { constexpr static GLuint TYPE_ID = 2; constexpr inline static std::string_view NAME = "VertexShader"; };
+	struct FragmentShader : TagStruct { constexpr static GLuint TYPE_ID = 3; constexpr inline static std::string_view NAME = "FragmentShader"; };
+	struct TextureBuffer : TagStruct { constexpr static GLuint TYPE_ID = 4; constexpr inline static std::string_view NAME = "TextureBuffer"; };
+	struct GenericBuffer : TagStruct { constexpr static GLuint TYPE_ID = 5; constexpr inline static std::string_view NAME = "GenericBuffer"; };
+
+	template<class T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
+};
+
 /**
 * Manages OpenGL buffer objects
 */
@@ -20,29 +33,22 @@ class TAGResourceManager {
 	friend class OpenGLHandle;
 public:
 	/**
-	* Types of OpenGL obejcts
-	*/
-	enum class OpenGLObjectType {
-		VERTEX_ARRAY_OBJECT,
-		SHADER_PROGRAM,
-		VERTEX_SHADER,
-		FRAGMENT_SHADER,
-		TEXTURE_BUFFER,
-		GENERIC_BUFFER
-	};
-
-	/**
 	* Structs for storing OpenGL buffer IDs
 	*/
-	class OpenGLHandle {
-	public:
-		OpenGLHandle(const OpenGLObjectType& type);
-		~OpenGLHandle();
+	struct OpenGLHandleWrapper {
+		virtual ~OpenGLHandleWrapper() = default;
 
-		OpenGLObjectType type;
-		GLuint ID;
+		OpenGLHandleWrapper(const GLuint& ID, const GLuint& TYPE_ID);
+		const GLuint ID;
+		const GLuint TYPE_ID;
+	};
+
+	template<OpenGLObjectType::Concept T> class OpenGLHandle : public OpenGLHandleWrapper {
+	public:
+		OpenGLHandle();
+		~OpenGLHandle();
 	private:
-		static GLuint createObject(const OpenGLObjectType& type);
+		static GLuint createObjectID();
 	};
 
 	/**
@@ -64,6 +70,16 @@ public:
 		TRANSFORM_FEEDBACK = GL_TRANSFORM_FEEDBACK_BUFFER
 	};
 	static constexpr inline std::array<ShaderBufferType, 4> buffer_types = { ShaderBufferType::SHADER_STORAGE, ShaderBufferType::ATOMIC_COUNTER, ShaderBufferType::UNIFORM, ShaderBufferType::TRANSFORM_FEEDBACK };
+	enum class ShaderBufferInterfaceType : GLuint {
+		SHADER_STORAGE = GL_SHADER_STORAGE_BLOCK,
+		ATOMIC_COUNTER = GL_ATOMIC_COUNTER_BUFFER,
+		UNIFORM = GL_UNIFORM_BLOCK,
+		TRANSFORM_FEEDBACK = GL_TRANSFORM_FEEDBACK_BUFFER
+	};
+	static constexpr inline std::array<ShaderBufferInterfaceType, 2> buffer_interface_types = { 
+		ShaderBufferInterfaceType::SHADER_STORAGE, 
+		ShaderBufferInterfaceType::UNIFORM
+	};
 
 	/**
 	* The base path from the executable to loadable assets
@@ -205,24 +221,23 @@ public:
 	*/
 	static void updateAttachedBuffers(const std::unordered_map<GLuint, std::vector<int>>& buffer_locations);
 	/**
+	* Creates a buffer of type T
+	*
+	* @param type Type of OpenGL object
+	*/
+	template<OpenGLObjectType::Concept T> static GLuint createBuffer();
+	/**
 	* Deletes the buffer with the passed ID and of type T
 	* 
 	* @param ID The ID of the buffer to be deleted
-	* @param type Type of OpenGL object
 	*/
-	static void deleteBuffer(const GLuint& ID, const OpenGLObjectType& type);
-	/**
-	* Creates a buffer of type T
-	* 
-	* @param type Type of OpenGL object
-	*/
-	static GLuint createBuffer(const OpenGLObjectType& type);
+	template<OpenGLObjectType::Concept T> static void deleteBuffer(const GLuint& ID);
 	/**
 	* Check if buffer of BufferType T exists with buffer handle ID
 	* 
 	* @param ID The ID of the buffer to check
 	*/
-	static bool isBuffer(const GLuint& ID, const OpenGLObjectType& type);
+	template<OpenGLObjectType::Concept T> static bool isBuffer(const GLuint& ID);
 	/**
 	* Clears all buffers
 	*/
@@ -234,7 +249,7 @@ private:
 		GLintptr offset;
 	};
 
-	static inline std::vector<OpenGLHandle> buffers;
+	static inline std::vector<std::unique_ptr<OpenGLHandleWrapper>> buffers;
 	static inline std::map<GLuint, std::vector<BindingData>> vao_binding_indices;
 	static inline std::map<GLuint, std::vector<BindingData>> shader_binding_indices;
 };

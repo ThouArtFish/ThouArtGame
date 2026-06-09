@@ -21,16 +21,14 @@ TAGHUDManager::TAGHUDManager(const TAGResourceManager::BufferAccess& access, con
 }
 
 TAGHUDManager::~TAGHUDManager() {
-	if (delete_on_death) {
-		for (const TAGTexLoader::Texture& tex : images) {
-			TAGResourceManager::deleteBuffer(tex.id, TAGResourceManager::OpenGLObjectType::TEXTURE_BUFFER);
-		}
+	for (const TAGTexLoader::Texture& tex : images) {
+		TAGResourceManager::deleteBuffer<OpenGLObjectType::TextureBuffer>(tex.id);
 	}
 }
 
 void TAGHUDManager::loadImage(const std::string& path, const TAGTexLoader::Params& params, const std::string& name) {
 	const std::string tex_name = (name == "" ? static_cast<std::filesystem::path>(path).stem().string() : name);
-	images.push_back(TAGTexLoader::textureFromFile(path, params, tex_name));
+	images.push_back(TAGTexLoader::textureFromFile(TAGResourceManager::asset_path + path, params, tex_name));
 }
 
 void TAGHUDManager::addImage(const TAGTexLoader::Texture& texture) {
@@ -42,7 +40,7 @@ void TAGHUDManager::deleteImage(const std::string& name, const bool& global_dele
 
 	if (pos == images.end()) return;
 
-	if (global_delete) TAGResourceManager::deleteBuffer(pos->id, TAGResourceManager::OpenGLObjectType::TEXTURE_BUFFER);
+	if (global_delete) TAGResourceManager::deleteBuffer<OpenGLObjectType::TextureBuffer>(pos->id);
 
 	images.erase(pos);
 
@@ -183,9 +181,7 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 	// Update indirect draw buffer which controls which layer of images are drawn
 	if (layers.isObjectsChanged()) layers.updateBuffer();
 
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, layers.getBuffer()->getBufferID());
-
-	std::array<int, MAX_TEXTURES> texture_indices;
+	std::array<int, MAX_TEXTURES> texture_indices = {};
 	unsigned int i;
 	for (i = 0; i < glm::min(MAX_TEXTURES, (GLuint) used_images.size()); i++) {
 		texture_indices[i] = i;
@@ -195,22 +191,22 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 	glActiveTexture(GL_TEXTURE0);
 
 	shader.set<int>(texture_array_name, texture_indices[0], i);
-
+	
 	glDepthFunc(GL_ALWAYS);
 	glBindVertexArray(VAO);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, layers.getBuffer()->getBufferID());
 	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, (GLsizei) layers.getAllObjects().size(), sizeof(OpenGLIndirectCommand));
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 	glBindVertexArray(0);
 	glDepthFunc(GL_LESS);
-
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
 	quads.getBuffer()->setFence();
 }
 
 void TAGHUDManager::initMesh() {
-	VAO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::VERTEX_ARRAY_OBJECT);
-	VBO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
-	EBO = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::GENERIC_BUFFER);
+	VAO = TAGResourceManager::createBuffer<OpenGLObjectType::VertexArrayObject>();
+	VBO = TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>();
+	EBO = TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>();
 
 	const static std::array<float, 8> quad_vertices = {
 		0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f

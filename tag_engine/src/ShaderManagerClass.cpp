@@ -9,10 +9,8 @@ TAGShaderManager::TAGShaderManager(const std::vector<Source>& sources) {
 }
 
 TAGShaderManager::~TAGShaderManager() {
-	if (delete_on_death) {
-		for (const auto& pair : shaders) {
-			TAGResourceManager::deleteBuffer(pair.second.ID, TAGResourceManager::OpenGLObjectType::SHADER_PROGRAM);
-		}
+	for (const auto& pair : shaders) {
+		TAGResourceManager::deleteBuffer<OpenGLObjectType::ShaderProgram>(pair.second.ID);
 	}
 }
 
@@ -25,12 +23,12 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 	}
 
 	// Compile shader program stages
-	unsigned int vertex, fragment;
+	GLuint vertex, fragment;
 	int success;
 	char infoLog[512];
 	static std::vector<GLchar*> source_ptr;
 
-	vertex = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::VERTEX_SHADER);
+	vertex = TAGResourceManager::createBuffer<OpenGLObjectType::VertexShader>();
 	source_ptr.push_back((GLchar*)(source.is_path || source.shader_type != ShaderType::CUSTOM_DRAW ? vertex_code : source.vertex).c_str());
 	glShaderSource(vertex, 1, source_ptr.data(), NULL);
 	glCompileShader(vertex);
@@ -41,7 +39,7 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
 	};
 
-	fragment = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::FRAGMENT_SHADER);
+	fragment = TAGResourceManager::createBuffer<OpenGLObjectType::FragmentShader>();
 	source_ptr.push_back((GLchar*)(source.is_path || source.shader_type != ShaderType::CUSTOM_DRAW ? fragment_code : source.fragment).c_str());
 	glShaderSource(fragment, 1, source_ptr.data(), NULL);
 	glCompileShader(fragment);
@@ -53,7 +51,7 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 	};
 
 	// Compile final shader program
-	const unsigned int ID = TAGResourceManager::createBuffer(TAGResourceManager::OpenGLObjectType::SHADER_PROGRAM);
+	const GLuint ID = TAGResourceManager::createBuffer<OpenGLObjectType::ShaderProgram>();
 	glAttachShader(ID, vertex);
 	glAttachShader(ID, fragment);
 	glLinkProgram(ID);
@@ -62,16 +60,17 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 		glGetProgramInfoLog(ID, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
 	}
-	TAGResourceManager::deleteBuffer(vertex, TAGResourceManager::OpenGLObjectType::VERTEX_SHADER);
-	TAGResourceManager::deleteBuffer(fragment, TAGResourceManager::OpenGLObjectType::FRAGMENT_SHADER);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::VertexShader>(vertex);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::FragmentShader>(fragment);
 
 	Shader shader = { .ID = ID };
 
 	// Get location and names of all uniforms
 	GLint count;
 
-	constexpr GLsizei data_size = 100;
-	std::array<GLint, data_size> data;
+	constexpr static GLsizei data_size = 100;
+	std::array<GLint, data_size> data = {};
+	using char_it = std::array<GLchar, data_size>::iterator;
 
 	glGetProgramiv(ID, GL_ACTIVE_UNIFORMS, &count);
 	for (GLint i = 0; i < count; i++) {
@@ -79,16 +78,15 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 		GLint size;
 		GLenum type;
 
-		glGetActiveUniform(ID, i, (GLsizei) data.max_size(), &length, &size, &type, (GLchar*)data.data());
+		GLchar* const chars = (GLchar*)data.data();
 
-		if (std::find(data.begin(), data.end(), (GLint)'[') != data.end()) {
-			length -= 3;
-			data[length] = 0;
-		}
+		glGetActiveUniform(ID, i, (GLsizei) data.max_size(), &length, &size, &type, chars);
 
-		GLint location = glGetUniformLocation(ID, (GLchar*) data.data());
+		GLint location = glGetUniformLocation(ID, chars);
 
-		shader.uniform_data[std::string((GLchar*)data.data(), length)] = { location, type };
+		if (std::find(chars, chars + length, '[') != chars + length) length -= 3;
+
+		shader.uniform_data[std::string(chars, length)] = { location, type };
 	}
 
 	// Get attribute data
@@ -108,7 +106,7 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
 
 	// Get data for each program interface
 	constexpr std::array<GLenum, 2> props = { GL_BUFFER_BINDING, GL_NUM_ACTIVE_VARIABLES };
-	for (const TAGResourceManager::ShaderBufferType& type : TAGResourceManager::buffer_types) {
+	for (const TAGResourceManager::ShaderBufferInterfaceType& type : TAGResourceManager::buffer_interface_types) {
 		glGetProgramInterfaceiv(ID, (GLenum)type, GL_ACTIVE_RESOURCES, &count);
 		for (GLint i = 0; i < count; i++) {
 			GLsizei length;
@@ -184,8 +182,7 @@ void TAGShaderManager::addShader(const std::vector<Source>& sources) {
 }
 
 void TAGShaderManager::deleteShader(const std::string& name) {
-	TAGResourceManager::deleteBuffer(shaders.at(name).ID, TAGResourceManager::OpenGLObjectType::SHADER_PROGRAM);
-	shaders.erase(name);
+	if (shaders.erase(name) > 0) TAGResourceManager::deleteBuffer<OpenGLObjectType::ShaderProgram>(shaders.at(name).ID);
 }
 
 void TAGShaderManager::deleteShader(const std::vector<std::string>& names) {

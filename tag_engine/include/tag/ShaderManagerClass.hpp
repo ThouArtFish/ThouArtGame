@@ -120,8 +120,6 @@ public:
 
     static inline ShaderOptions default_options = {};
 
-    bool delete_on_death = true;
-
     /**
     * Pass one or multiple shader program sources (stored within a vector) to load them.
     * 

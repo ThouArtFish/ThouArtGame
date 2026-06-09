@@ -13,8 +13,6 @@
 */
 class TAGSkybox {
 	public:
-		bool delete_on_death = true;
-
 		/**
 		* Pass a path to the directory containing all skybox images.
 		* Params decide the loading parameters for each skybox texture.

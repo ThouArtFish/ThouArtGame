@@ -42,7 +42,7 @@ public:
 		glm::vec2 position;
 		glm::vec2 dimensions;
 		std::string image_name;
-		unsigned int layer;
+		unsigned int layer = 0;
 		DimensionFormat position_format = DimensionFormat::RELATIVE;
 		DimensionFormat dimension_format = DimensionFormat::RELATIVE;
 		DimensionFormat texel_format = DimensionFormat::RELATIVE;
@@ -59,7 +59,6 @@ public:
 		GLuint tex_index;
 	};
 
-	bool delete_on_death = true;
 	static inline GLuint base_attrib = 0;
 
 	/**
