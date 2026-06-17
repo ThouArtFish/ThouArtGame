@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <tinyobjloader/tiny_obj_loader.h>
 #include "ResourceManagerClass.hpp"
 #include "BaseStateClass.hpp"
@@ -31,7 +30,7 @@ namespace ObjectMemberName {
  * Many functions have the feature to not pass a mesh name, which means the function is handling an instance of
  * stored meshes, instead of just one mesh, although it could be one mesh.
  */
-class TAGModel {
+class TAGModel : public TAGBaseState::OpenGLContextChecker {
 public:
 	/**
 	* Default binding location for object buffers in instanced drawing

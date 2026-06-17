@@ -56,6 +56,14 @@ template<typename T, typename Variant>
 concept isVariantMember = is_variant_member<T, Variant>::value;
 
 /**
+* Wrapper class for distinguishing implicitly convertible types
+*/
+template<typename T> struct SameType {
+	SameType(const T& value) : value(value) {}
+	T value;
+};
+
+/**
 * Provides useful functions
 */
 class TAGUtil {

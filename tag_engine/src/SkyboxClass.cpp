@@ -3,7 +3,7 @@
 TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& params) {
 	cubemap_ID = TAGTexLoader::cubemapFromFile(TAGResourceManager::asset_path + directory + (directory.ends_with("/") ? "" : "/"), params);
 
-	static const std::array<float, 24> vertices = {
+	static constexpr std::array<float, 24> vertices = {
 		1.0f, 1.0f, 1.0f,
 		-1.0f, 1.0f, 1.0f,
 		-1.0f, -1.0f, 1.0f,
@@ -14,7 +14,7 @@ TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& p
 		1.0f, -1.0f, -1.0f
 	};
 
-	static const std::array<unsigned int, 36> indices = {
+	static constexpr std::array<unsigned int, 36> indices = {
 		0, 3, 1,
 		2, 1, 3,
 		4, 5, 7,
@@ -62,7 +62,7 @@ void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& 
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);
 	glActiveTexture(GL_TEXTURE0);
-	shader.set<int>(cubemap_name, 0);
+	shader.set<ShaderUniformType::CUBEMAP>(cubemap_name, 0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_ID);
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);

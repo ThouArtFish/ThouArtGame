@@ -3,7 +3,7 @@
 #include <vector>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "BaseStateClass.hpp"
 #include "ResourceManagerClass.hpp"
 #include "UtilClass.hpp"
 
@@ -101,7 +101,7 @@ template<> struct ShaderLightType<TAGLight::Flash> { using TYPE = TAGLight::Shad
 * Manages in-game lights. Stores Light structs in a vector for client-side access and also controls a shader storage buffer object
 * to store the lights GPU-side.
 */
-template<LightType T> class TAGLightManager {
+template<LightType T> class TAGLightManager : public TAGBaseState::OpenGLContextChecker {
 	public:
 		bool delete_on_death = true;
 

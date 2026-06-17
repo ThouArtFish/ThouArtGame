@@ -18,12 +18,13 @@ namespace QuadMemberName {
 	struct POSITION_FORMAT;
 	struct DIMENSION_FORMAT;
 	struct TEXEL_FORMAT;
-	struct TEXEL_TOP_LEFT;
+	struct TEXEL_BOTTOM_LEFT;
+	struct TEXEL_TOP_RIGHT;
 
 	template<typename T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
 };
 
-class TAGHUDManager {
+class TAGHUDManager : public TAGBaseState::OpenGLContextChecker {
 public:
 	/**
 	* How vectors represent positions on the screen or textures
@@ -46,8 +47,8 @@ public:
 		DimensionFormat position_format = DimensionFormat::RELATIVE;
 		DimensionFormat dimension_format = DimensionFormat::RELATIVE;
 		DimensionFormat texel_format = DimensionFormat::RELATIVE;
-		glm::vec2 texel_top_left = { 0.0f, 0.0f };
-		glm::vec2 texel_bottom_right = { 1.0f, 1.0f };
+		glm::vec2 texel_bottom_left = { 0.0f, 0.0f };
+		glm::vec2 texel_top_right = { 1.0f, 1.0f };
 	};
 
 	/**
@@ -103,12 +104,11 @@ public:
 	std::vector<std::string> getImageNames() const;
 	/**
 	* Show or hide a layer.
-	* Also creates the layer if it does not exist.
 	* 
 	* @param layer Layer to change visibility.
 	* @param state True to show, False to hide, or Toggle to switch.
 	*/
-	void setLayerVisibility(const unsigned int& layer, const TAGEnum& state);
+	void setLayerVisibility(const GLuint& layer, const TAGEnum& state);
 	/**
 	* Adds quad in order.
 	* Pushes to end of quad array if no index is passed.
@@ -151,7 +151,7 @@ public:
 	/**
 	* Get all quads.
 	*/
-	const std::vector<Quad>& getAllLights() const;
+	const std::vector<Quad>& getAllQuads() const;
 	/**
 	* Updates GPU side buffer with CPU side quad.
 	*/
@@ -202,7 +202,8 @@ namespace QuadMemberName {
 	struct POSITION_FORMAT : TagStruct { using TYPE = TAGHUDManager::DimensionFormat; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, position_format); };
 	struct DIMENSION_FORMAT : TagStruct { using TYPE = TAGHUDManager::DimensionFormat; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, dimension_format); };
 	struct TEXEL_FORMAT : TagStruct { using TYPE = TAGHUDManager::DimensionFormat; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, texel_format); };
-	struct TEXEL_TOP_LEFT : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, texel_top_left); };
+	struct TEXEL_BOTTOM_LEFT : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, texel_bottom_left); };
+	struct TEXEL_TOP_RIGHT : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, texel_top_right); };
 };
 
 #include "../../src/HUDManagerClass.inl"

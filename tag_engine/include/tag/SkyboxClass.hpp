@@ -11,7 +11,7 @@
 /**
 * Handles an instance of a skybox
 */
-class TAGSkybox {
+class TAGSkybox : public TAGBaseState::OpenGLContextChecker {
 	public:
 		/**
 		* Pass a path to the directory containing all skybox images.

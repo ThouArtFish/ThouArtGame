@@ -5,6 +5,7 @@
 #include <concepts>
 #include <memory>
 #include <iostream>
+#include <stdexcept>
 #include <glad/glad.h>
 #include <glfw_imp.hpp>
 #include "ResourceManagerClass.hpp"
@@ -17,10 +18,18 @@
  * Global variables accessible by any derived state class are also stored and updated here.
  */
 class TAGBaseState {
+	friend class OpenGLContextChecker;
 public:
 	virtual ~TAGBaseState() = default;
 	TAGBaseState(const TAGBaseState&) = delete;
 	TAGBaseState& operator=(const TAGBaseState&) = delete;
+
+	/**
+	* Attached to every class to make sure OpenGL context is initialized before construction
+	*/
+	struct OpenGLContextChecker {
+		OpenGLContextChecker();
+	};
 
 	/**
 	 * Container for passing info required for initializing a game
@@ -90,7 +99,10 @@ protected:
 	static inline double delta_y = 0.0;
 	static inline bool iconified = false;
 	static inline bool first_mouse = true;
-	
+
+	/**
+	* Default constructor
+	*/
 	TAGBaseState() {};
 	/**
 	 * Returns true if the GLFW key defined is currently being pressed

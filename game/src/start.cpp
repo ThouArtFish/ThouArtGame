@@ -4,17 +4,13 @@
 
 constexpr bool TEST = true;
 
-void chooseMainState() {
+int main() {
+	TAGBaseState::initGame(TAGBaseState::GameInitializer(1280, 720, "Playground"));
 	if (TEST) {
 		TAGBaseState::addState<TestState>("MAIN");
 	}
 	else {
 		TAGBaseState::addState<MainState>("MAIN");
 	}
-}
-
-int main() {
-	TAGBaseState::initGame(TAGBaseState::GameInitializer(1280, 720, "Playground"));
-	chooseMainState();
 	return TAGBaseState::runGame();
 }

@@ -83,7 +83,7 @@ std::vector<std::string> TAGHUDManager::getImageNames() const {
 	return names;
 }
 
-void TAGHUDManager::setLayerVisibility(const unsigned int& layer, const TAGEnum& state) {
+void TAGHUDManager::setLayerVisibility(const GLuint& layer, const TAGEnum& state) {
 	auto vec_it = std::find_if(layers.begin(), layers.end(), [&layer](const LayerData& layer_data) { return layer == layer_data.id; });
 	if (vec_it == layers.end() || (vec_it->is_hidden && state == TAGEnum::FALSE) || (!vec_it->is_hidden && state == TAGEnum::TRUE)) return;
 
@@ -99,11 +99,12 @@ void TAGHUDManager::setLayerVisibility(const unsigned int& layer, const TAGEnum&
 
 void TAGHUDManager::addQuad(const Quad& quad) {
 	std::vector<LayerData>& layer_vec = layers.changeObjects();
-	auto layer_it = std::find_if(layer_vec.begin(), layer_vec.end(), [&quad](const LayerData& layer) { return quad.layer == layer.id; });
+	auto layer_it = std::find_if(layer_vec.begin(), layer_vec.end(), [&quad](const LayerData& layer) { return layer.id == quad.layer; });
 	if (layer_it == layer_vec.end()) {
-		layer_vec.emplace_back(quad.layer, 0, (GLuint) quads.getAllObjects().size(), false);
+		layer_vec.emplace_back(quad.layer, (GLuint)quads.getAllObjects().size(), 0, false);
 		layer_vec = layers.changeObjects();
-		layer_it = layer_vec.begin() + layer_vec.size() - 1;
+		std::sort(layer_vec.begin(), layer_vec.end(), [](const LayerData& a, const LayerData& b) { return a.id > b.id; });
+		layer_it = std::find_if(layer_vec.begin(), layer_vec.end(), [&quad](const LayerData& layer) { return layer.id == quad.layer; });
 	}
 	
 	layer_it->count++;
@@ -148,7 +149,7 @@ const TAGHUDManager::Quad& TAGHUDManager::getQuad(const int& index) const {
 	return (index < 0 ? quads.peekObject() : quads.getObject(index));
 }
 
-const std::vector<TAGHUDManager::Quad>& TAGHUDManager::getAllLights() const {
+const std::vector<TAGHUDManager::Quad>& TAGHUDManager::getAllQuads() const {
 	return quads.getAllObjects();
 }
 
@@ -164,7 +165,6 @@ void TAGHUDManager::setWindowDimensions(const int& width, const int& height) {
 }
 
 void TAGHUDManager::updateQuadBuffer() {
-	used_images.clear();
 	quads.updateBuffer();
 }
 
@@ -190,17 +190,16 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 	}
 	glActiveTexture(GL_TEXTURE0);
 
-	shader.set<int>(texture_array_name, texture_indices[0], i);
+	shader.set<ShaderUniformType::SINGLE_2D>(texture_array_name, texture_indices[0], i);
 	
 	glDepthFunc(GL_ALWAYS);
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, layers.getBuffer()->getBufferID());
-	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, (GLsizei) layers.getAllObjects().size(), sizeof(OpenGLIndirectCommand));
+	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, (GLsizei) layers.getAllObjects().size(), 0);
+	quads.getBuffer()->setFence();
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 	glBindVertexArray(0);
 	glDepthFunc(GL_LESS);
-
-	quads.getBuffer()->setFence();
 }
 
 void TAGHUDManager::initMesh() {
@@ -208,11 +207,11 @@ void TAGHUDManager::initMesh() {
 	VBO = TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>();
 	EBO = TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>();
 
-	const static std::array<float, 8> quad_vertices = {
+	constexpr static std::array<float, 8> quad_vertices = {
 		0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f
 	};
 
-	const static std::array<unsigned int, 6> quad_indices = {
+	constexpr static std::array<unsigned int, 6> quad_indices = {
 		0, 1, 3, 1, 2, 3
 	};
 
@@ -231,10 +230,10 @@ void TAGHUDManager::initMesh() {
 		const unsigned int current_attrib = base_attrib + 1 + i;
 		glEnableVertexAttribArray(current_attrib);
 		if (i < 2) {
-			glVertexAttribFormat(current_attrib, 4, GL_FLOAT, GL_FALSE, offsetof(ShaderQuad, quad_data) + sizeof(glm::vec4) * i);
+			glVertexAttribFormat(current_attrib, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4) * i);
 		}
 		else {
-			glVertexAttribIFormat(current_attrib, 1, GL_UNSIGNED_INT, offsetof(ShaderQuad, quad_data) + sizeof(glm::vec4) * i);
+			glVertexAttribIFormat(current_attrib, 1, GL_UNSIGNED_INT, sizeof(glm::vec4) * i);
 		}
 		glVertexAttribBinding(current_attrib, 1);
 	}
@@ -249,6 +248,8 @@ OpenGLIndirectCommand TAGHUDManager::commandConverter(const LayerData& layer_dat
 }
 
 TAGHUDManager::ShaderQuad TAGHUDManager::shaderConverter(const Quad& quad, const GLuint& split) {
+	if (split == 0) used_images.clear();
+
 	ShaderQuad buffer_quad;
 	glm::vec2 data1, data2;
 
@@ -259,9 +260,9 @@ TAGHUDManager::ShaderQuad TAGHUDManager::shaderConverter(const Quad& quad, const
 	buffer_quad.quad_data = glm::vec4(data1, data2);
 
 	auto tex_pos = std::find_if(images.begin(), images.end(), [&quad](const TAGTexLoader::Texture& tex) { return tex.name == quad.image_name; });
-	dim = (quad.texel_format == DimensionFormat::PIXEL ? glm::vec2(tex_pos->width, tex_pos->height) : glm::vec2(1.0f));
-	data1 = quad.texel_top_left / dim;
-	data2 = (quad.texel_bottom_right - quad.texel_top_left) / dim;
+	dim = (quad.texel_format == DimensionFormat::PIXEL && tex_pos != images.end() ? glm::vec2(tex_pos->width, tex_pos->height) : glm::vec2(1.0f));
+	data1 = quad.texel_bottom_left / dim;
+	data2 = (quad.texel_top_right - quad.texel_bottom_left) / dim;
 	buffer_quad.texel_data = glm::vec4(data1, data2);
 
 	auto pos = std::find(used_images.begin(), used_images.end(), tex_pos->id);

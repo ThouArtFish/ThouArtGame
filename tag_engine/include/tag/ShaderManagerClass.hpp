@@ -16,14 +16,22 @@
 #include "UtilClass.hpp"
 
 /**
-* Handles shader programs
+* Shader uniform sampler types
 */
-class TAGShaderManager {
-public:
-    /**
-    * Variant for all shader primitives
-    */
-    using ShaderUniform = std::variant<
+namespace ShaderUniformType {
+    struct TagType {};
+
+    struct SINGLE_2D : SameType<int>, TagType {
+        SINGLE_2D(const int& num) : SameType(num) {}
+        static constexpr GLenum ENUM = GL_SAMPLER_2D;
+    };
+
+    struct CUBEMAP : SameType<int>, TagType {
+        CUBEMAP(const int& num) : SameType(num) {}
+        static constexpr GLenum ENUM = GL_SAMPLER_CUBE;
+    };
+
+    using Primitive = std::variant<
         bool,
         int,
         unsigned int,
@@ -49,8 +57,16 @@ public:
         glm::mat3x4,
         glm::mat4x2,
         glm::mat4x3
-    >;
+    > ;
 
+    template<typename T> concept Concept = isVariantMember<T, Primitive> || (!std::same_as<T, TagType> && std::derived_from<T, TagType>);
+};
+
+/**
+* Handles shader programs
+*/
+class TAGShaderManager : public TAGBaseState::OpenGLContextChecker {
+public:
     /**
     * Shader types
     */
@@ -96,7 +112,7 @@ public:
         std::unordered_map<std::string, ShaderUniformInfo> uniform_data;
         std::unordered_map<GLuint, std::vector<GLint>> buffer_locations;
 
-        template<typename T, typename V = ShaderUniform> requires isVariantMember<T, V> void set(const std::string& name, const T& value, const unsigned int& count = 1) const;
+        template<ShaderUniformType::Concept T> void set(const std::string& name, const T& value, const GLuint& count = 1) const;
     };
 
     /**
@@ -346,7 +362,7 @@ private:
     static Shader loadShader(const Source& source);
     static void getSourceCodeFromFile(const Source& source, std::string& vertex_code, std::string& fragment_code);
     static void getSourceCodeFromDefault(const Source&, std::string& vertex_code, std::string& fragment_code);
-    template<typename T, typename V = ShaderUniform> requires isVariantMember<T, V> static GLenum getEnumType();
+    template<ShaderUniformType::Concept T> static GLenum getEnumType();
 };
 
 #include "../../src/ShaderManagerClass.inl"

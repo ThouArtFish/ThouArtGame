@@ -43,6 +43,10 @@
 	#define GL_DEBUG(code)
 #endif
 
+TAGBaseState::OpenGLContextChecker::OpenGLContextChecker() {
+	if (!TAGBaseState::game_initialized) throw std::runtime_error("TAG class has been initialized before OpenGL context has been created\n");
+}
+
 void TAGBaseState::deleteState(const std::string& name) {
 	if (name != current) {
 		states.erase(name);

@@ -6,8 +6,8 @@
 #include <iostream>
 #include <concepts>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glad/glad.h>
+#include "BaseStateClass.hpp"
 #include "ShaderManagerClass.hpp"
 #include "ResourceManagerClass.hpp"
 #include "TextureLoaderClass.hpp"
@@ -18,7 +18,7 @@
  * Only stores the physical, base properties of a mesh, not in-game instances, so it is not recommended to use TAGMesh draw functions
  * directly as shaders need to have instances of meshes setup beforehand, which is done by TAGModel draw functions.
  */
-class TAGMesh {
+class TAGMesh : public TAGBaseState::OpenGLContextChecker {
     friend class TAGModel;
 	public:
         /**

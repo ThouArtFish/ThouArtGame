@@ -2,13 +2,19 @@
 
 #include <ShaderManagerClass.hpp>
 
-template<typename T, typename V> requires isVariantMember<T, V> void TAGShaderManager::Shader::set(const std::string& name, const T& value, const unsigned int& count) const {
-    if (uniform_data.find(name) == uniform_data.end() || getEnumType<T>() != uniform_data.at(name).data_type) return;
+template<ShaderUniformType::Concept T> void TAGShaderManager::Shader::set(const std::string& name, const T& value, const GLuint& count) const {
+    if (uniform_data.find(name) == uniform_data.end() || getEnumType<T>() != uniform_data.at(name).data_type) {
+        std::cout << "SHADER UNIFORM ERROR: Uniform name does not exist or data type does not match named uniform\n";
+        return;
+    }
 
     const GLint& loc = uniform_data.at(name).location;
 
     if constexpr (std::same_as<T, bool> || std::same_as<T, int>) {
         glUniform1iv(loc, count, (GLint*)&value);
+    }
+    else if constexpr (std::derived_from<T, ShaderUniformType::TagType>) {
+        glUniform1iv(loc, count, (GLint*)&value.value);
     }
     else if constexpr (std::same_as<T, unsigned int>) {
         glUniform1uiv(loc, count, (GLuint*)&value);
@@ -72,8 +78,11 @@ template<typename T, typename V> requires isVariantMember<T, V> void TAGShaderMa
     }
 }
 
-template<typename T, typename V> requires isVariantMember<T, V> GLenum TAGShaderManager::getEnumType() {
-    if constexpr (std::same_as<T, bool> || std::same_as<T, int>) {
+template<ShaderUniformType::Concept T> GLenum TAGShaderManager::getEnumType() {
+    if constexpr (std::derived_from<T, ShaderUniformType::TagType>) {
+        return T::ENUM;
+    }
+    else if constexpr (std::same_as<T, bool> || std::same_as<T, int>) {
         return GL_INT;
     }
     else if constexpr (std::same_as<T, unsigned int>) {
