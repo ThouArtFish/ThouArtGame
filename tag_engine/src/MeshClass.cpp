@@ -317,14 +317,14 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 		else {
 			shader.set<ShaderUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse[0], (GLuint) diffuse.size());
 		}
-		shader.set<unsigned int>(options.diffuse_tex_num, (GLuint) diffuse.size());
+		shader.set<int>(options.diffuse_tex_num, (GLuint) diffuse.size());
 
 		if (material.spec_fac > 0.0f && specular.size() > 0) {
 			shader.set<ShaderUniformType::SINGLE_2D>(options.specular_tex_array, specular[0], (GLuint) specular.size());
 		}
 		shader.set<float>(options.specular_factor, material.spec_fac);
 		shader.set<float>(options.specular_exp, material.spec_exp);
-		shader.set<unsigned int>(options.specular_tex_num, (GLuint) specular.size());
+		shader.set<int>(options.specular_tex_num, (GLuint) specular.size());
 
 		shader.set<float>(options.opacity_value, material.opacity);
 		shader.set<glm::vec3>(options.camera_pos, TAGBaseState::camera_position);

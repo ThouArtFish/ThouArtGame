@@ -33,9 +33,6 @@ class MainState : public TAGBaseState {
 		const float grav_accel = -10.0f;
 		const float jump_accel = 20.0f;
 		const float sens = 0.001f;
-		const float fov = 60.0f;
-		const float near = 0.1f;
-		const float far = 100.0f;
 		const glm::vec2 player_light_atten = { 0.7f, 1.8f };
 		const glm::vec2 lamp_light_atten = { 0.14f, 0.07f };
 		const glm::vec3 floor_elevation = glm::vec3(0.0f, -20.0f, 0.0f);
@@ -50,7 +47,6 @@ class MainState : public TAGBaseState {
 		bool grounded = false;
 		float y_comp = 0.0f;
 
-		const glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);
 		glm::vec3 lamp_pos;
 		glm::vec3 stable_position;
 

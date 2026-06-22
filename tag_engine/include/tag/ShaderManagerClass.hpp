@@ -57,7 +57,7 @@ namespace ShaderUniformType {
         glm::mat3x4,
         glm::mat4x2,
         glm::mat4x3
-    > ;
+    >;
 
     template<typename T> concept Concept = isVariantMember<T, Primitive> || (!std::same_as<T, TagType> && std::derived_from<T, TagType>);
 };
@@ -112,6 +112,13 @@ public:
         std::unordered_map<std::string, ShaderUniformInfo> uniform_data;
         std::unordered_map<GLuint, std::vector<GLint>> buffer_locations;
 
+        /**
+        * Set named uniform in shader
+        * 
+        * @param name Name of uniform
+        * @param value Value to set to uniform
+        * @param count Number of individual values to set, default is 1
+        */
         template<ShaderUniformType::Concept T> void set(const std::string& name, const T& value, const GLuint& count = 1) const;
     };
 
@@ -119,6 +126,8 @@ public:
     * Default shader uniform names
     */
     struct ShaderOptions {
+        std::string perspective_mat = "perspective";
+        std::string view_mat = "view";
         std::string camera_pos = "camera_pos";
         std::string camera_dir = "camera_dir";
         std::string shader_object = "object";
@@ -160,6 +169,16 @@ public:
     void deleteShader(const std::string& name);
     void deleteShader(const std::vector<std::string>& names);
     /**
+    * For each shader in shader_names, set the uniform named in uniform_names at the corresponding index with value.
+    * If uniform_names is shorter than shader_names, then the last string in uniform_names is used for the rest of the shaders.
+    * 
+    * @param shader_names Names of each shader
+    * @param uniform_names Names of uniforms in each shader
+    * @param value Value to set to uniform
+    * @param count Number of individual values to set, default is 1
+    */
+    template<ShaderUniformType::Concept T> void setAll(const std::vector<std::string>& shader_names, const std::vector<std::string>& uniform_names, const T& value, const GLuint& count = 1) const;
+    /**
     * Activates a shader program and returns a reference to allow uniforms to be set.
     * The shader program is active until useShader activates a different shader program
     * or stopShader deactivates the current program.
@@ -186,18 +205,15 @@ private:
         "out vec2 TexCoords;\n"
         "out vec3 Normal;\n"
         "out vec3 FragPos;\n"
-        "struct ShaderObject {\n"
-        "   vec4 position_AND_scale;\n"
-        "   vec4 axis_AND_rotation;\n};\n"
         "uniform mat4 view;\n"
         "uniform mat4 perspective;\n"
-        "uniform ShaderObject object;\n"
+        "uniform vec4 object[2];\n"
         "vec3 axisRotation(vec3 v, vec3 a, float r) {\n"
         "   return v * cos(r) + cross(a, v) * sin(r) + a * dot(a, v) * (1.0f - cos(r));\n}\n"
         "void main() {\n"
         "   TexCoords = aTexCoords;\n"
-        "   Normal = axisRotation(aNormal, object.axis_AND_rotation.xyz, object.axis_AND_rotation.w);\n"
-        "   FragPos = axisRotation(aPos, object.axis_AND_rotation.xyz, object.axis_AND_rotation.w) * object.position_AND_scale.w + object.position_AND_scale.xyz;\n"
+        "   Normal = axisRotation(aNormal, object[1].xyz, object[1].w);\n"
+        "   FragPos = axisRotation(aPos, object[1].xyz, object[1].w) * object[0].w + object[0].xyz;\n"
         "   gl_Position = perspective * view * vec4(FragPos, 1.0f);\n}",
         // Instanced vertex 1
         "layout (location = 0) in vec3 aPos;\n"
@@ -255,9 +271,9 @@ private:
         "   if (diff_tex_num == 0)\n"
         "      FragColour = vec4(colour, 1.0f);\n"
         "   else\n"
-        "      FragColour = glm::vec4(1.0f);\n"
-        "      float factor = 1.0f / ((float)diff_tex_num);\n"
-        "      for (int i = 0; i < diff_tex_num; i++) {\n"
+        "      FragColour = texture(diff_texs[0], TexCoords);\n"
+        "      float factor = 1.0f / float(diff_tex_num);\n"
+        "      for (int i = 1; i < diff_tex_num - 1; i++) {\n"
         "          FragColour = mix(FragColour, texture(diff_texs[i], TexCoords), factor);\n"
         "      }\n}",
         // HUD fragment 6

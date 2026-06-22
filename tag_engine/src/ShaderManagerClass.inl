@@ -4,7 +4,6 @@
 
 template<ShaderUniformType::Concept T> void TAGShaderManager::Shader::set(const std::string& name, const T& value, const GLuint& count) const {
     if (uniform_data.find(name) == uniform_data.end() || getEnumType<T>() != uniform_data.at(name).data_type) {
-        std::cout << "SHADER UNIFORM ERROR: Uniform name does not exist or data type does not match named uniform\n";
         return;
     }
 
@@ -75,6 +74,14 @@ template<ShaderUniformType::Concept T> void TAGShaderManager::Shader::set(const 
     }
     else { // std::same_as<T, glm::mat4x3>
         glUniformMatrix4x3fv(loc, count, GL_FALSE, glm::value_ptr(value));
+    }
+}
+
+template<ShaderUniformType::Concept T> void TAGShaderManager::setAll(const std::vector<std::string>& shader_names, const std::vector<std::string>& uniform_names, const T& value, const GLuint& count) const {
+    if (uniform_names.empty()) return;
+
+    for (GLuint i = 0; i < shader_names.size(); i++) {
+        useShader(shader_names[i]).set<T>((i < uniform_names.size() ? uniform_names[i] : uniform_names.back()), value, count);
     }
 }
 

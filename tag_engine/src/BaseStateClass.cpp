@@ -241,3 +241,11 @@ void TAGBaseState::setWindowFullscreen(const TAGEnum& state) {
 		glfwSetWindowMonitor(window, (state == TAGEnum::TRUE ? monitor : NULL), 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
 	}
 }
+
+glm::mat4 TAGBaseState::createPerspectiveMatrix() {
+	return glm::perspective(glm::radians(fov), (float)width / (float)height, near, far);
+}
+
+glm::mat4 TAGBaseState::createCameraMatrix() {
+	return glm::lookAt(camera_position, camera_position + camera_direction, camera_up);
+}

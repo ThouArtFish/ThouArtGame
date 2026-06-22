@@ -7,6 +7,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <glad/glad.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glfw_imp.hpp>
 #include "ResourceManagerClass.hpp"
 #include "UtilClass.hpp"
@@ -46,8 +47,22 @@ public:
 	/**
 	* Common variables that game states may want to share
 	*/
+	static inline glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);
 	static inline glm::vec3 camera_position = glm::vec3(0.0f);
 	static inline glm::vec3 camera_direction = glm::vec3(0.0f, 0.0f, -1.0f);
+	static inline float near = 0.1f;
+	static inline float far = 100.0f;
+	static inline float fov = 60;
+	static inline int width = 0;
+	static inline int height = 0;
+	static inline double last_x = -1.0;
+	static inline double last_y = -1.0;
+	static inline double current_time = 0.0;
+	static inline double delta_time = 0.0;
+	static inline double delta_x = 0.0;
+	static inline double delta_y = 0.0;
+	static inline bool iconified = false;
+	static inline bool first_mouse = true;
 
 	/**
 	 * Add a state class to the state machine. The class must be derived from TAGBaseState.
@@ -74,6 +89,14 @@ public:
 	 * @return The end state of the game
 	 */
 	static int runGame();
+	/**
+	* Get perspective projection matrix based on static values
+	*/
+	static glm::mat4 createPerspectiveMatrix();
+	/**
+	* Get "look at" matrix based on static values
+	*/
+	static glm::mat4 createCameraMatrix();
 private:
 	static inline bool frame_ready = false;
 	static inline bool game_initialized = false;
@@ -89,16 +112,6 @@ private:
 	static void baseIconifyCallback(GLFWwindow* window, int inconified);
 protected:
 	double frame_interval = 1.0 / 60.0;
-	static inline int width = 0;
-	static inline int height = 0;
-	static inline double last_x = -1.0;
-	static inline double last_y = -1.0;
-	static inline double current_time = 0.0;
-	static inline double delta_time = 0.0;
-	static inline double delta_x = 0.0;
-	static inline double delta_y = 0.0;
-	static inline bool iconified = false;
-	static inline bool first_mouse = true;
 
 	/**
 	* Default constructor
