@@ -143,7 +143,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="game\include\MainStateClass.hpp" />
-    <ClInclude Include="game\include\TestStateClass.hpp" />
     <ClInclude Include="tag_engine\include\tag\BaseStateClass.hpp" />
     <ClInclude Include="tag_engine\include\tag\HUDManagerClass.hpp" />
     <ClInclude Include="tag_engine\include\tag\glfw_imp.hpp" />

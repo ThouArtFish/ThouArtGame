@@ -5,7 +5,6 @@
 template<OpenGLObjectType::Concept T> TAGResourceManager::OpenGLHandle<T>::OpenGLHandle() : OpenGLHandleWrapper(createObjectID(), T::TYPE_ID) {}
 
 template<OpenGLObjectType::Concept T> TAGResourceManager::OpenGLHandle<T>::~OpenGLHandle() {
-	std::cout << "ID: " + std::to_string(ID) + " | Name: " + (std::string)T::NAME.substr() + "\n";
 	if constexpr (std::same_as<T, OpenGLObjectType::FragmentShader> || std::same_as<T, OpenGLObjectType::VertexShader>) {
 		glDeleteShader(this->ID);
 	}

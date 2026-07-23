@@ -106,7 +106,6 @@ private:
 	static inline std::vector<int> still_pressed;
 	static inline GLFWwindow* window = nullptr;
 
-	static void checkStillPressed();
 	static void baseFramebufferSizeCallback(GLFWwindow* window, int width, int height);
 	static void baseMouseCallback(GLFWwindow* window, double x_pos, double y_pos);
 	static void baseIconifyCallback(GLFWwindow* window, int inconified);
@@ -118,20 +117,13 @@ protected:
 	*/
 	TAGBaseState() {};
 	/**
-	 * Returns true if the GLFW key defined is currently being pressed
+	 * Returns 0 if the key is not being pressed, 1 if the key is being pressed and this is the first time its
+	 * state has been checked and 2 if the key is still being pressed since the last time its state was checked.
 	 *
 	 * @param key The GLFW key
-	 * @return True if the key is being pressed, false otherwise
+	 * @return Key state
 	 */
-	static bool isKeyPressed(const int& key);
-	/**
-	 * If the user checked if the GLFW key was being pressed with isKeyPressed, 
-	 * returns true if the key has not been let go since then.
-	 * 
-	 * @param key The GLFW key.
-	 * @return True if the GLFW key is still being pressed since the last check with isKeyPressed. Returns false otherwise.
-	 */
-	static bool isKeyStillPressed(const int& key);
+	static unsigned int getKeyState(const int& key);
 	/**
 	 * Sets the state of the mouse depending on state, TAGEnum::TRUE meaning locked to the centre and hidden,
 	 * FALSE for free movement and TOGGLE to switch between states.

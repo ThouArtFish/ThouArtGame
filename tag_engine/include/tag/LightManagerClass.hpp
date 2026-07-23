@@ -92,7 +92,7 @@ template<class T> concept LightType = isAnyOf<T, TAGLight::Point, TAGLight::Ray,
 /**
 * Struct for extracting shader type of light
 */
-template<LightType T> struct ShaderLightType { using TYPE = T; static constexpr GLuint default_binding_point = 0; };
+template<LightType T> struct ShaderLightType;
 template<> struct ShaderLightType<TAGLight::Point> { using TYPE = TAGLight::ShaderPoint; static constexpr GLuint default_binding_point = 0; };
 template<> struct ShaderLightType<TAGLight::Ray> { using TYPE = TAGLight::ShaderRay; static constexpr GLuint default_binding_point = 1; };
 template<> struct ShaderLightType<TAGLight::Flash> { using TYPE = TAGLight::ShaderFlash; static constexpr GLuint default_binding_point = 2; };
