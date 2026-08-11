@@ -42,8 +42,9 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         * Element buffer object, containing fragments for a specific material
         */
         struct MaterialElementBuffer {
-            unsigned int EBO = 0;
-            unsigned int material_index = 0;
+            GLuint EBO = 0;
+            GLuint material_index = 0;
+            GLsizei indices_count = 0;
             ~MaterialElementBuffer();
         };
 

@@ -37,6 +37,7 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 			mesh.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
 		}
 	}
+	instance_buffer.getBuffer()->setFence();
 
 	if (!options.cull_backface) glEnable(GL_CULL_FACE);
 }
