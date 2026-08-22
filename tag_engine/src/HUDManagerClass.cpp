@@ -172,14 +172,16 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 	// Update quad buffer if any changes
 	if (quads.isObjectsChanged()) quads.updateBuffer();
 
+	// Update indirect draw buffer which controls which layer of images are drawn
+	if (layers.isObjectsChanged()) layers.updateBuffer();
+
 	// Bind quad buffer if it is not bound
 	quads.bindToVertexArrayObject(base_attrib + 1, 0, VAO);
 
-	// Update any other buffers referenced by the shader
-	TAGResourceManager::updateAttachedBuffers(shader.buffer_locations);
-
-	// Update indirect draw buffer which controls which layer of images are drawn
-	if (layers.isObjectsChanged()) layers.updateBuffer();
+	// Update buffers attached to shader
+	for (const auto& pair : shader.buffer_locations) {
+		TAGResourceManager::updateAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
+	}
 
 	std::array<int, MAX_TEXTURES> texture_indices = {};
 	unsigned int i;
@@ -196,10 +198,15 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, layers.getBuffer()->getBufferID());
 	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, (GLsizei) layers.getAllObjects().size(), 0);
-	quads.getBuffer()->setFence();
+	quads.setFence();
+	layers.setFence();
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 	glBindVertexArray(0);
 	glDepthFunc(GL_LESS);
+
+	for (const auto& pair : shader.buffer_locations) {
+		TAGResourceManager::fenceAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
+	}
 }
 
 void TAGHUDManager::initMesh() {

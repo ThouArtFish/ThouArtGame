@@ -96,10 +96,10 @@ public:
 	/**
 	* Interface for implementing buffer handling structs
 	*/
-	template<class T> class BufferHandler {
+	template<class T> class BufferBase {
 		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
-		virtual ~BufferHandler() = default;
+		virtual ~BufferBase() = default;
 
 		const BufferAccess access;
 		const GLuint include_size;
@@ -107,7 +107,6 @@ public:
 		GLuint getMaxObjects() const;
 		GLuint getCurrentObjects() const;
 		GLuint getBufferID() const;
-		void setFence();
 	protected:
 		GLuint buffer_id = 0, current_objs = 0, current_fence = 0, max_objs;
 		std::unique_ptr<GLsyncWrap[]> fences;
@@ -115,7 +114,7 @@ public:
 		std::vector<ShaderBufferType> bound_buffers;
 		GLintptr internal_offset = 0;
 
-		BufferHandler(const bool& include_size, const GLuint& max_objs, const BufferAccess& access);
+		BufferBase(const bool& include_size, const GLuint& max_objs, const BufferAccess& access);
 		void updateBindings(const GLuint& new_buffer_id);
 		virtual void updateBuffer(const std::vector<T>& data) = 0;
 		virtual void resizeBuffer(const GLuint& new_size) = 0;
@@ -124,7 +123,7 @@ public:
 	/**
 	* Struct for handling ring buffers, for STREAM level buffers
 	*/
-	template<class T, GLuint MAX_FENCES> class RingBuffer : public BufferHandler<T> {
+	template<class T, GLuint MAX_FENCES> class RingBuffer : public BufferBase<T> {
 		static_assert(MAX_FENCES > 1 && MAX_FENCES < 6, "MAX_FENCES must be between 2 and 5");
 		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
@@ -140,7 +139,7 @@ public:
 	/**
 	* Struct for handling orphan buffers, for DYNAMIC and STATIC level buffers
 	*/
-	template<class T> class OrphanBuffer : public BufferHandler<T> {
+	template<class T> class OrphanBuffer : public BufferBase<T> {
 		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
 		OrphanBuffer(const GLuint& max_objs, const BufferAccess& access, const bool& include_size = false);
@@ -161,6 +160,7 @@ public:
 		ObjectBufferWrapper() {};
 
 		virtual void updateBuffer() = 0;
+		virtual void setFence() = 0;
 		inline bool isObjectsChanged() const { return objects_changed; }
 	protected:
 		bool objects_changed = false;
@@ -187,8 +187,9 @@ public:
 		void setAllObjects(const std::vector<C>& objs);
 		std::vector<C>& changeObjects();
 
-		const std::unique_ptr<BufferHandler<G>>& getBuffer();
+		const std::unique_ptr<BufferBase<G>>& getBuffer();
 		void updateBuffer() override;
+		void setFence() override;
 		void bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option);
 		void bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao);
 
@@ -198,28 +199,35 @@ public:
 		std::function<G(const C&, const GLuint&)> converter;
 
 		std::vector<C> objs;
-		std::unique_ptr<BufferHandler<G>> buffer;
+		std::unique_ptr<BufferBase<G>> buffer;
 	};
 
 	/**
-	* Updates every buffer attached to a vertex array object, if it requires an update to its contents.
+	* Updates every buffer attached to a vertex array object.
 	* 
 	* @param vao Vertex array object ID
 	*/
 	static void updateAttachedBuffers(const GLuint& vao);
 	/**
-	* Updates every buffer of a particular buffer type a shader contains a binding index for, if it exists and requires an update to its contents
+	* Updates every buffer of a particular buffer type at each of the given buffer locations.
 	*
-	* @param buffer_type Type of buffer object to update instances of.
-	* @param buffer_locations Indices of buffer binding points used in shader.
+	* @param buffer_type Type of buffer object.
+	* @param buffer_locations Buffer binding locations for the given buffer type.
 	*/
 	static void updateAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations);
 	/**
-	* Updates every buffer of every type that is attached to a shader.
+	* Set fences for each buffer attached to a vertex array object.
 	* 
-	* @param buffer_locations Indices of buffer binding points used in a shader, for each buffer type
+	* @param vao Vertex array object ID
 	*/
-	static void updateAttachedBuffers(const std::unordered_map<GLuint, std::vector<int>>& buffer_locations);
+	static void fenceAttachedBuffers(const GLuint& vao);
+	/**
+	* Set fences for each buffer attached at the given buffer locations for a particular buffer type.
+	* 
+	* @param buffer_type Type of buffer object.
+	* @param buffer_locations Buffer binding locations for the given buffer type.
+	*/
+	static void fenceAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations);
 	/**
 	* Creates a buffer of type T
 	*

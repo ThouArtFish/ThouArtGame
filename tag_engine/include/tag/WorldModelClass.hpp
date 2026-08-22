@@ -111,10 +111,6 @@ private:
 	using ui = unsigned int;
 	using vui = std::vector<ui>;
 	using Ret = std::variant<std::vector<Collision::Info>, Collision::Info, vui, int>;
-	static inline vui indices;
-	static inline vui octree_stack;
-	static inline Ret ret;
-	static inline double t = -1.0;
 
 	static TAGMesh::PlaneVolume planeToGameSpace(const TAGMesh::PlaneVolume& plane, const Object& obj);
 	template<Collision::RayScope T> static Collision::Info rayCollisionWithMeshInstances(const glm::vec3& start, const glm::vec3& ray_dir, const float& max, const TAGMesh& mesh, const std::vector<Object>& objs);

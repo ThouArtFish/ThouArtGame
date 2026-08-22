@@ -34,16 +34,16 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
          * Represents a single fragment, or primitive, composed of 3 vertex indices and a material index.
          */
         struct Fragment {
-            std::array<unsigned int, 3> vertex_indices;
-            unsigned int material_index = 0;
+            std::array<GLuint, 3> vertex_indices;
+            GLuint material_index = 0;
         };
 
         /**
         * Element buffer object, containing fragments for a specific material
         */
         struct MaterialElementBuffer {
-            unsigned int EBO = 0;
-            unsigned int material_index = 0;
+            GLuint EBO = 0;
+            GLuint material_index = 0;
             ~MaterialElementBuffer();
         };
 
@@ -75,7 +75,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         struct BVHNode {
             bool is_leaf;
             BoundingBox bounds;
-            std::vector<unsigned int> indices;
+            std::vector<GLuint> indices;
         };
 
         /**
@@ -101,8 +101,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             std::array<DotPlane, 3> volume_planes;
         };
 
-        bool delete_on_death = true;
-        static inline unsigned int base_attrib = 0;
+        static inline GLuint base_attrib = 0;
         BoundingBox mesh_bb;
         std::vector<PlaneVolume> planes;
         std::vector<BVHNode> bvh_octree;

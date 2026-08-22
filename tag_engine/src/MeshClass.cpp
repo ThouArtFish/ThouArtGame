@@ -31,7 +31,7 @@ void TAGMesh::generatePlanes() {
 	planes.reserve(frags.size());
 
 	for (const TAGMesh::Fragment& frag_struct : frags) {
-		const std::array<unsigned int, 3> frag = frag_struct.vertex_indices;
+		const std::array<GLuint, 3> frag = frag_struct.vertex_indices;
 		const std::array<glm::vec3, 3> frag_vertices = { vertices[frag[0]].position, vertices[frag[1]].position, vertices[frag[2]].position };
 		const std::array<glm::vec3, 2> frag_axis = { frag_vertices[1] - frag_vertices[0], frag_vertices[2] - frag_vertices[0] };
 		const glm::vec3 normal = glm::normalize(glm::cross(frag_axis[0], frag_axis[1]));
@@ -68,9 +68,7 @@ void TAGMesh::generateBVH() {
 
 	// Info for BVH nodes to be processed during construction
 	struct BVHQueue {
-		unsigned int node_index;
-		unsigned int layer_index;
-		unsigned int depth;
+		GLuint node_index, layer_index, depth;
 	};
 
 	// Get mesh bounding box
@@ -444,12 +442,12 @@ bool TAGMesh::BBoxWithBBox(const BoundingBox& box_a, const BoundingBox& box_b) {
 }
 
 bool TAGMesh::BBoxWithRay(const BoundingBox& box, const glm::vec3& start, const glm::vec3& ray, const float& factor) {
-	double t_exit = 0.0;
-	double t_enter = 0.0;
-	for (unsigned int i = 0; i < 3; i++) {
+	double t_exit = std::numeric_limits<double>::infinity();
+	double t_enter = -t_exit;
+	for (GLuint i = 0; i < 3; i++) {
 		if (glm::abs(ray[i]) > 0.0001f) {
-			t_exit = glm::min((double)(box.max[i] - start[i]) / ray[i], t_exit);
-			t_enter = glm::max((double)(box.min[i] - start[i]) / ray[i], t_enter);
+			t_exit = glm::min((double)((ray[i] > 0.0f ? box.max[i] : box.min[i]) - start[i]) / ray[i], t_exit);
+			t_enter = glm::max((double)((ray[i] > 0.0f ? box.min[i] : box.max[i]) - start[i]) / ray[i], t_enter);
 		}
 		else if (start[i] < box.min[i] || start[i] > box.max[i]) {
 			return false;
@@ -459,17 +457,19 @@ bool TAGMesh::BBoxWithRay(const BoundingBox& box, const glm::vec3& start, const 
 }
 
 bool TAGMesh::BBoxWithCapsule(const BoundingBox& box, const glm::vec3& foot, const glm::vec3& spine, const float& radius) {
-	double t_enter = 0.0;
-	for (unsigned int i = 0; i < 3; i++) {
+	double t_enter = -std::numeric_limits<double>::infinity();
+	double t_exit = std::numeric_limits<double>::infinity();
+	for (GLuint i = 0; i < 3; i++) {
 		if (glm::abs(spine[i]) > 0.0001f) {
-			t_enter = glm::max((double)(box.min[i] - radius - foot[i]) / spine[i], t_enter);
+			t_enter = glm::max((double)((spine[i] > 0.0f ? box.min[i] : box.max[i]) - radius - foot[i]) / spine[i], t_enter);
+			t_exit = glm::min((double)((spine[i] > 0.0f ? box.max[i] : box.min[i]) + radius - foot[i]) / spine[i], t_exit);
 		}
 		else if (foot[i] < box.min[i] - radius || foot[i] > box.max[i] + radius) {
 			return false;
 		}
 	}
-	return (t_enter >= 0.0 && t_enter <= 1.0);
-};
+	return (t_enter <= t_exit && t_exit >= 0.0 && t_enter <= 1.0);
+}
 
 bool TAGMesh::BBoxWithSphere(const BoundingBox& box, const glm::vec3& centre, const float& radius) {
 	return centre.x >= box.min.x - radius && centre.x <= box.max.x + radius &&

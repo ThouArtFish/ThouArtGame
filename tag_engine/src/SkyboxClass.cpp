@@ -57,7 +57,9 @@ TAGSkybox::~TAGSkybox() {
 }
 
 void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& cubemap_name) const {
-	TAGResourceManager::updateAttachedBuffers(shader.buffer_locations);
+	for (const auto& pair : shader.buffer_locations) {
+		TAGResourceManager::updateAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
+	}
 
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);
@@ -68,4 +70,8 @@ void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& 
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 	glDepthFunc(GL_LESS);
+
+	for (const auto& pair : shader.buffer_locations) {
+		TAGResourceManager::fenceAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
+	}
 }

@@ -13,14 +13,16 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 
 	TAGResourceManager::ObjectBuffer<Object, ShaderObject>& instance_buffer = instance_buffers.at(mesh_name);
 
-	TAGResourceManager::updateAttachedBuffers(shader.buffer_locations);
+	for (const auto& pair : shader.buffer_locations) {
+		TAGResourceManager::updateAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
+	}
 
 	if (!options.cull_backface) glDisable(GL_CULL_FACE);
 
+	if (instance_buffer.isObjectsChanged()) updateInstanceBuffer(mesh_name);
+
 	if (mesh_name != "") {
 		TAGMesh& mesh = meshes.at(mesh_name);
-
-		if (instance_buffer.isObjectsChanged()) updateInstanceBuffer(mesh_name);
 
 		instance_buffer.bindToVertexArrayObject(default_vao_instance_binding_point, 0, mesh.getVAO());
 
@@ -30,12 +32,15 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 		for (const std::string& name : mesh_draw_order) {
 			TAGMesh& mesh = meshes.at(name);
 
-			if (instance_buffer.isObjectsChanged()) updateInstanceBuffer(mesh_name);
-
 			instance_buffer.bindToVertexArrayObject(default_vao_instance_binding_point, 0, mesh.getVAO());
 
 			mesh.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
 		}
+	}
+	instance_buffer.setFence();
+
+	for (const auto& pair : shader.buffer_locations) {
+		TAGResourceManager::fenceAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
 	}
 
 	if (!options.cull_backface) glEnable(GL_CULL_FACE);
@@ -44,7 +49,9 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
 	if (mesh_name != "" && meshes.find(mesh_name) == meshes.end()) return;
 
-	TAGResourceManager::updateAttachedBuffers(shader.buffer_locations);
+	for (const auto& pair : shader.buffer_locations) {
+		TAGResourceManager::updateAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
+	}
 
 	if (!options.cull_backface) glDisable(GL_CULL_FACE);
 	
@@ -57,6 +64,10 @@ void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj
 		for (const std::string& mesh_name : mesh_draw_order) {
 			meshes.at(mesh_name).draw(shader, options);
 		}
+	}
+
+	for (const auto& pair : shader.buffer_locations) {
+		TAGResourceManager::fenceAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
 	}
 
 	if (!options.cull_backface) glEnable(GL_CULL_FACE);
@@ -115,6 +126,8 @@ TAGMesh& TAGModel::getMesh(const std::string& mesh_name) {
 }
 
 void TAGModel::addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const std::vector<TAGMesh::Material>& materials) {
+	if (mesh_name == "") return;
+
 	meshes.try_emplace(mesh_name, vertices, frags, materials);
 
 	if (meshes[mesh_name].is_transparent) {
@@ -126,6 +139,8 @@ void TAGModel::addMesh(const std::string& mesh_name, const std::vector<TAGMesh::
 }
 
 void TAGModel::deleteMesh(const std::string& mesh_name) {
+	if (mesh_name == "") return;
+
 	meshes.erase(mesh_name);
 	instance_buffers.erase(mesh_name);
 	mesh_draw_order.erase(std::find(mesh_draw_order.begin(), mesh_draw_order.end(), mesh_name));
@@ -156,13 +171,14 @@ void TAGModel::loadModel(const std::string& path) {
 
 	// Get position, normal and tex coords in vector format
 	const std::array<size_t, 3> array_sizes = { attrib.vertices.size() / 3, attrib.normals.size() / 3, attrib.texcoords.size() / 2 };
+	const size_t max_index = glm::max(glm::max(array_sizes[0], array_sizes[1]), array_sizes[2]);
 	std::vector<glm::vec3> all_vertices;
 	all_vertices.assign(array_sizes[0], glm::vec3(0));
 	std::vector<glm::vec3> all_normals;
 	all_normals.assign(array_sizes[1], glm::normalize(glm::vec3(1)));
 	std::vector<glm::vec2> all_texcoords;
 	all_texcoords.assign(array_sizes[2], glm::vec2(0));
-	for (size_t i = 0; i < glm::max(glm::max(array_sizes[0], array_sizes[1]), array_sizes[2]); i++) {
+	for (size_t i = 0; i < max_index; i++) {
 		if (i < array_sizes[0]) {
 			for (unsigned int j = 0; j < 3; j++) {
 				all_vertices[i][j] = attrib.vertices[i * 3 + j];
@@ -181,17 +197,10 @@ void TAGModel::loadModel(const std::string& path) {
 		}
 	}
 
-	// Function for checking if a vertex has already been added to a meshes vertex array
-	tinyobj::index_t current_index;
-	auto checkSameFrag = [&current_index](const tinyobj::index_t& index) {
-		return (current_index.vertex_index == index.vertex_index && current_index.normal_index == index.normal_index && current_index.texcoord_index == index.texcoord_index);
-	};
-
-	// Loaded textures
-	std::vector<TAGTexLoader::Texture> loaded_textures;
-
 	// Load each mesh
 	for (const tinyobj::shape_t& shape : shapes) {
+		if (shape.name == "") continue;
+
 		meshes.try_emplace(shape.name);
 		TAGMesh& mesh = meshes.at(shape.name);
 
@@ -199,39 +208,37 @@ void TAGModel::loadModel(const std::string& path) {
 		mesh.frags.reserve(shape.mesh.num_face_vertices.size());
 
 		// Indices of materials used by current mesh
-		std::vector<unsigned int> found_materials;
+		std::vector<GLuint> found_materials;
 
 		// Vertices which are part of mesh already
-		std::vector<tinyobj::index_t> unique_indices;
+		std::unordered_map<size_t, GLuint> unique_indices;
 
 		// Current primitive
-		std::array<unsigned int, 3> primitive;
+		std::array<GLuint, 3> primitive;
 
 		// Next free index in primitive
 		size_t primitive_index = 0;
 
 		// Loop through each vertex in mesh
 		for (size_t i = 0; i < shape.mesh.indices.size(); i++) {
-			current_index = shape.mesh.indices[i];
-			const auto& vertex_pos = std::find_if(unique_indices.begin(), unique_indices.end(), checkSameFrag);
-			if (vertex_pos == unique_indices.end()) {
-				primitive[primitive_index] = (unsigned int)mesh.vertices.size();
+			const tinyobj::index_t current_index = shape.mesh.indices[i];
+			const size_t index_address = current_index.texcoord_index + (current_index.normal_index + current_index.vertex_index * max_index) * max_index;
+
+			if (!unique_indices.contains(index_address)) {
+				unique_indices[index_address] = (GLuint)mesh.vertices.size();
 				mesh.vertices.emplace_back(all_vertices[current_index.vertex_index], all_normals[current_index.normal_index], all_texcoords[current_index.texcoord_index]);
-				unique_indices.push_back(current_index);
 			}
-			else {
-				primitive[primitive_index] = (unsigned int)std::distance(unique_indices.begin(), vertex_pos);
-			}
+			primitive[primitive_index] = unique_indices[index_address];
 
 			if (primitive_index == 2) {
-				unsigned int material_index = shape.mesh.material_ids[(i - 2) / 3];
+				GLuint material_index = shape.mesh.material_ids[(i - 2) / 3];
 				const auto& material_pos = std::find(found_materials.begin(), found_materials.end(), material_index);
 				if (material_pos == found_materials.end()) {
 					found_materials.push_back(material_index);
-					material_index = (unsigned int)(found_materials.size() - 1);
+					material_index = (GLuint)(found_materials.size() - 1);
 				}
 				else {
-					material_index = (unsigned int)std::distance(found_materials.begin(), material_pos);
+					material_index = (GLuint)std::distance(found_materials.begin(), material_pos);
 				}
 				mesh.frags.emplace_back(primitive, material_index);
 				primitive_index = 0;
@@ -243,6 +250,9 @@ void TAGModel::loadModel(const std::string& path) {
 
 		mesh.vertices.shrink_to_fit();
 		mesh.frags.shrink_to_fit();
+
+		// Loaded textures
+		std::vector<TAGTexLoader::Texture> loaded_textures;
 
 		// Load materials for model
 		for (const unsigned int& material_index : found_materials) {

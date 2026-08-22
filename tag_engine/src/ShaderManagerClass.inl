@@ -9,7 +9,11 @@ template<ShaderUniformType::Concept T> void TAGShaderManager::Shader::set(const 
 
     const GLint& loc = uniform_data.at(name).location;
 
-    if constexpr (std::same_as<T, bool> || std::same_as<T, int>) {
+    if constexpr (std::same_as<T, bool>) {
+        const GLint conv = (value ? 1 : 0);
+        glUniform1iv(loc, count, &conv);
+    }
+    else if constexpr (std::same_as<T, int>) {
         glUniform1iv(loc, count, (GLint*)&value);
     }
     else if constexpr (std::derived_from<T, ShaderUniformType::TagType>) {

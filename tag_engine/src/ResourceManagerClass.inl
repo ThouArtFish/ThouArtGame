@@ -5,7 +5,6 @@
 template<OpenGLObjectType::Concept T> TAGResourceManager::OpenGLHandle<T>::OpenGLHandle() : OpenGLHandleWrapper(createObjectID(), T::TYPE_ID) {}
 
 template<OpenGLObjectType::Concept T> TAGResourceManager::OpenGLHandle<T>::~OpenGLHandle() {
-	std::cout << "ID: " + std::to_string(ID) + " | Name: " + (std::string)T::NAME.substr() + "\n";
 	if constexpr (std::same_as<T, OpenGLObjectType::FragmentShader> || std::same_as<T, OpenGLObjectType::VertexShader>) {
 		glDeleteShader(this->ID);
 	}
@@ -77,25 +76,21 @@ template<OpenGLObjectType::Concept T> bool TAGResourceManager::isBuffer(const GL
 	return (it != buffers.end());
 }
 
-template<class T> TAGResourceManager::BufferHandler<T>::BufferHandler(const bool& include_size, const GLuint& max_objs, const BufferAccess& access) : include_size(include_size ? (GLuint) glm::max(alignof(T), sizeof(GLuint)) : 0), max_objs(max_objs), access(access) {}
+template<class T> TAGResourceManager::BufferBase<T>::BufferBase(const bool& include_size, const GLuint& max_objs, const BufferAccess& access) : include_size(include_size ? (GLuint) glm::max(alignof(T), sizeof(GLuint)) : 0), max_objs(max_objs), access(access) {}
 
-template<class T> GLuint TAGResourceManager::BufferHandler<T>::getMaxObjects() const {
+template<class T> GLuint TAGResourceManager::BufferBase<T>::getMaxObjects() const {
 	return max_objs;
 }
 
-template<class T> GLuint TAGResourceManager::BufferHandler<T>::getCurrentObjects() const {
+template<class T> GLuint TAGResourceManager::BufferBase<T>::getCurrentObjects() const {
 	return current_objs;
 }
 
-template<class T> GLuint TAGResourceManager::BufferHandler<T>::getBufferID() const {
+template<class T> GLuint TAGResourceManager::BufferBase<T>::getBufferID() const {
 	return buffer_id;
 }
 
-template<class T> void TAGResourceManager::BufferHandler<T>::setFence() {
-	fences[current_fence] = { .sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0) };
-}
-
-template<class T> void TAGResourceManager::BufferHandler<T>::updateBindings(const GLuint& new_buffer_id) {
+template<class T> void TAGResourceManager::BufferBase<T>::updateBindings(const GLuint& new_buffer_id) {
 	int i;
 	for (i = 0; i < bound_vaos.size(); i++) {
 		auto map_it = vao_binding_indices.find(bound_vaos[i]);
@@ -106,7 +101,7 @@ template<class T> void TAGResourceManager::BufferHandler<T>::updateBindings(cons
 		bool contains_old_id = false;
 		for (BindingData& binding_data : map_it->second) {
 			if (binding_data.buffer_id == buffer_id && binding_data.ptr) {
-				glVertexArrayVertexBuffer(map_it->first, binding_data.binding_index, new_buffer_id, binding_data.offset, sizeof(T));
+				glVertexArrayVertexBuffer(map_it->first, binding_data.binding_index, new_buffer_id, internal_offset + include_size + binding_data.offset, sizeof(T));
 				binding_data.buffer_id = new_buffer_id;
 				contains_old_id = true;
 			}
@@ -124,7 +119,7 @@ template<class T> void TAGResourceManager::BufferHandler<T>::updateBindings(cons
 		bool contains_old_id = false;
 		for (BindingData& binding_data : map_it->second) {
 			if (binding_data.buffer_id == buffer_id) {
-				glBindBufferRange((GLenum)map_it->first, binding_data.binding_index, new_buffer_id, binding_data.offset, max_objs * sizeof(T));
+				glBindBufferRange((GLenum)map_it->first, binding_data.binding_index, new_buffer_id, internal_offset + binding_data.offset, max_objs * sizeof(T));
 				binding_data.buffer_id = new_buffer_id;
 				contains_old_id = true;
 			}
@@ -135,7 +130,7 @@ template<class T> void TAGResourceManager::BufferHandler<T>::updateBindings(cons
 	}
 }
 
-template<class T, GLuint MAX_FENCES> TAGResourceManager::RingBuffer<T, MAX_FENCES>::RingBuffer(const GLuint& max_objs, const bool& include_size) : BufferHandler<T>(include_size, max_objs, BufferAccess::STREAM) {
+template<class T, GLuint MAX_FENCES> TAGResourceManager::RingBuffer<T, MAX_FENCES>::RingBuffer(const GLuint& max_objs, const bool& include_size) : BufferBase<T>(include_size, max_objs, BufferAccess::STREAM) {
 	this->fences = std::make_unique<GLsyncWrap[]>(MAX_FENCES);
 
 	const GLuint total_size = (max_objs * sizeof(T) + this->include_size) * MAX_FENCES;
@@ -162,6 +157,8 @@ template<class T, GLuint MAX_FENCES> void TAGResourceManager::RingBuffer<T, MAX_
 	this->current_objs = glm::min(this->max_objs, (GLuint) data.size());
 	if (this->include_size > 0) std::memcpy(this->buffer_ptr + this->internal_offset, &this->current_objs, sizeof(GLuint));
 	std::memcpy(this->buffer_ptr + this->internal_offset + this->include_size, (GLchar*)data.data(), this->current_objs * sizeof(T));
+
+	this->updateBindings(this->buffer_id);
 }
 
 template<class T, GLuint MAX_FENCES> void TAGResourceManager::RingBuffer<T, MAX_FENCES>::resizeBuffer(const GLuint& new_size) {
@@ -189,7 +186,7 @@ template<class T, GLuint MAX_FENCES> void TAGResourceManager::RingBuffer<T, MAX_
 	this->fences = std::make_unique<GLsyncWrap[]>(MAX_FENCES);
 }
 
-template<class T> TAGResourceManager::OrphanBuffer<T>::OrphanBuffer(const GLuint& max_objs, const BufferAccess& access, const bool& include_size) : BufferHandler<T>(include_size, max_objs, access) {
+template<class T> TAGResourceManager::OrphanBuffer<T>::OrphanBuffer(const GLuint& max_objs, const BufferAccess& access, const bool& include_size) : BufferBase<T>(include_size, max_objs, access) {
 	this->fences = std::make_unique<GLsyncWrap[]>(1);
 	this->buffer_id = createBuffer<OpenGLObjectType::GenericBuffer>();
 
@@ -204,7 +201,7 @@ template<class T> void TAGResourceManager::OrphanBuffer<T>::updateBuffer(const s
 	glNamedBufferData(this->buffer_id, this->max_objs * sizeof(T) + this->include_size, nullptr, (GLenum)this->access);
 	this->current_objs = glm::min(this->max_objs, (GLuint) data.size());
 	if (this->include_size > 0) {
-		glNamedBufferSubData(this->buffer_id, 0, this->include_size, &this->current_objs);
+		glNamedBufferSubData(this->buffer_id, 0, sizeof(GLuint), &this->current_objs);
 	}
 	glNamedBufferSubData(this->buffer_id, this->include_size, this->current_objs * sizeof(T), data.data());
 }
@@ -216,7 +213,7 @@ template<class T> void TAGResourceManager::OrphanBuffer<T>::resizeBuffer(const G
 	this->max_objs = new_size;
 	this->current_objs = glm::min(new_size, this->current_objs);
 	if (this->include_size > 0) {
-		glNamedBufferSubData(new_buffer_id, 0, this->include_size, &this->current_objs);
+		glNamedBufferSubData(new_buffer_id, 0, sizeof(GLuint), &this->current_objs);
 	}
 	glCopyNamedBufferSubData(
 		this->buffer_id,
@@ -294,7 +291,7 @@ template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuff
 }
 
 template<class C, class G, GLuint DIVISIONS> template<class T> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::setObjectMember(const T& value, const GLuint& offset, const GLuint& index) {
-	(T&)(*(&objs.at(index) + offset)) = value;
+	(T&)*((GLchar*)&objs.at(index) + offset) = value;
 	this->objects_changed = true;
 }
 
@@ -332,7 +329,7 @@ template<class C, class G, GLuint DIVISIONS> std::vector<C>& TAGResourceManager:
 	return objs;
 }
 
-template<class C, class G, GLuint DIVISIONS> const std::unique_ptr<TAGResourceManager::BufferHandler<G>>& TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::getBuffer() {
+template<class C, class G, GLuint DIVISIONS> const std::unique_ptr<TAGResourceManager::BufferBase<G>>& TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::getBuffer() {
 	return buffer;
 }
 
@@ -351,6 +348,10 @@ template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuff
 
 	buffer->updateBuffer(buffer_data);
 	this->objects_changed = false;
+}
+
+template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::setFence() {
+	buffer->fences[buffer->current_fence] = { .sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0) };
 }
 
 template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option) {

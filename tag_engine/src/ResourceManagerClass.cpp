@@ -20,9 +20,21 @@ void TAGResourceManager::updateAttachedBuffers(const ShaderBufferType& buffer_ty
 	}
 }
 
-void TAGResourceManager::updateAttachedBuffers(const std::unordered_map<GLuint, std::vector<int>>& buffer_locations) {
-	for (const ShaderBufferType& type : buffer_types) {
-		if (buffer_locations.contains((GLuint) type)) updateAttachedBuffers(type, buffer_locations.at((GLuint) type));
+void TAGResourceManager::fenceAttachedBuffers(const GLuint& vao) {
+	if (!vao_binding_indices.contains(vao)) return;
+
+	for (const BindingData& data : vao_binding_indices[vao]) {
+		if (data.ptr && data.ptr->isObjectsChanged()) data.ptr->setFence();
+	}
+}
+
+void TAGResourceManager::fenceAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations) {
+	if (!shader_binding_indices.contains((GLuint)buffer_type)) return;
+
+	std::vector<BindingData>& data_vec = shader_binding_indices[(GLuint)buffer_type];
+	for (const GLint& index : buffer_locations) {
+		auto it = std::find_if(data_vec.begin(), data_vec.end(), [&index](const BindingData& data) { return index == data.binding_index; });
+		if (it != data_vec.end() && it->ptr) it->ptr->setFence();
 	}
 }
 

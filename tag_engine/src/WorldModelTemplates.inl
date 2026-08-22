@@ -3,9 +3,10 @@
 #include <WorldModelClass.hpp>
 
 template<Collision::RayScope T> T TAGWorldModel::rayCollision(const glm::vec3& start, const glm::vec3& ray_dir, const float& max) const {
-	ret.emplace<T>(T());
-	t = -1.0;
+	Ret ret;
 	Collision::Info info;
+
+	ret.emplace<T>(T());
 
 	for (const auto& instance_pair : instance_buffers) {
 		const auto& instances = instance_pair.second.getAllObjects();
@@ -34,11 +35,13 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollision(const glm::vec3& s
 }
 
 template<Collision::RayScope T> Collision::STATIC<T>::type TAGWorldModel::rayCollision(const glm::vec3& start, const glm::vec3& ray_dir, std::vector<Collision::Info>& collisions, const float& max) {
+	Ret ret;
+	double t = -1.0;
+
 	ret.emplace<Collision::STATIC<T>::type>(Collision::STATIC<T>::type());
 	if constexpr (!std::same_as<Collision::ALL, T>) {
 		ret = -1;
 	}
-	t = -1.0;
 
 	for (size_t i = 0; i < collisions.size(); i++) {
 		const TAGMesh::Plane& plane = collisions[i].plane.frag_plane;
@@ -73,8 +76,10 @@ template<Collision::RayScope T> Collision::STATIC<T>::type TAGWorldModel::rayCol
 }
 
 template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollision(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const {
-	ret.emplace<T>(T());
+	Ret ret;
 	Collision::Info info;
+
+	ret.emplace<T>(T());
 
 	for (const auto& instance_pair : instance_buffers) {
 		const auto& instances = instance_pair.second.getAllObjects();
@@ -103,8 +108,10 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollision(const glm
 }
 
 template<Collision::ColliderScope T> T TAGWorldModel::sphereCollision(const glm::vec3& centre, const float& radius) const {
-	ret.emplace<T>(T());
+	Ret ret;
 	Collision::Info info;
+
+	ret.emplace<T>(T());
 
 	for (const auto& instance_pair : instance_buffers) {
 		const auto& instances = instance_pair.second.getAllObjects();
@@ -133,6 +140,8 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollision(const glm:
 }
 
 template<Collision::ColliderScope T> Collision::STATIC<T>::type TAGWorldModel::sphereCollision(const glm::vec3& centre, const float& radius, std::vector<Collision::Info>& collisions) {
+	Ret ret;
+
 	ret.emplace<Collision::STATIC<T>::type>(Collision::STATIC<T>::type());
 	if constexpr (std::same_as<Collision::ANY, T>) {
 		ret = -1;
@@ -152,6 +161,12 @@ template<Collision::ColliderScope T> Collision::STATIC<T>::type TAGWorldModel::s
 }
 
 template<Collision::RayScope T> Collision::Info TAGWorldModel::rayCollisionWithMeshInstances(const glm::vec3& start, const glm::vec3& ray_dir, const float& max, const TAGMesh& mesh, const std::vector<Object>& objs) {
+	Ret ret;
+	vui octree_stack, indices;
+	double t = -1.0;
+
+	ret.emplace<T>(T());
+
 	for (const Object& obj : objs) {
 		indices.clear();
 		octree_stack.push_back(0);
@@ -213,6 +228,11 @@ template<Collision::RayScope T> Collision::Info TAGWorldModel::rayCollisionWithM
 }
 
 template<Collision::ColliderScope T> Collision::Info TAGWorldModel::capsuleCollisionMeshInstances(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs) {
+	Ret ret;
+	vui indices, octree_stack;
+	
+	ret.emplace<T>(T());
+
 	for (const Object& obj : objs) {
 		indices.clear();
 		octree_stack.push_back(0);
@@ -256,6 +276,11 @@ template<Collision::ColliderScope T> Collision::Info TAGWorldModel::capsuleColli
 }
 
 template<Collision::ColliderScope T> Collision::Info TAGWorldModel::sphereCollisionWithMeshInstances(const glm::vec3& centre, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs) {
+	Ret ret;
+	vui indices, octree_stack;
+
+	ret.emplace<T>(T());
+	
 	for (const Object& obj : objs) {
 		indices.clear();
 		octree_stack.push_back(0);
