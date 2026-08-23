@@ -127,7 +127,7 @@ public:
     */
     struct ShaderOptions {
         std::string perspective_mat = "perspective";
-        std::string view_mat = "view";
+        std::string camera_mat = "view";
         std::string camera_pos = "camera_pos";
         std::string camera_dir = "camera_dir";
         std::string shader_object = "object";
@@ -150,6 +150,7 @@ public:
     * 
     * @param source(s) Source structs containing shader program component paths
     */
+    TAGShaderManager();
     TAGShaderManager(const Source& source);
     TAGShaderManager(const std::vector<Source>& sources);
     ~TAGShaderManager();
@@ -169,15 +170,16 @@ public:
     void deleteShader(const std::string& name);
     void deleteShader(const std::vector<std::string>& names);
     /**
-    * For each shader in shader_names, set the uniform named in uniform_names at the corresponding index with value.
-    * If uniform_names is shorter than shader_names, then the last string in uniform_names is used for the rest of the shaders.
+    * For each shader named in shader_names, sets the corresponding value in values to the corresponding uniform in 
+    * uniform_names. If the length of uniform_names or values is less than shader_names, then the last value in each
+    * vector is used for the remaining shaders.
     * 
     * @param shader_names Names of each shader
     * @param uniform_names Names of uniforms in each shader
-    * @param value Value to set to uniform
+    * @param values Values to set to uniforms
     * @param count Number of individual values to set, default is 1
     */
-    template<ShaderUniformType::Concept T> void setAll(const std::vector<std::string>& shader_names, const std::vector<std::string>& uniform_names, const T& value, const GLuint& count = 1) const;
+    template<ShaderUniformType::Concept T> void setAll(const std::vector<std::string>& shader_names, const std::vector<std::string>& uniform_names, const std::vector<T>& values, const GLuint& count = 1) const;
     /**
     * Activates a shader program and returns a reference to allow uniforms to be set.
     * The shader program is active until useShader activates a different shader program

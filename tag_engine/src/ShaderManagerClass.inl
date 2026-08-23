@@ -81,11 +81,15 @@ template<ShaderUniformType::Concept T> void TAGShaderManager::Shader::set(const 
     }
 }
 
-template<ShaderUniformType::Concept T> void TAGShaderManager::setAll(const std::vector<std::string>& shader_names, const std::vector<std::string>& uniform_names, const T& value, const GLuint& count) const {
-    if (uniform_names.empty()) return;
+template<ShaderUniformType::Concept T> void TAGShaderManager::setAll(const std::vector<std::string>& shader_names, const std::vector<std::string>& uniform_names, const std::vector<T>& values, const GLuint& count) const {
+    if (uniform_names.empty() || values.empty()) return;
 
     for (GLuint i = 0; i < shader_names.size(); i++) {
-        useShader(shader_names[i]).set<T>((i < uniform_names.size() ? uniform_names[i] : uniform_names.back()), value, count);
+        useShader(shader_names[i]).set<T>(
+            (i < uniform_names.size() ? uniform_names[i] : uniform_names.back()), 
+            (i < values.size() ? values[i] : values.back()),
+            count
+        );
     }
 }
 

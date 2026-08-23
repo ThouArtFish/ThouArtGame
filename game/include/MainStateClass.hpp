@@ -38,7 +38,9 @@ class MainState : public TAGBaseState {
 		const glm::vec3 floor_elevation = glm::vec3(0.0f, -20.0f, 0.0f);
 		const glm::vec4 player_light = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
 		const glm::vec4 lamp_light = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-
+		const static inline std::vector<std::string> shader_names = { "instanced", "uninstanced", "hud", "skybox" };
+		const static inline std::vector<std::string> camera_shader_names = { shader_names[3], shader_names[0], shader_names[1] };
+		const static inline std::vector<std::string> image_names = { "flat_man", "pineapple" };
 		float clock = 0.0f;
 		float x_rotation = 0.0f;
 		float y_rotation = 0.0f;
@@ -53,10 +55,10 @@ class MainState : public TAGBaseState {
 		TAGLightManager<TAGLight::Point> light_manager = TAGLightManager<TAGLight::Point>(TAGResourceManager::BufferAccess::STREAM, 2);
 
 		TAGShaderManager shaders = TAGShaderManager({
-			{ .name = "instanced", .shader_type = TAGShaderManager::ShaderType::INSTANCED_MODEL_DRAW },
-			{ .name = "uninstanced", .shader_type = TAGShaderManager::ShaderType::UNINSTANCED_MODEL_DRAW },
-			{ .name = "hud", .shader_type = TAGShaderManager::ShaderType::HUD_DRAW },
-			{ .name = "skybox", .shader_type = TAGShaderManager::ShaderType::SKYBOX_DRAW }
+			{ .name = shader_names[0], .shader_type = TAGShaderManager::ShaderType::INSTANCED_MODEL_DRAW},
+			{ .name = shader_names[1], .shader_type = TAGShaderManager::ShaderType::UNINSTANCED_MODEL_DRAW},
+			{ .name = shader_names[2], .shader_type = TAGShaderManager::ShaderType::HUD_DRAW},
+			{ .name = shader_names[3], .shader_type = TAGShaderManager::ShaderType::SKYBOX_DRAW}
 		});
 
 		TAGPaintingModel images = TAGPaintingModel(
@@ -68,11 +70,11 @@ class MainState : public TAGBaseState {
 
 		TAGHUDManager hud = TAGHUDManager(TAGResourceManager::BufferAccess::STREAM, 5);
 
-		TAGSkybox skybox = TAGSkybox("skybox", { TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, false });
+		TAGSkybox skybox = TAGSkybox("skybox/", { TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, false });
 
 		static const inline TAGTexLoader::Params model_params = { TAGTexParam::REPEAT_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, true };
 
-		TAGModel lamp = TAGModel(model_params, TAGResourceManager::BufferAccess::STREAM, "lamp.txt");
+		TAGModel lamp = TAGModel(model_params, TAGResourceManager::BufferAccess::STATIC, "lamp.txt");
 
 		TAGWorldModel playground = TAGWorldModel(model_params, TAGResourceManager::BufferAccess::STATIC, "playground.txt");
 
@@ -87,16 +89,16 @@ MainState::MainState() {
 	stable_position = camera_position;
 
 	// Create paintings
-	glm::vec3 stand = glm::vec3(0, -images.getMesh("flat_man").mesh_bb.min.y * 2.0f, 0);
+	glm::vec3 stand = glm::vec3(0, -images.getMesh(image_names[0]).mesh_bb.min.y * 2.0f, 0);
 	images.setInstance(
 		{ 
 			.position = stand + floor_elevation,
 			.scale = 2.0f
 		}, 
 		-1,
-		"flat_man"
+		image_names[0]
 	);
-	stand = glm::vec3(0, -images.getMesh("pineapple").mesh_bb.min.y * 3.0f, 0);
+	stand = glm::vec3(0, -images.getMesh(image_names[1]).mesh_bb.min.y * 3.0f, 0);
 	images.setInstance(
 		{
 			.position = glm::vec3(4.0f, 0.0f, 0.0f) + stand + floor_elevation,
@@ -104,7 +106,7 @@ MainState::MainState() {
 			.scale = 3.0f
 		},
 		-1,
-		"pineapple"
+		image_names[1]
 	);
 
 	// Create playground
@@ -115,12 +117,12 @@ MainState::MainState() {
 		}
 	);
 
-	hud.addImage(images.getMesh("pineapple").getMaterial("Default").textures.at(0));
+	hud.addImage(images.getMesh(image_names[0]).getMaterial("Default").textures.at(0));
 	hud.addQuad(
 		{
 			.position = glm::vec2(0.0f),
 			.dimensions = glm::vec2(0.1f),
-			.image_name = "pineapple",
+			.image_name = image_names[0],
 			.layer = 0
 		}
 	);
@@ -226,20 +228,21 @@ std::string MainState::mainLoop() {
 	// Draw game objects
 	light_manager.bindToShader();
 
-	TAGShaderManager::Shader shader = shaders.useShader("uninstanced");
+	TAGShaderManager::Shader shader = shaders.useShader(shader_names[1]);
 	lamp.drawOne(shader, { .position = lamp_pos, .scale = 0.01f });
 
-	shader = shaders.useShader("instanced");
+	shader = shaders.useShader(shader_names[0]);
 	playground.drawAll(shader);
 	for (const std::string& mesh_name : images.getMeshNames()) {
-		const TAGShaderManager::ShaderOptions options = { .cull_backface = (mesh_name == "flat_man") };
-		images.drawAll(shader, mesh_name, options);
+		TAGShaderManager::default_options.cull_backface = (mesh_name == image_names[0]);
+		images.drawAll(shader, mesh_name);
 	}
+	TAGShaderManager::default_options.cull_backface = true;
 
-	shader = shaders.useShader("skybox");
+	shader = shaders.useShader(shader_names[3]);
 	skybox.draw(shader);
 
-	shader = shaders.useShader("hud");
+	shader = shaders.useShader(shader_names[2]);
 	hud.drawAll(shader);
 
 	return "CURRENT";
@@ -266,33 +269,33 @@ void MainState::mouseCallback() {
 	camera_direction.y = glm::sin(x_rotation);
 	camera_direction.z = glm::sin(y_rotation) * glm::cos(x_rotation);
 	camera_direction = glm::normalize(camera_direction);
-}
+} 
 
 // Game state functions
 glm::vec3 MainState::processInput() {
 	glm::vec3 camera_velocity = glm::vec3(0);
 	const glm::vec3 right = glm::normalize(glm::cross(camera_direction, camera_up));
 	const glm::vec3 forward = glm::normalize(glm::cross(camera_up, right));
-	if (isKeyPressed(GLFW_KEY_W)) {
+	if (getKeyState(GLFW_KEY_W)) {
 		camera_velocity += forward;
 	}
-	if (isKeyPressed(GLFW_KEY_S)) {
+	if (getKeyState(GLFW_KEY_S)) {
 		camera_velocity -= forward;
 	}
-	if (isKeyPressed(GLFW_KEY_A)) {
+	if (getKeyState(GLFW_KEY_A)) {
 		camera_velocity -= right;
 	}
-	if (isKeyPressed(GLFW_KEY_D)) {
+	if (getKeyState(GLFW_KEY_D)) {
 		camera_velocity += right;
 	}
-	if (isKeyPressed(GLFW_KEY_ESCAPE)) {
+	if (getKeyState(GLFW_KEY_ESCAPE)) {
 		end_game = true;
 	}
-	if (!isKeyStillPressed(GLFW_KEY_P) && isKeyPressed(GLFW_KEY_P)) {
+	if (getKeyState(GLFW_KEY_P) == 1) {
 		setMouseLock(TAGEnum::TOGGLE);
 		setWindowFullscreen(TAGEnum::TOGGLE);
 	}
-	if (grounded && !isKeyStillPressed(GLFW_KEY_SPACE) && isKeyPressed(GLFW_KEY_SPACE)) {
+	if (grounded && getKeyState(GLFW_KEY_SPACE) == 1) {
 		just_jumped = true;
 		y_comp += jump_accel;
 	}
@@ -303,15 +306,10 @@ glm::vec3 MainState::processInput() {
 }
 
 void MainState::setPerspectiveMatrix() {
-	const glm::mat4 perspec = glm::perspective(glm::radians(fov), (float)width / (float)height, near, far);
-	shaders.useShader("uninstanced").set<glm::mat4>("perspective", perspec);
-	shaders.useShader("instanced").set<glm::mat4>("perspective", perspec);
-	shaders.useShader("skybox").set<glm::mat4>("perspective", perspec);
+	shaders.setAll<glm::mat4>(camera_shader_names, { TAGShaderManager::default_options.perspective_mat }, { createPerspectiveMatrix() });
 }
 
 void MainState::setCameraMatrix() {
-	const glm::mat4 view = glm::lookAt(camera_position, camera_position + camera_direction, camera_up);
-	shaders.useShader("instanced").set<glm::mat4>("view", view);
-	shaders.useShader("uninstanced").set<glm::mat4>("view", view);
-	shaders.useShader("skybox").set<glm::mat4>("view", glm::mat4(glm::mat3(view)));
+	const glm::mat4 view = createCameraMatrix();
+	shaders.setAll<glm::mat4>(camera_shader_names, { TAGShaderManager::default_options.camera_mat }, { glm::mat4(glm::mat3(view)), view });
 }

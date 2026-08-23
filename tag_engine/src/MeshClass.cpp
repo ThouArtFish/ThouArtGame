@@ -203,7 +203,7 @@ void TAGMesh::setupMesh() {
 		material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
 	}
 	for (const auto& pair : material_frags) {
-		material_ebos.emplace_back(TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>(), pair.first);
+		material_ebos.emplace_back(TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>(), pair.first, pair.second.size() * 3);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
 	}
@@ -329,10 +329,10 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebo.EBO);
 		if (number > 1) {
-			glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)(frags.size() * 3), GL_UNSIGNED_INT, nullptr, number);
+			glDrawElementsInstanced(GL_TRIANGLES, material_ebo.indices_count, GL_UNSIGNED_INT, nullptr, number);
 		}
 		else {
-			glDrawElements(GL_TRIANGLES, (GLsizei)(frags.size() * 3), GL_UNSIGNED_INT, nullptr);
+			glDrawElements(GL_TRIANGLES, material_ebo.indices_count, GL_UNSIGNED_INT, nullptr);
 		}
 	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);

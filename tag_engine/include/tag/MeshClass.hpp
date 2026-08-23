@@ -44,6 +44,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         struct MaterialElementBuffer {
             GLuint EBO = 0;
             GLuint material_index = 0;
+            GLsizei indices_count = 0;
             ~MaterialElementBuffer();
         };
 
