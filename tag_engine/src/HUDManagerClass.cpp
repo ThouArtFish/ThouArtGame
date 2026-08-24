@@ -1,29 +1,19 @@
 #include <HUDManagerClass.hpp>
 
 TAGHUDManager::TAGHUDManager(const std::vector<std::string>& paths, const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params) : quads(size, [this](const Quad& quad, const GLuint& split) { return this->shaderConverter(quad, split); }, access) {
-	if (VAO == 0) {
-		initMesh();
-	}
+	if (VAO == 0) initMesh();
 
-	for (const std::string& path : paths) {
-		loadImage(path, params);
-	}
+	for (const std::string& path : paths) loadImage(path, params);
 }
 
 TAGHUDManager::TAGHUDManager(const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params, const std::string& path) : quads(size, [this](const Quad& quad, const GLuint& split) { return this->shaderConverter(quad, split); }, access) {
-	if (VAO == 0) {
-		initMesh();
-	}
+	if (VAO == 0) initMesh();
 
-	if (path != "") {
-		loadImage(path, params);
-	}
+	if (path != "") loadImage(path, params);
 }
 
 TAGHUDManager::~TAGHUDManager() {
-	for (const TAGTexLoader::Texture& tex : images) {
-		TAGResourceManager::deleteBuffer<OpenGLObjectType::TextureBuffer>(tex.id);
-	}
+	for (const TAGTexLoader::Texture& tex : images) TAGResourceManager::deleteBuffer<OpenGLObjectType::TextureBuffer>(tex.id);
 }
 
 void TAGHUDManager::loadImage(const std::string& path, const TAGTexLoader::Params& params, const std::string& name) {
@@ -198,10 +188,10 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, layers.getBuffer()->getBufferID());
 	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, 0, (GLsizei) layers.getAllObjects().size(), 0);
-	quads.setFence();
-	layers.setFence();
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 	glBindVertexArray(0);
+	quads.setFence();
+	layers.setFence();
 	glDepthFunc(GL_LESS);
 
 	for (const auto& pair : shader.buffer_locations) {

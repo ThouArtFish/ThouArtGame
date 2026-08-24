@@ -188,7 +188,7 @@ private:
 	std::vector<TAGTexLoader::Texture> images;
 	TAGResourceManager::ObjectBuffer<Quad, ShaderQuad> quads;
 	TAGResourceManager::ObjectBuffer<LayerData, OpenGLIndirectCommand> layers = { 10, commandConverter, TAGResourceManager::BufferAccess::DYNAMIC };
-	std::vector<unsigned int> used_images;
+	std::vector<GLuint> used_images;
 
 	static void initMesh();
 	static OpenGLIndirectCommand commandConverter(const LayerData& layer_data, const GLuint& split);

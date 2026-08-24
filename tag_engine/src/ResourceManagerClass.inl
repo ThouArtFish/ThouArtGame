@@ -200,6 +200,13 @@ template<class T> TAGResourceManager::OrphanBuffer<T>::~OrphanBuffer() {
 template<class T> void TAGResourceManager::OrphanBuffer<T>::updateBuffer(const std::vector<T>& data) {
 	glNamedBufferData(this->buffer_id, this->max_objs * sizeof(T) + this->include_size, nullptr, (GLenum)this->access);
 	this->current_objs = glm::min(this->max_objs, (GLuint) data.size());
+
+	if (this->fences[0].sync) {
+		while (glClientWaitSync(this->fences[0].sync, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000ULL) == GL_TIMEOUT_EXPIRED) continue;
+		glDeleteSync(this->fences[0].sync);
+		this->fences[0].sync = nullptr;
+	}
+
 	if (this->include_size > 0) {
 		glNamedBufferSubData(this->buffer_id, 0, sizeof(GLuint), &this->current_objs);
 	}

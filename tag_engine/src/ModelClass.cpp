@@ -37,7 +37,7 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 			mesh.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
 		}
 	}
-	instance_buffer.getBuffer()->setFence();
+	instance_buffer.setFence();
 
 	for (const auto& pair : shader.buffer_locations) {
 		TAGResourceManager::fenceAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);

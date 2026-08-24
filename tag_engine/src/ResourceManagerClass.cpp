@@ -24,7 +24,7 @@ void TAGResourceManager::fenceAttachedBuffers(const GLuint& vao) {
 	if (!vao_binding_indices.contains(vao)) return;
 
 	for (const BindingData& data : vao_binding_indices[vao]) {
-		if (data.ptr && data.ptr->isObjectsChanged()) data.ptr->setFence();
+		if (data.ptr) data.ptr->setFence();
 	}
 }
 
