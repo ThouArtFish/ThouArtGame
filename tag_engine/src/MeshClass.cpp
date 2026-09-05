@@ -11,13 +11,11 @@ TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment
 TAGMesh::TAGMesh() {}
 
 TAGMesh::~TAGMesh() {
-	if (delete_on_death) {
-		TAGResourceManager::deleteBuffer<GenericBuffer>(this->VBO);
-		for (const MaterialElementBuffer& material_ebo : material_ebos) {
-			TAGResourceManager::deleteBuffer<GenericBuffer>(material_ebo.EBO);
-		}
-		TAGResourceManager::deleteBuffer<VertexArrayObject>(this->VAO);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(VBO);
+	for (const MaterialElementBuffer& material_ebo : material_ebos) {
+		TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(material_ebo.EBO);
 	}
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::VertexArrayObject>(VAO);
 }
 
 TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) {
@@ -25,7 +23,7 @@ TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) {
 }
 
 TAGMesh::MaterialElementBuffer::~MaterialElementBuffer() {
-	TAGResourceManager::deleteBuffer<GenericBuffer>(this->EBO);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(EBO);
 }
 
 void TAGMesh::generatePlanes() {
@@ -33,7 +31,7 @@ void TAGMesh::generatePlanes() {
 	planes.reserve(frags.size());
 
 	for (const TAGMesh::Fragment& frag_struct : frags) {
-		const std::array<unsigned int, 3> frag = frag_struct.vertex_indices;
+		const std::array<GLuint, 3> frag = frag_struct.vertex_indices;
 		const std::array<glm::vec3, 3> frag_vertices = { vertices[frag[0]].position, vertices[frag[1]].position, vertices[frag[2]].position };
 		const std::array<glm::vec3, 2> frag_axis = { frag_vertices[1] - frag_vertices[0], frag_vertices[2] - frag_vertices[0] };
 		const glm::vec3 normal = glm::normalize(glm::cross(frag_axis[0], frag_axis[1]));
@@ -70,9 +68,7 @@ void TAGMesh::generateBVH() {
 
 	// Info for BVH nodes to be processed during construction
 	struct BVHQueue {
-		unsigned int node_index;
-		unsigned int layer_index;
-		unsigned int depth;
+		GLuint node_index, layer_index, depth;
 	};
 
 	// Get mesh bounding box
@@ -156,7 +152,7 @@ void TAGMesh::generateBVH() {
 
 		// Find which planes within parent bounding box collide with current box
 		for (const unsigned int& plane_index : layer_indices) {
-			if (BBoxWithBBox(current_box.bounds, plane_bb[plane_index])) {
+			if (current_box.bounds.collisionBBox(plane_bb[plane_index])) {
 				current_box.indices.push_back(plane_index);
 			}
 		}
@@ -198,8 +194,8 @@ void TAGMesh::generateBVH() {
 }
 
 void TAGMesh::setupMesh() {
-	TAGResourceManager::deleteBuffer<GenericBuffer>(VBO);
-	TAGResourceManager::deleteBuffer<VertexArrayObject>(VAO);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(VBO);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::VertexArrayObject>(VAO);
 	material_ebos.clear();
 
 	std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 3>>> material_frags;
@@ -207,7 +203,7 @@ void TAGMesh::setupMesh() {
 		material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
 	}
 	for (const auto& pair : material_frags) {
-		material_ebos.emplace_back(TAGResourceManager::createBuffer<GenericBuffer>(), pair.first);
+		material_ebos.emplace_back(TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>(), pair.first, (GLsizei) pair.second.size() * 3);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
 	}
@@ -218,8 +214,8 @@ void TAGMesh::setupMesh() {
 		}
 	);
 
-	VBO = TAGResourceManager::createBuffer<GenericBuffer>();
-	VAO = TAGResourceManager::createBuffer<VertexArrayObject>();
+	VBO = TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>();
+	VAO = TAGResourceManager::createBuffer<OpenGLObjectType::VertexArrayObject>();
 
 	glBindVertexArray(VAO);
 
@@ -237,7 +233,7 @@ void TAGMesh::setupMesh() {
 	glVertexAttribBinding(base_attrib + 2, 0);
 
 	for (unsigned int i = 0; i < 2; i++) {
-		const unsigned int& base = base_attrib + i + 3;
+		const unsigned int base = base_attrib + i + 3;
 		glEnableVertexAttribArray(base);
 		glVertexAttribFormat(base, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4) * i);
 		glVertexAttribBinding(base, 1);
@@ -252,62 +248,91 @@ void TAGMesh::setupMesh() {
 	generateBVH();
 }
 
-void TAGMesh::setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index) const {
-	unsigned int diffuseNr = 1;
-	unsigned int specularNr = 1;
-	const Material& material = materials[material_index];
-	for (int i = 0; i < material.textures.size(); i++)
-	{
-		glActiveTexture(GL_TEXTURE0 + i);
-		std::string number;
-		std::string name;
-		switch (material.textures[i].type) {
-		case TAGTexType::DIFFUSE_MAP:
-			number = std::to_string(diffuseNr++);
-			name = "diffuse";
-			break;
-		case TAGTexType::SPEC_MAP:
-			number = std::to_string(specularNr++);
-			name = "specular";
+void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const unsigned int& number) {
+	if (vertices_updated || frags_updated) {
+		if (vertices_updated) {
+			glBindBuffer(GL_ARRAY_BUFFER, VBO);
+			GLint vertices_size;
+			glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vertices_size);
+			GLint buffer_size = (GLint)vertices.size() * sizeof(Vertex);
+			if (buffer_size > vertices_size) {
+				glBufferData(GL_ARRAY_BUFFER, buffer_size, vertices.data(), GL_DYNAMIC_DRAW);
+			}
+			else {
+				glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_size, vertices.data());
+			}
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			vertices_updated = false;
 		}
-		shader.setInt(name + number, i);
-		glBindTexture(GL_TEXTURE_2D, material.textures[i].id);
-	}
-	glActiveTexture(GL_TEXTURE0);
-	if (diffuseNr == 1) {
-		shader.setVec3("colour", materials[material_index].colour);
-	}
-	shader.setBool("spec_map", specularNr > 1);
-	shader.setFloat("spec_mod", materials[material_index].spec_mod);
-	shader.setFloat("spec_exp", materials[material_index].spec_exp);
-	shader.setFloat("opacity", materials[material_index].opacity);
-}
-
-void TAGMesh::drawUninstanced(const TAGShaderManager::Shader& shader) {
-	if (vertices_updated || frags_updated) {
-		applyBufferUpdates();
-	}
-
-	glBindVertexArray(VAO);
-	for (const MaterialElementBuffer& material_ebo : material_ebos) {
-		setupFragmentUniforms(shader, material_ebo.material_index);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebo.EBO);
-		glDrawElements(GL_TRIANGLES, (GLsizei)(frags.size() * 3), GL_UNSIGNED_INT, nullptr);
-	}
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-}
-
-void TAGMesh::drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number) {
-	if (vertices_updated || frags_updated) {
-		applyBufferUpdates();
+		if (frags_updated) {
+			material_ebos.clear();
+			std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 3>>> material_frags;
+			for (const Fragment& frag_struct : frags) {
+				material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
+			}
+			for (const auto& pair : material_frags) {
+				material_ebos.emplace_back(TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>(), pair.first);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
+				glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
+			}
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+			std::sort(material_ebos.begin(), material_ebos.end(),
+				[this](const MaterialElementBuffer& a, const MaterialElementBuffer& b) {
+					return this->materials[a.material_index].opacity > this->materials[b.material_index].opacity;
+				}
+			);
+			frags_updated = false;
+		}
+		generatePlanes();
+		generateBVH();
 	}
 
 	glBindVertexArray(VAO);
 	for (const MaterialElementBuffer& material_ebo : material_ebos) {
-		setupFragmentUniforms(shader, material_ebo.material_index);
+		std::vector<GLuint> diffuse, specular;
+		const Material& material = materials[material_ebo.material_index];
+		for (GLuint i = 0; i < material.textures.size(); i++) {
+			glActiveTexture(GL_TEXTURE0 + i);
+			switch (material.textures[i].type) {
+			case TAGTexType::DIFFUSE_MAP:
+				if (diffuse.size() < 16) {
+					diffuse.push_back(i);
+				}
+				break;
+			case TAGTexType::SPEC_MAP:
+				if (specular.size() < 16) {
+					specular.push_back(i);
+				}
+			}
+			glBindTexture(GL_TEXTURE_2D, material.textures[i].id);
+		}
+		glActiveTexture(GL_TEXTURE0);
+
+		if (diffuse.size() == 0) {
+			shader.set<glm::vec3>(options.colour_vec, material.colour);
+		}
+		else {
+			shader.set<ShaderUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse[0], (GLuint) diffuse.size());
+		}
+		shader.set<int>(options.diffuse_tex_num, (GLuint) diffuse.size());
+
+		if (material.spec_fac > 0.0f && specular.size() > 0) {
+			shader.set<ShaderUniformType::SINGLE_2D>(options.specular_tex_array, specular[0], (GLuint) specular.size());
+		}
+		shader.set<float>(options.specular_factor, material.spec_fac);
+		shader.set<float>(options.specular_exp, material.spec_exp);
+		shader.set<int>(options.specular_tex_num, (GLuint) specular.size());
+
+		shader.set<float>(options.opacity_value, material.opacity);
+		shader.set<glm::vec3>(options.camera_pos, TAGBaseState::camera_position);
+
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebo.EBO);
-		glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)(frags.size() * 3), GL_UNSIGNED_INT, nullptr, number);
+		if (number > 1) {
+			glDrawElementsInstanced(GL_TRIANGLES, material_ebo.indices_count, GL_UNSIGNED_INT, nullptr, number);
+		}
+		else {
+			glDrawElements(GL_TRIANGLES, material_ebo.indices_count, GL_UNSIGNED_INT, nullptr);
+		}
 	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
@@ -351,92 +376,6 @@ const unsigned int& TAGMesh::getVBO() const {
 	return VBO;
 };
 
-void TAGMesh::applyBufferUpdates() {
-	if (vertices_updated) {
-		glBindBuffer(GL_ARRAY_BUFFER, VBO);
-		GLint vertices_size;
-		glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vertices_size);
-		GLint buffer_size = (GLint)vertices.size() * sizeof(Vertex);
-		if (buffer_size > vertices_size) {
-			glBufferData(GL_ARRAY_BUFFER, buffer_size, vertices.data(), GL_DYNAMIC_DRAW);
-		}
-		else {
-			glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_size, vertices.data());
-		}
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		vertices_updated = false;
-	} 
-	if (frags_updated) {
-		material_ebos.clear();
-		std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 3>>> material_frags;
-		for (const Fragment& frag_struct : frags) {
-			material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
-		}
-		for (const auto& pair : material_frags) {
-			material_ebos.emplace_back(TAGResourceManager::createBuffer<GenericBuffer>(), pair.first);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
-		}
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		std::sort(material_ebos.begin(), material_ebos.end(),
-			[this](const MaterialElementBuffer& a, const MaterialElementBuffer& b) {
-				return this->materials[a.material_index].opacity > this->materials[b.material_index].opacity;
-			}
-		);
-		frags_updated = false;
-	}
-	generatePlanes();
-	generateBVH();
-}
-
-bool TAGMesh::FragWithPoint(const glm::vec3& point, const Plane& plane) {
-	const std::array<glm::vec3, 3> cross_prod = {
-		glm::cross(point - plane.start, plane.axis[0]),
-		glm::cross(point - plane.start - plane.axis[0], plane.axis[1] - plane.axis[0]),
-		glm::cross(point - plane.start - plane.axis[1], -plane.axis[1])
-	};
-	return (glm::dot(cross_prod[0], plane.normal) <= 0.0f && glm::dot(cross_prod[1], plane.normal) <= 0.0f && glm::dot(cross_prod[2], plane.normal) <= 0.0f);
-}
-
-bool TAGMesh::FragWithSphere(const glm::vec3& centre, const float& radius, const PlaneVolume& plane) {
-	for (size_t i = 0; i < 4; i++) {
-		const double signed_dist = (
-			i == 0 ? glm::abs(glm::dot(centre - plane.frag_plane.start, plane.frag_plane.normal))
-			: glm::dot(centre, plane.volume_planes[i - 1].normal) - plane.volume_planes[i - 1].constant
-		);
-
-		if (signed_dist > radius) {
-			return false;
-		}
-	}
-	return true;
-}
-
-bool TAGMesh::FragWithCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const PlaneVolume& plane) {
-	double d = glm::dot(spine, plane.frag_plane.normal);
-	if (glm::abs(d) < 0.0001) {
-		if (glm::abs(glm::dot(plane.frag_plane.normal, foot - plane.frag_plane.start)) > radius) {
-			return false;
-		}
-		for (const DotPlane& volume_plane : plane.volume_planes) {
-			d = glm::dot(spine, volume_plane.normal);
-			if (glm::abs(d) < 0.0001) {
-				if (glm::dot(foot, volume_plane.normal) > radius + volume_plane.constant) {
-					return false;
-				}
-			}
-			else {
-				d = glm::min(1.0, glm::max(0.0, (volume_plane.constant - glm::dot(foot, volume_plane.normal)) / d));
-				if (glm::dot(foot + spine * (float)d, volume_plane.normal) > radius + volume_plane.constant) {
-					return false;
-				}
-			}
-		}
-		return true;
-	}
-	return FragWithSphere(foot + spine * (float)glm::min(1.0, glm::max(0.0, glm::dot(plane.frag_plane.normal, plane.frag_plane.start - foot) / d)), radius, plane);
-}
-
 TAGMesh::BoundingBox TAGMesh::generateBoundingBox(const glm::vec3* first, const unsigned int& size) {
 	glm::vec3 max, min;
 	max = min = *first;
@@ -447,42 +386,101 @@ TAGMesh::BoundingBox TAGMesh::generateBoundingBox(const glm::vec3* first, const 
 	return { max, min };
 }
 
-bool TAGMesh::BBoxWithBBox(const BoundingBox& box_a, const BoundingBox& box_b) {
-	return box_a.max.x >= box_b.min.x && box_a.min.x <= box_b.max.x &&
-		box_a.max.y >= box_b.min.y && box_a.min.y <= box_b.max.y &&
-		box_a.max.z >= box_b.min.z && box_a.min.z <= box_b.max.z;
+bool TAGMesh::BoundingBox::collisionPoint(const glm::vec3& point) const {
+	return glm::clamp(point, min, max) == point;
 }
 
-bool TAGMesh::BBoxWithRay(const BoundingBox& box, const glm::vec3& start, const glm::vec3& ray, const float& factor) {
-	double t_exit = 0.0;
-	double t_enter = 0.0;
-	for (unsigned int i = 0; i < 3; i++) {
-		if (glm::abs(ray[i]) > 0.0001f) {
-			t_exit = glm::min((double)(box.max[i] - start[i]) / ray[i], t_exit);
-			t_enter = glm::max((double)(box.min[i] - start[i]) / ray[i], t_enter);
-		}
-		else if (start[i] < box.min[i] || start[i] > box.max[i]) {
-			return false;
-		}
-	}
-	return (t_enter <= t_exit && t_exit >= 0.0 && (t_exit <= factor || factor < 0.0f));
+bool TAGMesh::BoundingBox::collisionBBox(const BoundingBox& box) const {
+	return max.x >= box.min.x && min.x <= box.max.x &&
+		max.y >= box.min.y && min.y <= box.max.y &&
+		max.z >= box.min.z && min.z <= box.max.z;
 }
 
-bool TAGMesh::BBoxWithCapsule(const BoundingBox& box, const glm::vec3& foot, const glm::vec3& spine, const float& radius) {
-	double t_enter = 0.0;
+bool TAGMesh::BoundingBox::collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t) const {
+	glm::vec3 inv_ray = 1.0f / ray;
+	float t_min = -std::numeric_limits<float>::infinity();
+	float t_max = -t_min;
 	for (unsigned int i = 0; i < 3; i++) {
-		if (glm::abs(spine[i]) > 0.0001f) {
-			t_enter = glm::max((double)(box.min[i] - radius - foot[i]) / spine[i], t_enter);
-		}
-		else if (foot[i] < box.min[i] - radius || foot[i] > box.max[i] + radius) {
-			return false;
-		}
-	}
-	return (t_enter >= 0.0 && t_enter <= 1.0);
-};
+		float t1 = (min[i] - start[i]) * inv_ray[i];
+		float t2 = (max[i] - start[i]) * inv_ray[i];
 
-bool TAGMesh::BBoxWithSphere(const BoundingBox& box, const glm::vec3& centre, const float& radius) {
-	return centre.x >= box.min.x - radius && centre.x <= box.max.x + radius &&
-		centre.y >= box.min.y - radius && centre.y <= box.max.y + radius &&
-		centre.z >= box.min.z - radius && centre.z <= box.max.z + radius;
+		if (t1 > t2) std::swap(t1, t2);
+
+		t_min = std::max(t_min, t1);
+		t_max = std::min(t_max, t2);
+
+		if (t_min > t_max) return false; 
+	}
+	return (t_max >= 0.0f && (t_max <= t || t < 0.0f));
+}
+
+bool TAGMesh::BoundingBox::collisionSphere(const glm::vec3& centre, const float& radius) const {
+	return TAGUtil::lengthSq(glm::clamp(centre, min, max) - centre) <= radius * radius;
+}
+
+bool TAGMesh::BoundingBox::collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const {
+	glm::vec3 closest_ray = foot, closest_box;
+	const float s2 = TAGUtil::lengthSq(spine);
+
+	for (int i = 0; i < 4; i++) {
+		closest_box = glm::clamp(closest_ray, min, max);
+		closest_ray = foot + spine * std::clamp(glm::dot(closest_box - foot, spine) / s2, 0.0f, 1.0f);
+	}
+
+	return collisionSphere(closest_ray, radius);
+}
+
+bool TAGMesh::Plane::collisionPoint(const glm::vec3& point) const {
+	const std::array<glm::vec3, 3> cross_prod = {
+		glm::cross(point - start, axis[0]),
+		glm::cross(point - start - axis[0], axis[1] - axis[0]),
+		glm::cross(point - start - axis[1], -axis[1])
+	};
+	return (glm::dot(cross_prod[0], normal) <= 0.0f && glm::dot(cross_prod[1], normal) <= 0.0f && glm::dot(cross_prod[2], normal) <= 0.0f);
+}
+
+bool TAGMesh::Plane::collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t) const {
+	float d = glm::dot(normal, ray);
+
+	if (glm::abs(d) < 0.0001) return false;
+
+	d = glm::dot(normal, this->start - start) / d;
+
+	if (d < 0.0f || (t < 0.0f && d > t)) return false;
+
+	return collisionPoint(start + ray * d);
+}
+
+bool TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre, const float& radius) const {
+	for (size_t i = 0; i < 4; i++) {
+		const float signed_dist = (
+			i == 0 ? glm::abs(glm::dot(centre - frag_plane.start, frag_plane.normal))
+			: glm::dot(centre, volume_planes[i - 1].normal) - volume_planes[i - 1].constant
+			);
+
+		if (signed_dist > radius) return false;
+	}
+	return true;
+}
+
+bool TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const {
+	float d = glm::dot(spine, frag_plane.normal);
+	if (glm::abs(d) < 0.0001) {
+		if (glm::abs(glm::dot(frag_plane.normal, foot - frag_plane.start)) > radius) return false;
+
+		for (const DotPlane& volume_plane : volume_planes) {
+			d = glm::dot(spine, volume_plane.normal);
+			if (glm::abs(d) < 0.0001) {
+				if (glm::dot(foot, volume_plane.normal) > radius + volume_plane.constant) return false;
+			}
+			else {
+				d = glm::min(1.0f, glm::max(0.0f, (volume_plane.constant - glm::dot(foot, volume_plane.normal)) / d));
+
+				if (glm::dot(foot + spine * d, volume_plane.normal) > radius + volume_plane.constant) return false;
+			}
+		}
+
+		return true;
+	}
+	return collisionSphere(foot + spine * glm::clamp(glm::dot(frag_plane.normal, frag_plane.start - foot) / d, 0.0f, 1.0f), radius);
 }

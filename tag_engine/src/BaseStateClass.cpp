@@ -43,6 +43,10 @@
 	#define GL_DEBUG(code)
 #endif
 
+TAGBaseState::OpenGLContextChecker::OpenGLContextChecker() {
+	if (!TAGBaseState::game_initialized) throw std::runtime_error("TAG class has been initialized before OpenGL context has been created\n");
+}
+
 void TAGBaseState::deleteState(const std::string& name) {
 	if (name != current) {
 		states.erase(name);
@@ -146,7 +150,7 @@ int TAGBaseState::runGame() {
 		glfwPollEvents();
 
 		// Check which keys are still being pressed
-		checkStillPressed();
+		std::erase_if(still_pressed, [](const int& key) { return glfwGetKey(window, key) != GLFW_PRESS; });
 
 		// Execute current state main loop and then handle return
 		const std::string end_state = states[current]->mainLoop();
@@ -193,29 +197,15 @@ void TAGBaseState::baseIconifyCallback(GLFWwindow* window, int iconified) {
 	states[current]->iconifyCallback();
 }
 
-void TAGBaseState::checkStillPressed() {
-	for (int i = 0; i < still_pressed.size(); i++) {
-		if (glfwGetKey(window, still_pressed[i]) != GLFW_PRESS) {
-			still_pressed.erase(still_pressed.begin() + i);
-			i--;
-		}
-	}
-}
-
-bool TAGBaseState::isKeyPressed(const int& key) {
+unsigned int TAGBaseState::getKeyState(const int& key) {
 	if (glfwGetKey(window, key) == GLFW_PRESS) {
 		if (std::find(still_pressed.begin(), still_pressed.end(), key) == still_pressed.end()) {
 			still_pressed.push_back(key);
+			return 1;
 		}
-		return true;
+		return 2;
 	}
-	else {
-		return false;
-	}
-}
-
-bool TAGBaseState::isKeyStillPressed(const int& key) {
-	return (std::find(still_pressed.begin(), still_pressed.end(), key) != still_pressed.end());
+	return 0;
 }
 
 void TAGBaseState::setMouseLock(const TAGEnum& state) {
@@ -238,4 +228,12 @@ void TAGBaseState::setWindowFullscreen(const TAGEnum& state) {
 	else {
 		glfwSetWindowMonitor(window, (state == TAGEnum::TRUE ? monitor : NULL), 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
 	}
+}
+
+glm::mat4 TAGBaseState::createPerspectiveMatrix() {
+	return glm::perspective(glm::radians(fov), (float)width / (float)height, near, far);
+}
+
+glm::mat4 TAGBaseState::createCameraMatrix() {
+	return glm::lookAt(camera_position, camera_position + camera_direction, camera_up);
 }

@@ -6,8 +6,8 @@
 #include <iostream>
 #include <concepts>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glad/glad.h>
+#include "BaseStateClass.hpp"
 #include "ShaderManagerClass.hpp"
 #include "ResourceManagerClass.hpp"
 #include "TextureLoaderClass.hpp"
@@ -18,7 +18,7 @@
  * Only stores the physical, base properties of a mesh, not in-game instances, so it is not recommended to use TAGMesh draw functions
  * directly as shaders need to have instances of meshes setup beforehand, which is done by TAGModel draw functions.
  */
-class TAGMesh {
+class TAGMesh : public TAGBaseState::OpenGLContextChecker {
     friend class TAGModel;
 	public:
         /**
@@ -34,16 +34,17 @@ class TAGMesh {
          * Represents a single fragment, or primitive, composed of 3 vertex indices and a material index.
          */
         struct Fragment {
-            std::array<unsigned int, 3> vertex_indices;
-            unsigned int material_index = 0;
+            std::array<GLuint, 3> vertex_indices;
+            GLuint material_index = 0;
         };
 
         /**
         * Element buffer object, containing fragments for a specific material
         */
         struct MaterialElementBuffer {
-            unsigned int EBO = 0;
-            unsigned int material_index = 0;
+            GLuint EBO = 0;
+            GLuint material_index = 0;
+            GLsizei indices_count = 0;
             ~MaterialElementBuffer();
         };
 
@@ -52,7 +53,7 @@ class TAGMesh {
          */
         struct Material {
             std::string name = "Default";
-            float spec_mod = 0.0f;
+            float spec_fac = 0.0f;
             float spec_exp = 32.0f;
             float opacity = 1.0f;
             glm::vec3 colour = glm::vec3(1.0f, 0.0f, 0.0f);
@@ -67,6 +68,12 @@ class TAGMesh {
         struct BoundingBox {
             glm::vec3 max;
             glm::vec3 min;
+
+            bool collisionPoint(const glm::vec3& point) const;
+            bool collisionBBox(const BoundingBox& box) const;
+            bool collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t = -1.0f) const;
+            bool collisionSphere(const glm::vec3& centre, const float& radius) const;
+            bool collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
         };
 
         /**
@@ -75,9 +82,15 @@ class TAGMesh {
         struct BVHNode {
             bool is_leaf;
             BoundingBox bounds;
-            std::vector<unsigned int> indices;
+            std::vector<GLuint> indices;
         };
-
+        /**
+        * Smaller plane struct that only represents the infinite plane a fragment lies in
+        */
+        struct DotPlane {
+            glm::vec3 normal;
+            float constant;
+        };
         /**
         * Represents a mesh fragment in game space
         */
@@ -85,25 +98,23 @@ class TAGMesh {
             glm::vec3 normal;
             glm::vec3 start;
             std::array<glm::vec3, 2> axis;
+
+            bool collisionPoint(const glm::vec3& point) const;
+            bool collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t = 1.0f) const;
         };
         /**
-         * Smaller plane struct that only represents the infinite plane a fragment lies in
-         */
-        struct DotPlane {
-            glm::vec3 normal;
-            float constant;
-        };
-        /**
-         * Represents the volume of a plane used for collision detection with spheres, and ray detection with frag plane.
-         */
+        * Represents the volume of a plane used for collision detection with spheres, and ray detection with frag plane.
+        */
         struct PlaneVolume {
             Plane frag_plane;
             std::array<DotPlane, 3> volume_planes;
+
+            bool collisionSphere(const glm::vec3& centre, const float& radius) const;
+            bool collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
         };
 
-        bool delete_on_death = true;
-        static inline unsigned int base_attrib = 0;
-        BoundingBox mesh_bb;
+        static inline GLuint base_attrib = 0;
+        BoundingBox mesh_bb = { glm::vec3(0.0f), glm::vec3(0.0f) };
         std::vector<PlaneVolume> planes;
         std::vector<BVHNode> bvh_octree;
 
@@ -162,17 +173,6 @@ class TAGMesh {
         const unsigned int& getVBO() const;
 
         /**
-        * Collision detection functions
-        */
-        static bool FragWithPoint(const glm::vec3& point, const Plane& plane);
-        static bool FragWithSphere(const glm::vec3& centre, const float& radius, const PlaneVolume& plane);
-        static bool FragWithCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const PlaneVolume& plane);
-        static bool BBoxWithBBox(const BoundingBox& box_a, const BoundingBox& box_b);
-        static bool BBoxWithRay(const BoundingBox& box, const glm::vec3& start, const glm::vec3& ray, const float& factor);
-        static bool BBoxWithCapsule(const BoundingBox& box, const glm::vec3& foot, const glm::vec3& spine, const float& radius);
-        static bool BBoxWithSphere(const BoundingBox& box, const glm::vec3& centre, const float& radius);
-
-        /**
         * Generate bounding box from array of vectors
         */
         static BoundingBox generateBoundingBox(const glm::vec3* start, const unsigned int& size);
@@ -188,25 +188,12 @@ class TAGMesh {
         unsigned int VAO = 0;
         unsigned int VBO = 0;
 
-        void applyBufferUpdates();
-        /**
-         * Setup mesh-related shader uniforms, such as textures and material modifier values.
-         * Not sufficient to draw a singular instance of a mesh.
-         *
-         * @param shader Shader program
-         */
-        void setupFragmentUniforms(const TAGShaderManager::Shader& shader, const unsigned int& material_index) const;
         /**
          * Draw multiple instances of a mesh
          *
          * @param shader Shader program
-         * @param number Number of instances
+         * @param options Names of shader uniforms
+         * @param number Number of instances to draw
          */
-        void drawInstanced(const TAGShaderManager::Shader& shader, const unsigned int& number);
-        /**
-        * Draw one instance of a mesh.
-        *
-        * @param shader Shader program
-        */
-        void drawUninstanced(const TAGShaderManager::Shader& shader);
+        void draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const unsigned int& number = 1);
 };

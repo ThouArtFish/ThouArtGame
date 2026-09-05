@@ -1,57 +1,58 @@
 #include <ResourceManagerClass.hpp>
 
-const GLuint& OpenGLHandle::getID() const {
-	return ID;
+TAGResourceManager::OpenGLHandleWrapper::OpenGLHandleWrapper(const GLuint& ID, const GLuint& TYPE_ID) : ID(ID), TYPE_ID(TYPE_ID) {}
+
+void TAGResourceManager::updateAttachedBuffers(const GLuint& vao) {
+	if (!vao_binding_indices.contains(vao)) return;
+
+	for (const BindingData& data : vao_binding_indices[vao]) {
+		if (data.ptr && data.ptr->isObjectsChanged()) data.ptr->updateBuffer();
+	}
 }
 
-VertexArrayObject::VertexArrayObject() {
-	glCreateVertexArrays(1, &ID);
+void TAGResourceManager::updateAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations) {
+	if (!shader_binding_indices.contains((GLuint) buffer_type)) return;
+
+	std::vector<BindingData>& data_vec = shader_binding_indices[(GLuint)buffer_type];
+	for (const GLint& index : buffer_locations) {
+		auto it = std::find_if(data_vec.begin(), data_vec.end(), [&index](const BindingData& data) { return index == data.binding_index; });
+		if (it != data_vec.end() && it->ptr && it->ptr->isObjectsChanged()) it->ptr->updateBuffer();
+	}
 }
 
-ProgramShader::ProgramShader() {
-	ID = glCreateProgram();
+void TAGResourceManager::fenceAttachedBuffers(const GLuint& vao) {
+	if (!vao_binding_indices.contains(vao)) return;
+
+	for (const BindingData& data : vao_binding_indices[vao]) {
+		if (data.ptr) data.ptr->setFence();
+	}
 }
 
-VertexShader::VertexShader() {
-	ID = glCreateShader(GL_VERTEX_SHADER);
-}
+void TAGResourceManager::fenceAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations) {
+	if (!shader_binding_indices.contains((GLuint)buffer_type)) return;
 
-FragmentShader::FragmentShader() {
-	ID = glCreateShader(GL_FRAGMENT_SHADER);
-}
-
-TextureBuffer::TextureBuffer() {
-	glGenTextures(1, &ID);
-}
-
-GenericBuffer::GenericBuffer() {
-	glCreateBuffers(1, &ID);
-}
-
-VertexArrayObject::~VertexArrayObject() {
-	glDeleteVertexArrays(1, &ID);
-}
-
-ProgramShader::~ProgramShader() {
-	glDeleteProgram(ID);
-}
-
-VertexShader::~VertexShader() {
-	glDeleteShader(ID);
-}
-
-FragmentShader::~FragmentShader() {
-	glDeleteShader(ID);
-}
-
-TextureBuffer::~TextureBuffer() {
-	glDeleteTextures(1, &ID);
-}
-
-GenericBuffer::~GenericBuffer() {
-	glDeleteBuffers(1, &ID);
+	std::vector<BindingData>& data_vec = shader_binding_indices[(GLuint)buffer_type];
+	for (const GLint& index : buffer_locations) {
+		auto it = std::find_if(data_vec.begin(), data_vec.end(), [&index](const BindingData& data) { return index == data.binding_index; });
+		if (it != data_vec.end() && it->ptr) it->ptr->setFence();
+	}
 }
 
 void TAGResourceManager::clear() {
 	buffers.clear();
+	vao_binding_indices.clear();
+	shader_binding_indices.clear();
+}
+
+TAGResourceManager::ShaderBufferType TAGResourceManager::interfaceToBufferType(const TAGResourceManager::ShaderBufferInterfaceType& interface_type) {
+	switch (interface_type) {
+	case ShaderBufferInterfaceType::SHADER_STORAGE:
+		return ShaderBufferType::SHADER_STORAGE;
+	case ShaderBufferInterfaceType::ATOMIC_COUNTER:
+		return ShaderBufferType::ATOMIC_COUNTER;
+	case ShaderBufferInterfaceType::TRANSFORM_FEEDBACK:
+		return ShaderBufferType::TRANSFORM_FEEDBACK;
+	default:
+		return ShaderBufferType::UNIFORM;
+	}
 }

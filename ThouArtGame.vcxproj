@@ -163,7 +163,6 @@
     <ClCompile Include="tag_engine\src\define_once.cpp" />
     <ClCompile Include="tag_engine\src\HUDManagerClass.cpp" />
     <ClCompile Include="tag_engine\src\glad.c" />
-    <ClCompile Include="tag_engine\src\LightManagerClass.cpp" />
     <ClCompile Include="tag_engine\src\MeshClass.cpp" />
     <ClCompile Include="tag_engine\src\ModelClass.cpp" />
     <ClCompile Include="tag_engine\src\PaintingModelClass.cpp" />
@@ -176,7 +175,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="tag_engine\src\BaseStateClass.inl" />
+    <None Include="tag_engine\src\HUDManagerClass.inl" />
+    <None Include="tag_engine\src\LightManagerClass.inl" />
+    <None Include="tag_engine\src\ModelClass.inl" />
     <None Include="tag_engine\src\ResourceManagerClass.inl" />
+    <None Include="tag_engine\src\ShaderManagerClass.inl" />
     <None Include="tag_engine\src\UtilClass.inl" />
     <None Include="tag_engine\src\WorldModelTemplates.inl" />
   </ItemGroup>

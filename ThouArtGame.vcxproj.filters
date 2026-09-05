@@ -71,9 +71,6 @@
     <ClCompile Include="tag_engine\src\glad.c">
       <Filter>ThouArtGame Files\Source</Filter>
     </ClCompile>
-    <ClCompile Include="tag_engine\src\LightManagerClass.cpp">
-      <Filter>ThouArtGame Files\Source</Filter>
-    </ClCompile>
     <ClCompile Include="tag_engine\src\MeshClass.cpp">
       <Filter>ThouArtGame Files\Source</Filter>
     </ClCompile>
@@ -84,9 +81,6 @@
       <Filter>ThouArtGame Files\Source</Filter>
     </ClCompile>
     <ClCompile Include="tag_engine\src\ResourceManagerClass.cpp">
-      <Filter>ThouArtGame Files\Source</Filter>
-    </ClCompile>
-    <ClCompile Include="tag_engine\src\ShaderManagerClass.cpp">
       <Filter>ThouArtGame Files\Source</Filter>
     </ClCompile>
     <ClCompile Include="tag_engine\src\SkyboxClass.cpp">
@@ -110,6 +104,9 @@
     <ClCompile Include="tag_engine\src\HUDManagerClass.cpp">
       <Filter>ThouArtGame Files\Source</Filter>
     </ClCompile>
+    <ClCompile Include="tag_engine\src\ShaderManagerClass.cpp">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="tag_engine\src\BaseStateClass.inl">
@@ -122,6 +119,18 @@
       <Filter>ThouArtGame Files\Source</Filter>
     </None>
     <None Include="tag_engine\src\WorldModelTemplates.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
+    <None Include="tag_engine\src\ShaderManagerClass.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
+    <None Include="tag_engine\src\LightManagerClass.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
+    <None Include="tag_engine\src\HUDManagerClass.inl">
+      <Filter>ThouArtGame Files\Source</Filter>
+    </None>
+    <None Include="tag_engine\src\ModelClass.inl">
       <Filter>ThouArtGame Files\Source</Filter>
     </None>
   </ItemGroup>

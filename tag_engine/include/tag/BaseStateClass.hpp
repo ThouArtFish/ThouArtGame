@@ -5,7 +5,9 @@
 #include <concepts>
 #include <memory>
 #include <iostream>
+#include <stdexcept>
 #include <glad/glad.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glfw_imp.hpp>
 #include "ResourceManagerClass.hpp"
 #include "UtilClass.hpp"
@@ -17,7 +19,19 @@
  * Global variables accessible by any derived state class are also stored and updated here.
  */
 class TAGBaseState {
+	friend class OpenGLContextChecker;
 public:
+	virtual ~TAGBaseState() = default;
+	TAGBaseState(const TAGBaseState&) = delete;
+	TAGBaseState& operator=(const TAGBaseState&) = delete;
+
+	/**
+	* Attached to every class to make sure OpenGL context is initialized before construction
+	*/
+	struct OpenGLContextChecker {
+		OpenGLContextChecker();
+	};
+
 	/**
 	 * Container for passing info required for initializing a game
 	 */
@@ -33,12 +47,22 @@ public:
 	/**
 	* Common variables that game states may want to share
 	*/
+	static inline glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);
 	static inline glm::vec3 camera_position = glm::vec3(0.0f);
 	static inline glm::vec3 camera_direction = glm::vec3(0.0f, 0.0f, -1.0f);
-
-	virtual ~TAGBaseState() = default;
-	TAGBaseState(const TAGBaseState&) = delete;
-	TAGBaseState& operator=(const TAGBaseState&) = delete;
+	static inline float near = 0.1f;
+	static inline float far = 100.0f;
+	static inline float fov = 60;
+	static inline int width = 0;
+	static inline int height = 0;
+	static inline double last_x = -1.0;
+	static inline double last_y = -1.0;
+	static inline double current_time = 0.0;
+	static inline double delta_time = 0.0;
+	static inline double delta_x = 0.0;
+	static inline double delta_y = 0.0;
+	static inline bool iconified = false;
+	static inline bool first_mouse = true;
 
 	/**
 	 * Add a state class to the state machine. The class must be derived from TAGBaseState.
@@ -46,7 +70,7 @@ public:
 	 * 
 	 * @param name A unique identifier for the state.
 	 */
-	template<class C> static void addState(const std::string& name);
+	template<class T> requires (std::derived_from<T, TAGBaseState> && !std::same_as<T, TAGBaseState>) static void addState(const std::string& name);
 	/**
 	 * Removes a state from the state machine. Cannot be the current state.
 	 * 
@@ -65,6 +89,14 @@ public:
 	 * @return The end state of the game
 	 */
 	static int runGame();
+	/**
+	* Get perspective projection matrix based on static values
+	*/
+	static glm::mat4 createPerspectiveMatrix();
+	/**
+	* Get "look at" matrix based on static values
+	*/
+	static glm::mat4 createCameraMatrix();
 private:
 	static inline bool frame_ready = false;
 	static inline bool game_initialized = false;
@@ -74,39 +106,24 @@ private:
 	static inline std::vector<int> still_pressed;
 	static inline GLFWwindow* window = nullptr;
 
-	static void checkStillPressed();
 	static void baseFramebufferSizeCallback(GLFWwindow* window, int width, int height);
 	static void baseMouseCallback(GLFWwindow* window, double x_pos, double y_pos);
 	static void baseIconifyCallback(GLFWwindow* window, int inconified);
 protected:
 	double frame_interval = 1.0 / 60.0;
-	static inline int width = 0;
-	static inline int height = 0;
-	static inline double last_x = -1.0;
-	static inline double last_y = -1.0;
-	static inline double current_time = 0.0;
-	static inline double delta_time = 0.0;
-	static inline double delta_x = 0.0;
-	static inline double delta_y = 0.0;
-	static inline bool iconified = false;
-	static inline bool first_mouse = true;
-	
+
+	/**
+	* Default constructor
+	*/
 	TAGBaseState() {};
 	/**
-	 * Returns true if the GLFW key defined is currently being pressed
+	 * Returns 0 if the key is not being pressed, 1 if the key is being pressed and this is the first time its
+	 * state has been checked and 2 if the key is still being pressed since the last time its state was checked.
 	 *
 	 * @param key The GLFW key
-	 * @return True if the key is being pressed, false otherwise
+	 * @return Key state
 	 */
-	static bool isKeyPressed(const int& key);
-	/**
-	 * If the user checked if the GLFW key was being pressed with isKeyPressed, 
-	 * returns true if the key has not been let go since then.
-	 * 
-	 * @param key The GLFW key.
-	 * @return True if the GLFW key is still being pressed since the last check with isKeyPressed. Returns false otherwise.
-	 */
-	static bool isKeyStillPressed(const int& key);
+	static unsigned int getKeyState(const int& key);
 	/**
 	 * Sets the state of the mouse depending on state, TAGEnum::TRUE meaning locked to the centre and hidden,
 	 * FALSE for free movement and TOGGLE to switch between states.
@@ -143,11 +160,11 @@ protected:
 	 */
 	virtual void mouseCallback() = 0;
 	/**
-	 * Run when the size of the window changes
+	 * Run when the size of the window changes.
 	 */
 	virtual void framebufferSizeCallback() = 0;
 	/**
-	 * Run when the window is iconified. Whatever the hell that means.
+	 * Run when the window is iconified.
 	 */
 	virtual void iconifyCallback() = 0;
 };

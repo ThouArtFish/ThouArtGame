@@ -3,83 +3,203 @@
 #include <vector>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "BaseStateClass.hpp"
 #include "ResourceManagerClass.hpp"
 #include "UtilClass.hpp"
 
+namespace TAGLight {
+	/**
+	* Client side light structs
+	*/
+	struct Point {
+		glm::vec3 position, colour;
+		glm::vec2 attenuation;
+	};
+
+	struct Ray {
+		glm::vec3 direction, colour;
+	};
+
+	struct Flash {
+		glm::vec3 position, direction, colour;
+		glm::vec2 attenuation;
+		float angle;
+	};
+
+	/**
+	* Shader side light structs
+	*/
+	struct alignas(16) ShaderPoint {
+		glm::vec4 a, b;
+	};
+
+	struct alignas(16) ShaderRay {
+		glm::vec4 a;
+		glm::vec2 b;
+	};
+
+	struct alignas(16) ShaderFlash {
+		glm::vec4 a, b, c;
+	};
+};
+
 /**
- * Manages in-game lights. Stores Light structs in a vector for client-side access and also controls a shader storage buffer object
- * to store the lights GPU-side.
- */
-class TAGLightManager {
+* Names for light type members when setting individual attributes
+*/
+namespace PointLightMemberName {
+	struct TagStruct {};
+	struct POSITION : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Point, position); };
+	struct COLOUR : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Point, colour); };
+	struct ATTENUATION : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGLight::Point, attenuation); };
+
+	template<typename T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
+};
+
+namespace RayLightMemberName {
+	struct TagStruct {};
+	struct DIRECTION : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Ray, direction); };
+	struct COLOUR : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Ray, colour); };
+
+	template<typename T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
+};
+
+namespace FlashLightMemberName {
+	struct TagStruct {};
+	struct POSITION : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Flash, position); };
+	struct DIRECTION : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Flash, direction); };
+	struct COLOUR : TagStruct { using TYPE = glm::vec3; static constexpr std::size_t OFFSET = offsetof(TAGLight::Flash, colour); };
+	struct ATTENUATION : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGLight::Flash, attenuation); };
+	struct ANGLE : TagStruct { using TYPE = float; static constexpr std::size_t OFFSET = offsetof(TAGLight::Flash, angle); };
+
+	template<typename T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
+};
+
+/**
+* Concept for checking if light struct member name is correct, depending on the type of light the current instance of TAGLightManager is storing
+*/
+namespace VariableLightMemberName {
+	template<typename L, typename V> concept Concept =
+		(std::same_as<L, TAGLight::Point> && PointLightMemberName::Concept<V>) ||
+		(std::same_as<L, TAGLight::Ray> && RayLightMemberName::Concept<V>) ||
+		(std::same_as<L, TAGLight::Flash> && FlashLightMemberName::Concept<V>);
+};
+
+/**
+* Concept for allowing only the light structs
+*/
+template<class T> concept LightType = isAnyOf<T, TAGLight::Point, TAGLight::Ray, TAGLight::Flash>;
+
+/**
+* Struct for extracting shader type of light
+*/
+template<LightType T> struct ShaderLightType;
+template<> struct ShaderLightType<TAGLight::Point> { using TYPE = TAGLight::ShaderPoint; static constexpr GLuint default_binding_point = 0; };
+template<> struct ShaderLightType<TAGLight::Ray> { using TYPE = TAGLight::ShaderRay; static constexpr GLuint default_binding_point = 1; };
+template<> struct ShaderLightType<TAGLight::Flash> { using TYPE = TAGLight::ShaderFlash; static constexpr GLuint default_binding_point = 2; };
+
+/**
+* Manages in-game lights. Stores Light structs in a vector for client-side access and also controls a shader storage buffer object
+* to store the lights GPU-side.
+*/
+template<LightType T> class TAGLightManager : public TAGBaseState::OpenGLContextChecker {
 	public:
-		/**
-		 * Convoluted way of representing multiple lighting types to cram as much information as possible into two 4D vectors.
-		 * The light can be point, directional or flashlight.
-		 * The formatting for each light is the following:
-		 * 
-		 * a.xyz = position (flash, point); = direction (direc)
-		 * b.xyz = color (point, direc); = direction (flash)
-		 * a.w = distance factor
-		 * b.w > 0 (cone scope for flash in radians); = 0 (declares light is point); < 0 (declares light is direc)
-		 * 
-		 * Yes flashlights can have only a single light colour.
-		 * This needs to be overhauled immediately.
-		 */
-		struct Light {
-			glm::vec4 a;
-			glm::vec4 b;
-		};
-		/**
-		 * Describes how often the lights are changed. This is not a hard restriction and just improves the efficiency of data traversal.
-		 * STATIC means data changes basically never. DYNAMIC is for sometimes. STREAM if changes happen every frame.
-		 */
-		enum class ChangeFreq : GLenum {
-			STATIC = GL_STATIC_DRAW,
-			DYNAMIC = GL_DYNAMIC_DRAW,
-			STREAM = GL_STREAM_DRAW
-		};
-		bool delete_on_death = true;
+		static inline constexpr GLuint default_scene_binding_point = 3;
+		
+		static inline constexpr GLuint MAX_BINDING_INDEX = 6;
 
 		/**
-		 * Light buffer is initialized with no data.
-		 * The initial size of the buffer is not the hard limit and will dynamically change in size if 
-		 * more lights are added.
+		* Scene data for shaders
+		*/
+		struct Scene {
+			GLfloat ambience;
+		};
+
+		using ShaderT = ShaderLightType<T>::TYPE;
+		using SceneBufferObject = TAGResourceManager::ObjectBuffer<Scene, GLfloat>;
+
+		/**
+		* Initialize with a number of lights and access manager
+		* 
+		* @params lights Array of lights
+		* @param access Access modifier for stored lights
+		* @param size Size of buffer
+		*/
+		TAGLightManager(const std::vector<T>& lights, const TAGResourceManager::BufferAccess& access, const unsigned int& size = 1);
+		/**
+		* Initialize by allocating a size for buffer and access manager
+		* 
+		* @param access Access modifier for stored lights
+		* @params size Size of buffer
+		*/
+		TAGLightManager(const TAGResourceManager::BufferAccess& access, const unsigned int& size = 1);
+		/**
+		 * Set light at index.
+		 * Pushes to end of light array if no index is passed.
+		 * A buffer update function must be used for changes to be reflected in the GPU buffer.
 		 * 
-		 * @params size The size of the light buffer.
-		 * @params chnage_freq How often the buffer is changed.
+		 * @param light New light
+		 * @param index Index in light array
 		 */
-		TAGLightManager(const unsigned int& size, const ChangeFreq& change_freq);
+		void setLight(const T& light, const int& index = -1);
 		/**
-		 * Light buffer is initialized with light data and at max size.
-		 * The initial size of the buffer is not the hard limit and will dynamically change in size if
-		 * more lights are added.
-		 *
-		 * @params lights The lights to push to the buffer.
-		 * @params chnage_freq How often the buffer is changed.
-		 */
-		TAGLightManager(const std::vector<Light>& lights, const ChangeFreq& change_freq);
-		~TAGLightManager();
+		* Set an attribute of an existing light struct, based on the offset of the attribute in the Light struct
+		*
+		* @param value Value to set
+		* @param index Index in array
+		*/
+		template<typename V> requires VariableLightMemberName::Concept<T, V> void setLightMember(const V::TYPE& value, const GLuint& index);
 		/**
-		 * Returns all lights, but allows changes.
-		 */
-		std::vector<Light>& changeLights();
+		* Removes light at index.
+		* Pops last light if no index is passed.
+		* A buffer update function must be used for changes to be reflected in the GPU buffer.
+		* 
+		* @param index Index in light array
+		*/
+		T removeLight(const int& index = -1);
 		/**
-		 * Returns all lights.
+		* Clears all lights and sets new lights from parameter.
+		* A buffer update function must be used for changes to be reflected in the GPU buffer.
+		* 
+		* @param lights New lights.
+		*/
+		void setAllLights(const std::vector<T>& lights);
+		/**
+		 * Get light at index.
+		 * Gets last light if no index is passed.
+		 * 
+		 * @param index Index in light array
 		 */
-		const std::vector<Light>& getLights() const;
+		const T& getLight(const int& index = -1) const;
+		/**
+		* Get all lights.
+		*/
+		const std::vector<T>& getAllLights() const;
 		/**
 		 * Binds the light buffer to all shaders at binding point index.
 		 * 
-		 * @param index Binding point os shader storage buffer object in any shader.
-		 */
-		void bindShaderData(const unsigned int& index);
-		/**
-		 * Unbinds the light buffer from all shaders at binding point index.
-		 * 
 		 * @param index Binding point of shader storage buffer object in any shader.
 		 */
-		void unbindShaderData(const unsigned int& index) const;
+		void bindToShader(const GLintptr& offset = 0, const GLuint& index = ShaderLightType<T>::default_binding_point);
+		/**
+		* Updates GPU side buffer with CPU side lights.
+		*/
+		void updateLightBuffer();
+		/**
+		* Set scene data
+		*
+		* @param scene New scene data.
+		*/
+		static void setScene(const Scene& scene);
+		/**
+		* Get scene data.
+		*/
+		static const Scene& getScene();
+		/**
+		* Set scene data to all shaders at binding point index.
+		*
+		* @param index Binding point of shader storage buffer object in any shader.
+		*/
+		static void bindSceneToShader(const GLuint& index = default_scene_binding_point);
 		/**
 		 * Returns iterator for traversing lights
 		 */
@@ -89,12 +209,16 @@ class TAGLightManager {
 		 */
 		auto end() const;
 		/**
-		 * Returns number of lights
-		 */
-		unsigned int size() const;
+		* Returns number of lights in GPU buffer
+		*/
+		unsigned int bufferSize() const;
 	private:
-		unsigned int buffer_size;
-		unsigned int buffer_ID = 0;
-		bool was_updated = true;
-		std::vector<Light> lights;
+		TAGResourceManager::ObjectBuffer<T, ShaderT> lights;
+		static inline std::variant<std::monostate, SceneBufferObject> scene;
+
+		static ShaderT shaderLightConverter(const T& light, const GLuint& split = 0);
+		static GLfloat shaderSceneConverter(const Scene& scene, const GLuint& split = 0);
+		static void initSceneBuffer();
 };
+
+#include "../../src/LightManagerClass.inl"

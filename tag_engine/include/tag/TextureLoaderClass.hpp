@@ -6,9 +6,9 @@
 #include <filesystem>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <stb/stb_image.h>
 #include "ResourceManagerClass.hpp"
+#include "BaseStateClass.hpp"
 
 /**
  * The type of a texture.
@@ -34,7 +34,7 @@ enum class TAGTexParam {
 /**
  * Loads images. Probably not needed to be user by the user explicitly.
  */
-class TAGTexLoader {
+class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 	public:
 		/**
 		* Handles pointers to image data blocks

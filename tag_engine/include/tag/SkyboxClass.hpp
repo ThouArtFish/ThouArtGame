@@ -11,10 +11,8 @@
 /**
 * Handles an instance of a skybox
 */
-class TAGSkybox {
+class TAGSkybox : public TAGBaseState::OpenGLContextChecker {
 	public:
-		bool delete_on_death = true;
-
 		/**
 		* Pass a path to the directory containing all skybox images.
 		* Params decide the loading parameters for each skybox texture.
@@ -29,9 +27,9 @@ class TAGSkybox {
 		* Draws the skybox.
 		* 
 		* @param shader The shader to draw the skybox with
-		* @param name Name of shader uniform that stores cubemap handle
+		* @param cubemap_name Name of cubemap shader uniform
 		*/
-		void draw(const TAGShaderManager::Shader& shader, const std::string& name) const;
+		void draw(const TAGShaderManager::Shader& shader, const std::string& cubemap_name = TAGShaderManager::default_options.cubemap) const;
 	private:
 		unsigned int VBO, EBO, VAO, cubemap_ID;
 };

@@ -3,7 +3,7 @@
 TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& params) {
 	cubemap_ID = TAGTexLoader::cubemapFromFile(TAGResourceManager::asset_path + directory + (directory.ends_with("/") ? "" : "/"), params);
 
-	static const std::array<float, 24> vertices = {
+	static constexpr std::array<float, 24> vertices = {
 		1.0f, 1.0f, 1.0f,
 		-1.0f, 1.0f, 1.0f,
 		-1.0f, -1.0f, 1.0f,
@@ -14,7 +14,7 @@ TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& p
 		1.0f, -1.0f, -1.0f
 	};
 
-	static const std::array<unsigned int, 36> indices = {
+	static constexpr std::array<unsigned int, 36> indices = {
 		0, 3, 1,
 		2, 1, 3,
 		4, 5, 7,
@@ -29,9 +29,9 @@ TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& p
 		3, 0, 7
 	};
 
-	VBO = TAGResourceManager::createBuffer<GenericBuffer>();
-	EBO = TAGResourceManager::createBuffer<GenericBuffer>();
-	VAO = TAGResourceManager::createBuffer<VertexArrayObject>();
+	VBO = TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>();
+	EBO = TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>();
+	VAO = TAGResourceManager::createBuffer<OpenGLObjectType::VertexArrayObject>();
 
 	glBindVertexArray(VAO);
 
@@ -50,22 +50,28 @@ TAGSkybox::TAGSkybox(const std::string& directory, const TAGTexLoader::Params& p
 }
 
 TAGSkybox::~TAGSkybox() {
-	if (delete_on_death) {
-		TAGResourceManager::deleteBuffer<TextureBuffer>(cubemap_ID);
-		TAGResourceManager::deleteBuffer<GenericBuffer>(VBO);
-		TAGResourceManager::deleteBuffer<GenericBuffer>(EBO);
-		TAGResourceManager::deleteBuffer<VertexArrayObject>(VAO);
-	}
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::TextureBuffer>(cubemap_ID);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(VBO);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(EBO);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::VertexArrayObject>(VAO);
 }
 
-void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& name) const {
+void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& cubemap_name) const {
+	for (const auto& pair : shader.buffer_locations) {
+		TAGResourceManager::updateAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
+	}
+
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);
 	glActiveTexture(GL_TEXTURE0);
-	shader.setInt(name, 0);
+	shader.set<ShaderUniformType::CUBEMAP>(cubemap_name, 0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_ID);
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 	glDepthFunc(GL_LESS);
+
+	for (const auto& pair : shader.buffer_locations) {
+		TAGResourceManager::fenceAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
+	}
 }
