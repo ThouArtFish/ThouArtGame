@@ -47,9 +47,6 @@ template<LightType T> const std::vector<T>& TAGLightManager<T>::getAllLights() c
 }
 
 template<LightType T> void TAGLightManager<T>::bindToShader(const GLintptr& offset, const GLuint& index) {
-	if (lights.isObjectsChanged()) {
-		updateLightBuffer();
-	}
 	lights.bindToShader(index, offset, TAGResourceManager::ShaderBufferType::SHADER_STORAGE);
 }
 
@@ -58,7 +55,7 @@ template<LightType T> void TAGLightManager<T>::updateLightBuffer() {
 }
 
 template<LightType T> void TAGLightManager<T>::setScene(const Scene& scene_struct) {
-	SceneObject* scene_ptr = std::get_if<SceneObject>(&scene);
+	SceneBufferObject* scene_ptr = std::get_if<SceneBufferObject>(&scene);
 	if (scene_ptr) {
 		scene_ptr->setObject(scene_struct, 0);
 		scene_ptr->updateBuffer();
@@ -66,11 +63,11 @@ template<LightType T> void TAGLightManager<T>::setScene(const Scene& scene_struc
 }
 
 template<LightType T> const TAGLightManager<T>::Scene& TAGLightManager<T>::getScene() {
-	return std::get_if<SceneObject>(&scene)->peekObject();
+	return std::get_if<SceneBufferObject>(&scene)->peekObject();
 }
 
 template<LightType T> void TAGLightManager<T>::bindSceneToShader(const GLuint& index) {
-	SceneObject* scene_ptr = std::get_if<SceneObject>(&scene);
+	SceneBufferObject* scene_ptr = std::get_if<SceneBufferObject>(&scene);
 	if (scene_ptr) {
 		scene_ptr->bindToShader(index, 0, TAGResourceManager::ShaderBufferType::SHADER_STORAGE);
 	}
@@ -105,8 +102,8 @@ template<LightType T> GLfloat TAGLightManager<T>::shaderSceneConverter(const Sce
 }
 
 template<LightType T> void TAGLightManager<T>::initSceneBuffer() {
-	scene.emplace<SceneObject>(1, shaderSceneConverter, TAGResourceManager::BufferAccess::STATIC);
-	SceneObject& scene_buffer = std::get<1>(scene);
+	scene.emplace<SceneBufferObject>(1, shaderSceneConverter, TAGResourceManager::BufferAccess::STATIC);
+	SceneBufferObject& scene_buffer = std::get<1>(scene);
 	scene_buffer.pushObject({ 0.1f });
 	scene_buffer.updateBuffer();
 }

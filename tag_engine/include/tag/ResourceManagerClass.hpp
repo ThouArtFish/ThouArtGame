@@ -250,6 +250,8 @@ public:
 	* Clears all buffers
 	*/
 	static void clear();
+
+	static ShaderBufferType interfaceToBufferType(const ShaderBufferInterfaceType& interface_type);
 private:
 	struct BindingData {
 		ObjectBufferWrapper* ptr = nullptr;

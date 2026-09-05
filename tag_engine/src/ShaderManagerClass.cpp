@@ -114,7 +114,8 @@ TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
         for (GLint i = 0; i < count; i++) {
             GLsizei length;
             glGetProgramResourceiv(ID, (GLenum)type, i, (GLsizei)props.max_size(), props.data(), sizeof(data), &length, data.data());
-            shader.buffer_locations[(GLuint)type].push_back(data[0]);
+
+            shader.buffer_locations[(GLuint)TAGResourceManager::interfaceToBufferType(type)].push_back(data[0]);
         }
     }
 

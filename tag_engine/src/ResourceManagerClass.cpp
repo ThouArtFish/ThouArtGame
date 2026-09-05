@@ -43,3 +43,16 @@ void TAGResourceManager::clear() {
 	vao_binding_indices.clear();
 	shader_binding_indices.clear();
 }
+
+TAGResourceManager::ShaderBufferType TAGResourceManager::interfaceToBufferType(const TAGResourceManager::ShaderBufferInterfaceType& interface_type) {
+	switch (interface_type) {
+	case ShaderBufferInterfaceType::SHADER_STORAGE:
+		return ShaderBufferType::SHADER_STORAGE;
+	case ShaderBufferInterfaceType::ATOMIC_COUNTER:
+		return ShaderBufferType::ATOMIC_COUNTER;
+	case ShaderBufferInterfaceType::TRANSFORM_FEEDBACK:
+		return ShaderBufferType::TRANSFORM_FEEDBACK;
+	default:
+		return ShaderBufferType::UNIFORM;
+	}
+}

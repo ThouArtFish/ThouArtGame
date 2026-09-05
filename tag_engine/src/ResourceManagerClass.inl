@@ -119,7 +119,7 @@ template<class T> void TAGResourceManager::BufferBase<T>::updateBindings(const G
 		bool contains_old_id = false;
 		for (BindingData& binding_data : map_it->second) {
 			if (binding_data.buffer_id == buffer_id) {
-				glBindBufferRange((GLenum)map_it->first, binding_data.binding_index, new_buffer_id, internal_offset + binding_data.offset, max_objs * sizeof(T));
+				glBindBufferRange((GLenum)map_it->first, binding_data.binding_index, new_buffer_id, internal_offset + binding_data.offset, max_objs * sizeof(T) + include_size);
 				binding_data.buffer_id = new_buffer_id;
 				contains_old_id = true;
 			}
@@ -362,8 +362,8 @@ template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuff
 }
 
 template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option) {
-	auto& vec = shader_binding_indices[(GLuint)buffer_option];
-	glBindBufferRange((GLenum)buffer_option, binding_index, buffer->buffer_id, buffer->internal_offset + offset, buffer->max_objs * sizeof(G));
+	auto& vec = shader_binding_indices.try_emplace((GLuint)buffer_option).first->second;
+	glBindBufferRange((GLenum)buffer_option, binding_index, buffer->buffer_id, buffer->internal_offset + offset, buffer->max_objs * sizeof(G) + buffer->include_size);
 	if (std::find(buffer->bound_buffers.begin(), buffer->bound_buffers.end(), buffer_option) == buffer->bound_buffers.end()) {
 		buffer->bound_buffers.push_back(buffer_option);
 	}

@@ -33,11 +33,10 @@ class MainState : public TAGBaseState {
 		const float grav_accel = -10.0f;
 		const float jump_accel = 20.0f;
 		const float sens = 0.001f;
-		const glm::vec2 player_light_atten = { 0.7f, 1.8f };
-		const glm::vec2 lamp_light_atten = { 0.14f, 0.07f };
+		const glm::vec2 light_atten = { 0.0f, 0.02f };
 		const glm::vec3 floor_elevation = glm::vec3(0.0f, -20.0f, 0.0f);
 		const glm::vec4 player_light = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
-		const glm::vec4 lamp_light = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+		const glm::vec4 lamp_light = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
 		const static inline std::vector<std::string> shader_names = { "instanced", "uninstanced", "hud", "skybox" };
 		const static inline std::vector<std::string> camera_shader_names = { shader_names[3], shader_names[0], shader_names[1] };
 		const static inline std::vector<std::string> image_names = { "flat_man", "pineapple" };
@@ -67,8 +66,6 @@ class MainState : public TAGBaseState {
 			TAGResourceManager::BufferAccess::DYNAMIC,
 			TAGMesh::Material()
 		);
-
-		TAGHUDManager hud = TAGHUDManager(TAGResourceManager::BufferAccess::STREAM, 5);
 
 		TAGSkybox skybox = TAGSkybox("skybox/", { TAGTexParam::CLAMP_TO_EDGE_TEX, TAGTexParam::LINEAR_INTERP_PIX, TAGTexParam::LINEAR_INTERP_PIX, false, false });
 
@@ -117,24 +114,14 @@ MainState::MainState() {
 		}
 	);
 
-	hud.addImage(images.getMesh(image_names[0]).getMaterial("Default").textures.at(0));
-	hud.addQuad(
-		{
-			.position = glm::vec2(0.0f),
-			.dimensions = glm::vec2(0.1f),
-			.image_name = image_names[0],
-			.layer = 0
-		}
-	);
+	// Place lamp
+	lamp_pos = glm::vec3(0, -lamp.getMesh("lampion").mesh_bb.min.y * 0.01f, -3.0f) + floor_elevation;
 
 	// Create lights
 	std::vector<TAGLight::Point> lights;
-	lights.emplace_back(camera_position, player_light, player_light_atten);
-	lights.emplace_back(lamp_pos, lamp_light, lamp_light_atten);
+	lights.emplace_back(lamp_pos + glm::vec3(0.0f, 0.5f, 0.0f), lamp_light, light_atten);
 	light_manager.setAllLights(lights);
-
-	// Place lamp
-	lamp_pos = glm::vec3(0, -lamp.getMesh("lampion").mesh_bb.min.y * 0.01f, -3.0f) + floor_elevation;
+	light_manager.bindToShader();
 
 	// Set scene data
 	light_manager.setScene({ .ambience = 0.1f });
@@ -145,17 +132,13 @@ MainState::MainState() {
 
 std::string MainState::mainLoop() {
 	// Check if window has been minimized
-	if (iconified) {
-		return "CURRENT";
-	}
+	if (iconified) return "CURRENT";
+
+	// Check if player ended game
+	if (end_game) return "END";
 
 	// Check inputs
 	glm::vec3 camera_velocity = processInput();
-
-	// Check if player ended game
-	if (end_game) {
-		return "END";
-	}
 
 	// Check capsule body for collisions with terrain and get floor plane
 	const glm::vec3 foot = stable_position - camera_up * camera_height;
@@ -190,10 +173,6 @@ std::string MainState::mainLoop() {
 		images.setInstance(TAGPaintingModel::faceDirec(camera_position, obj, true));
 	}
 
-	// Move hud
-	auto& quad = hud.getQuad(0);
-	hud.setQuadMember<QuadMemberName::POSITION>({ quad.position.x + 0.02f * (float)delta_time, quad.position.y }, 0);
-
 	// Apply camera position changes
 	glm::vec3 bounce = glm::vec3(0);
 	if (camera_velocity == glm::vec3(0) || !grounded) {
@@ -222,28 +201,19 @@ std::string MainState::mainLoop() {
 	// Create "look at" matrix to translate objects to camera view space
 	setCameraMatrix();
 
-	// Update lights
-	light_manager.setLightMember<PointLightMemberName::POSITION>(camera_position, 0);
-
-	// Draw game objects
-	light_manager.bindToShader();
-
 	TAGShaderManager::Shader shader = shaders.useShader(shader_names[1]);
 	lamp.drawOne(shader, { .position = lamp_pos, .scale = 0.01f });
 
 	shader = shaders.useShader(shader_names[0]);
 	playground.drawAll(shader);
 	for (const std::string& mesh_name : images.getMeshNames()) {
-		TAGShaderManager::default_options.cull_backface = (mesh_name == image_names[0]);
+		TAGShaderManager::default_options.cull_backface = (mesh_name != image_names[0]);
 		images.drawAll(shader, mesh_name);
 	}
 	TAGShaderManager::default_options.cull_backface = true;
 
 	shader = shaders.useShader(shader_names[3]);
 	skybox.draw(shader);
-
-	shader = shaders.useShader(shader_names[2]);
-	hud.drawAll(shader);
 
 	return "CURRENT";
 }

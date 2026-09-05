@@ -46,10 +46,10 @@ namespace Collision {
 	* Converts the collision detection scopes to their local versions
 	*/
 	template<RayScope T> struct STATIC {
-		using type = int;
+		using TYPE = int;
 	};
 	template<> struct STATIC<ALL> {
-		using type = std::vector<unsigned int>;
+		using TYPE = std::vector<unsigned int>;
 	};
 };
 
@@ -81,7 +81,7 @@ public:
 	* @param radius Radius of sphere
 	* @param collisions Collision::Info structs from earlier collision tests
 	*/
-	template<Collision::ColliderScope T> static Collision::STATIC<T>::type sphereCollision(const glm::vec3& centre, const float& radius, std::vector<Collision::Info>& collisions);
+	template<Collision::ColliderScope T> static Collision::STATIC<T>::TYPE sphereCollision(const glm::vec3& centre, const float& radius, const std::vector<Collision::Info>& collisions);
 	/**
 	* Detects a collision between a capsule, a sphere that has been "swept" along a line, and each instance of every mesh.
 	* 
@@ -90,6 +90,15 @@ public:
 	* @param radius Radius of capsule
 	*/
 	template<Collision::ColliderScope T> T capsuleCollision(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
+	/**
+	* Detects a collision between a capsule, a sphere that has been "swept" along a line, and each provided Collision::Info struct.
+	* 
+	* @param foot The centre of the starting sphere in the capsule
+	* @param spine Displacement vector from centre of starting sphere (foot) to the centre of the last sphere
+	* @param radius Radius of capsule
+	* @param collisions Collision::Info structs from earlier collision tests.
+	*/
+	template<Collision::ColliderScope T> static Collision::STATIC<T>::TYPE capsuleCollision(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const std::vector<Collision::Info>& collisions);
 	/**
 	* Detects a collision between a ray and each instance of every mesh.
 	* 
@@ -106,16 +115,16 @@ public:
 	* @param collisions Collision::Info structs from earlier collision tests.
 	* @param max Defines the final point of the ray by [start + (max)(ray_dir)]. If max < 0 then ray is assumed to be infinite in length.
 	*/
-	template<Collision::RayScope T> static Collision::STATIC<T>::type rayCollision(const glm::vec3& start, const glm::vec3& ray_dir, std::vector<Collision::Info>& collisions, const float& max = 1.0f);
+	template<Collision::RayScope T> static Collision::STATIC<T>::TYPE rayCollision(const glm::vec3& start, const glm::vec3& ray_dir, const std::vector<Collision::Info>& collisions, const float& max = 1.0f);
 private:
 	using ui = unsigned int;
 	using vui = std::vector<ui>;
 	using Ret = std::variant<std::vector<Collision::Info>, Collision::Info, vui, int>;
 
 	static TAGMesh::PlaneVolume planeToGameSpace(const TAGMesh::PlaneVolume& plane, const Object& obj);
-	template<Collision::RayScope T> static Collision::Info rayCollisionWithMeshInstances(const glm::vec3& start, const glm::vec3& ray_dir, const float& max, const TAGMesh& mesh, const std::vector<Object>& objs);
-	template<Collision::ColliderScope T> static Collision::Info capsuleCollisionMeshInstances(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs);
-	template<Collision::ColliderScope T> static Collision::Info sphereCollisionWithMeshInstances(const glm::vec3& centre, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs);
+	template<Collision::RayScope T> static T rayCollisionWithMeshInstances(const glm::vec3& start, const glm::vec3& ray_dir, const float& max, const TAGMesh& mesh, const std::vector<Object>& objs);
+	template<Collision::ColliderScope T> static T capsuleCollisionMeshInstances(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs);
+	template<Collision::ColliderScope T> static T sphereCollisionWithMeshInstances(const glm::vec3& centre, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs);
 };
 
 #include "../../src/WorldModelTemplates.inl"

@@ -103,9 +103,7 @@ template<> struct ShaderLightType<TAGLight::Flash> { using TYPE = TAGLight::Shad
 */
 template<LightType T> class TAGLightManager : public TAGBaseState::OpenGLContextChecker {
 	public:
-		bool delete_on_death = true;
-
-		static inline GLuint default_scene_binding_point = 3;
+		static inline constexpr GLuint default_scene_binding_point = 3;
 		
 		static inline constexpr GLuint MAX_BINDING_INDEX = 6;
 
@@ -117,7 +115,7 @@ template<LightType T> class TAGLightManager : public TAGBaseState::OpenGLContext
 		};
 
 		using ShaderT = ShaderLightType<T>::TYPE;
-		using SceneObject = TAGResourceManager::ObjectBuffer<Scene, GLfloat>;
+		using SceneBufferObject = TAGResourceManager::ObjectBuffer<Scene, GLfloat>;
 
 		/**
 		* Initialize with a number of lights and access manager
@@ -178,7 +176,6 @@ template<LightType T> class TAGLightManager : public TAGBaseState::OpenGLContext
 		const std::vector<T>& getAllLights() const;
 		/**
 		 * Binds the light buffer to all shaders at binding point index.
-		 * Also update GPU side buffer if update is required.
 		 * 
 		 * @param index Binding point of shader storage buffer object in any shader.
 		 */
@@ -217,7 +214,7 @@ template<LightType T> class TAGLightManager : public TAGBaseState::OpenGLContext
 		unsigned int bufferSize() const;
 	private:
 		TAGResourceManager::ObjectBuffer<T, ShaderT> lights;
-		static inline std::variant<std::monostate, SceneObject> scene;
+		static inline std::variant<std::monostate, SceneBufferObject> scene;
 
 		static ShaderT shaderLightConverter(const T& light, const GLuint& split = 0);
 		static GLfloat shaderSceneConverter(const Scene& scene, const GLuint& split = 0);

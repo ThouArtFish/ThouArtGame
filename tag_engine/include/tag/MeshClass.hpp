@@ -68,6 +68,12 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         struct BoundingBox {
             glm::vec3 max;
             glm::vec3 min;
+
+            bool collisionPoint(const glm::vec3& point) const;
+            bool collisionBBox(const BoundingBox& box) const;
+            bool collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t = -1.0f) const;
+            bool collisionSphere(const glm::vec3& centre, const float& radius) const;
+            bool collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
         };
 
         /**
@@ -78,7 +84,13 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             BoundingBox bounds;
             std::vector<GLuint> indices;
         };
-
+        /**
+        * Smaller plane struct that only represents the infinite plane a fragment lies in
+        */
+        struct DotPlane {
+            glm::vec3 normal;
+            float constant;
+        };
         /**
         * Represents a mesh fragment in game space
         */
@@ -86,24 +98,23 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             glm::vec3 normal;
             glm::vec3 start;
             std::array<glm::vec3, 2> axis;
+
+            bool collisionPoint(const glm::vec3& point) const;
+            bool collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t = 1.0f) const;
         };
         /**
-         * Smaller plane struct that only represents the infinite plane a fragment lies in
-         */
-        struct DotPlane {
-            glm::vec3 normal;
-            float constant;
-        };
-        /**
-         * Represents the volume of a plane used for collision detection with spheres, and ray detection with frag plane.
-         */
+        * Represents the volume of a plane used for collision detection with spheres, and ray detection with frag plane.
+        */
         struct PlaneVolume {
             Plane frag_plane;
             std::array<DotPlane, 3> volume_planes;
+
+            bool collisionSphere(const glm::vec3& centre, const float& radius) const;
+            bool collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
         };
 
         static inline GLuint base_attrib = 0;
-        BoundingBox mesh_bb;
+        BoundingBox mesh_bb = { glm::vec3(0.0f), glm::vec3(0.0f) };
         std::vector<PlaneVolume> planes;
         std::vector<BVHNode> bvh_octree;
 
@@ -160,17 +171,6 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
          * Return vertex buffer object ID
          */
         const unsigned int& getVBO() const;
-
-        /**
-        * Collision detection functions
-        */
-        static bool FragWithPoint(const glm::vec3& point, const Plane& plane);
-        static bool FragWithSphere(const glm::vec3& centre, const float& radius, const PlaneVolume& plane);
-        static bool FragWithCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const PlaneVolume& plane);
-        static bool BBoxWithBBox(const BoundingBox& box_a, const BoundingBox& box_b);
-        static bool BBoxWithRay(const BoundingBox& box, const glm::vec3& start, const glm::vec3& ray, const float& factor);
-        static bool BBoxWithCapsule(const BoundingBox& box, const glm::vec3& foot, const glm::vec3& spine, const float& radius);
-        static bool BBoxWithSphere(const BoundingBox& box, const glm::vec3& centre, const float& radius);
 
         /**
         * Generate bounding box from array of vectors

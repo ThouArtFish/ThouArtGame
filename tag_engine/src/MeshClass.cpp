@@ -152,7 +152,7 @@ void TAGMesh::generateBVH() {
 
 		// Find which planes within parent bounding box collide with current box
 		for (const unsigned int& plane_index : layer_indices) {
-			if (BBoxWithBBox(current_box.bounds, plane_bb[plane_index])) {
+			if (current_box.bounds.collisionBBox(plane_bb[plane_index])) {
 				current_box.indices.push_back(plane_index);
 			}
 		}
@@ -289,10 +289,9 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 
 	glBindVertexArray(VAO);
 	for (const MaterialElementBuffer& material_ebo : material_ebos) {
-		std::vector<unsigned int> diffuse, specular;
+		std::vector<GLuint> diffuse, specular;
 		const Material& material = materials[material_ebo.material_index];
-		for (unsigned int i = 0; i < material.textures.size(); i++)
-		{
+		for (GLuint i = 0; i < material.textures.size(); i++) {
 			glActiveTexture(GL_TEXTURE0 + i);
 			switch (material.textures[i].type) {
 			case TAGTexType::DIFFUSE_MAP:
@@ -377,54 +376,6 @@ const unsigned int& TAGMesh::getVBO() const {
 	return VBO;
 };
 
-bool TAGMesh::FragWithPoint(const glm::vec3& point, const Plane& plane) {
-	const std::array<glm::vec3, 3> cross_prod = {
-		glm::cross(point - plane.start, plane.axis[0]),
-		glm::cross(point - plane.start - plane.axis[0], plane.axis[1] - plane.axis[0]),
-		glm::cross(point - plane.start - plane.axis[1], -plane.axis[1])
-	};
-	return (glm::dot(cross_prod[0], plane.normal) <= 0.0f && glm::dot(cross_prod[1], plane.normal) <= 0.0f && glm::dot(cross_prod[2], plane.normal) <= 0.0f);
-}
-
-bool TAGMesh::FragWithSphere(const glm::vec3& centre, const float& radius, const PlaneVolume& plane) {
-	for (size_t i = 0; i < 4; i++) {
-		const double signed_dist = (
-			i == 0 ? glm::abs(glm::dot(centre - plane.frag_plane.start, plane.frag_plane.normal))
-			: glm::dot(centre, plane.volume_planes[i - 1].normal) - plane.volume_planes[i - 1].constant
-		);
-
-		if (signed_dist > radius) {
-			return false;
-		}
-	}
-	return true;
-}
-
-bool TAGMesh::FragWithCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const PlaneVolume& plane) {
-	double d = glm::dot(spine, plane.frag_plane.normal);
-	if (glm::abs(d) < 0.0001) {
-		if (glm::abs(glm::dot(plane.frag_plane.normal, foot - plane.frag_plane.start)) > radius) {
-			return false;
-		}
-		for (const DotPlane& volume_plane : plane.volume_planes) {
-			d = glm::dot(spine, volume_plane.normal);
-			if (glm::abs(d) < 0.0001) {
-				if (glm::dot(foot, volume_plane.normal) > radius + volume_plane.constant) {
-					return false;
-				}
-			}
-			else {
-				d = glm::min(1.0, glm::max(0.0, (volume_plane.constant - glm::dot(foot, volume_plane.normal)) / d));
-				if (glm::dot(foot + spine * (float)d, volume_plane.normal) > radius + volume_plane.constant) {
-					return false;
-				}
-			}
-		}
-		return true;
-	}
-	return FragWithSphere(foot + spine * (float)glm::min(1.0, glm::max(0.0, glm::dot(plane.frag_plane.normal, plane.frag_plane.start - foot) / d)), radius, plane);
-}
-
 TAGMesh::BoundingBox TAGMesh::generateBoundingBox(const glm::vec3* first, const unsigned int& size) {
 	glm::vec3 max, min;
 	max = min = *first;
@@ -435,44 +386,101 @@ TAGMesh::BoundingBox TAGMesh::generateBoundingBox(const glm::vec3* first, const 
 	return { max, min };
 }
 
-bool TAGMesh::BBoxWithBBox(const BoundingBox& box_a, const BoundingBox& box_b) {
-	return box_a.max.x >= box_b.min.x && box_a.min.x <= box_b.max.x &&
-		box_a.max.y >= box_b.min.y && box_a.min.y <= box_b.max.y &&
-		box_a.max.z >= box_b.min.z && box_a.min.z <= box_b.max.z;
+bool TAGMesh::BoundingBox::collisionPoint(const glm::vec3& point) const {
+	return glm::clamp(point, min, max) == point;
 }
 
-bool TAGMesh::BBoxWithRay(const BoundingBox& box, const glm::vec3& start, const glm::vec3& ray, const float& factor) {
-	double t_exit = std::numeric_limits<double>::infinity();
-	double t_enter = -t_exit;
-	for (GLuint i = 0; i < 3; i++) {
-		if (glm::abs(ray[i]) > 0.0001f) {
-			t_exit = glm::min((double)((ray[i] > 0.0f ? box.max[i] : box.min[i]) - start[i]) / ray[i], t_exit);
-			t_enter = glm::max((double)((ray[i] > 0.0f ? box.min[i] : box.max[i]) - start[i]) / ray[i], t_enter);
-		}
-		else if (start[i] < box.min[i] || start[i] > box.max[i]) {
-			return false;
-		}
+bool TAGMesh::BoundingBox::collisionBBox(const BoundingBox& box) const {
+	return max.x >= box.min.x && min.x <= box.max.x &&
+		max.y >= box.min.y && min.y <= box.max.y &&
+		max.z >= box.min.z && min.z <= box.max.z;
+}
+
+bool TAGMesh::BoundingBox::collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t) const {
+	glm::vec3 inv_ray = 1.0f / ray;
+	float t_min = -std::numeric_limits<float>::infinity();
+	float t_max = -t_min;
+	for (unsigned int i = 0; i < 3; i++) {
+		float t1 = (min[i] - start[i]) * inv_ray[i];
+		float t2 = (max[i] - start[i]) * inv_ray[i];
+
+		if (t1 > t2) std::swap(t1, t2);
+
+		t_min = std::max(t_min, t1);
+		t_max = std::min(t_max, t2);
+
+		if (t_min > t_max) return false; 
 	}
-	return (t_enter <= t_exit && t_exit >= 0.0 && (t_exit <= factor || factor < 0.0f));
+	return (t_max >= 0.0f && (t_max <= t || t < 0.0f));
 }
 
-bool TAGMesh::BBoxWithCapsule(const BoundingBox& box, const glm::vec3& foot, const glm::vec3& spine, const float& radius) {
-	double t_enter = -std::numeric_limits<double>::infinity();
-	double t_exit = std::numeric_limits<double>::infinity();
-	for (GLuint i = 0; i < 3; i++) {
-		if (glm::abs(spine[i]) > 0.0001f) {
-			t_enter = glm::max((double)((spine[i] > 0.0f ? box.min[i] : box.max[i]) - radius - foot[i]) / spine[i], t_enter);
-			t_exit = glm::min((double)((spine[i] > 0.0f ? box.max[i] : box.min[i]) + radius - foot[i]) / spine[i], t_exit);
-		}
-		else if (foot[i] < box.min[i] - radius || foot[i] > box.max[i] + radius) {
-			return false;
-		}
+bool TAGMesh::BoundingBox::collisionSphere(const glm::vec3& centre, const float& radius) const {
+	return TAGUtil::lengthSq(glm::clamp(centre, min, max) - centre) <= radius * radius;
+}
+
+bool TAGMesh::BoundingBox::collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const {
+	glm::vec3 closest_ray = foot, closest_box;
+	const float s2 = TAGUtil::lengthSq(spine);
+
+	for (int i = 0; i < 4; i++) {
+		closest_box = glm::clamp(closest_ray, min, max);
+		closest_ray = foot + spine * std::clamp(glm::dot(closest_box - foot, spine) / s2, 0.0f, 1.0f);
 	}
-	return (t_enter <= t_exit && t_exit >= 0.0 && t_enter <= 1.0);
+
+	return collisionSphere(closest_ray, radius);
 }
 
-bool TAGMesh::BBoxWithSphere(const BoundingBox& box, const glm::vec3& centre, const float& radius) {
-	return centre.x >= box.min.x - radius && centre.x <= box.max.x + radius &&
-		centre.y >= box.min.y - radius && centre.y <= box.max.y + radius &&
-		centre.z >= box.min.z - radius && centre.z <= box.max.z + radius;
+bool TAGMesh::Plane::collisionPoint(const glm::vec3& point) const {
+	const std::array<glm::vec3, 3> cross_prod = {
+		glm::cross(point - start, axis[0]),
+		glm::cross(point - start - axis[0], axis[1] - axis[0]),
+		glm::cross(point - start - axis[1], -axis[1])
+	};
+	return (glm::dot(cross_prod[0], normal) <= 0.0f && glm::dot(cross_prod[1], normal) <= 0.0f && glm::dot(cross_prod[2], normal) <= 0.0f);
+}
+
+bool TAGMesh::Plane::collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t) const {
+	float d = glm::dot(normal, ray);
+
+	if (glm::abs(d) < 0.0001) return false;
+
+	d = glm::dot(normal, this->start - start) / d;
+
+	if (d < 0.0f || (t < 0.0f && d > t)) return false;
+
+	return collisionPoint(start + ray * d);
+}
+
+bool TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre, const float& radius) const {
+	for (size_t i = 0; i < 4; i++) {
+		const float signed_dist = (
+			i == 0 ? glm::abs(glm::dot(centre - frag_plane.start, frag_plane.normal))
+			: glm::dot(centre, volume_planes[i - 1].normal) - volume_planes[i - 1].constant
+			);
+
+		if (signed_dist > radius) return false;
+	}
+	return true;
+}
+
+bool TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const {
+	float d = glm::dot(spine, frag_plane.normal);
+	if (glm::abs(d) < 0.0001) {
+		if (glm::abs(glm::dot(frag_plane.normal, foot - frag_plane.start)) > radius) return false;
+
+		for (const DotPlane& volume_plane : volume_planes) {
+			d = glm::dot(spine, volume_plane.normal);
+			if (glm::abs(d) < 0.0001) {
+				if (glm::dot(foot, volume_plane.normal) > radius + volume_plane.constant) return false;
+			}
+			else {
+				d = glm::min(1.0f, glm::max(0.0f, (volume_plane.constant - glm::dot(foot, volume_plane.normal)) / d));
+
+				if (glm::dot(foot + spine * d, volume_plane.normal) > radius + volume_plane.constant) return false;
+			}
+		}
+
+		return true;
+	}
+	return collisionSphere(foot + spine * glm::clamp(glm::dot(frag_plane.normal, frag_plane.start - foot) / d, 0.0f, 1.0f), radius);
 }
