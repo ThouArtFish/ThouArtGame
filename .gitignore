@@ -19,6 +19,12 @@ mono_crash.*
 # Syncthing
 .stfolder/
 
+# Source only
+*.slnx
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
