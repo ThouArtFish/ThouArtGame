@@ -127,4 +127,4 @@ private:
 	template<Collision::ColliderScope T> static T sphereCollisionWithMeshInstances(const glm::vec3& centre, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs);
 };
 
-#include "../../src/WorldModelTemplates.inl"
+#include "WorldModelTemplates.inl"

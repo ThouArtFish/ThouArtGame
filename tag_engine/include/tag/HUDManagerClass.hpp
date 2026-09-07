@@ -206,4 +206,4 @@ namespace QuadMemberName {
 	struct TEXEL_TOP_RIGHT : TagStruct { using TYPE = glm::vec2; static constexpr std::size_t OFFSET = offsetof(TAGHUDManager::Quad, texel_top_right); };
 };
 
-#include "../../src/HUDManagerClass.inl"
+#include "HUDManagerClass.inl"

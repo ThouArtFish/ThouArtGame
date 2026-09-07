@@ -187,3 +187,5 @@ namespace ObjectMemberName {
 	struct ANGLE : TagStruct { using TYPE = float; static constexpr std::size_t OFFSET = offsetof(TAGModel::Object, angle); };
 	struct SCALE : TagStruct { using TYPE = float; static constexpr std::size_t OFFSET = offsetof(TAGModel::Object, scale); };
 };
+
+#include "ModelClass.inl"

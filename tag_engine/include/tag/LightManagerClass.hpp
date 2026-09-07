@@ -221,4 +221,4 @@ template<LightType T> class TAGLightManager : public TAGBaseState::OpenGLContext
 		static void initSceneBuffer();
 };
 
-#include "../../src/LightManagerClass.inl"
+#include "LightManagerClass.inl"

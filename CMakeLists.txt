@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
+project(TAGEngine)
+
 include(FetchContent)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
@@ -12,12 +14,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw)
 
-project(TAGEngine)
+file(GLOB_RECURSE TAG_SOURCES CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/tag_engine/src/*.cpp
+)
+add_library(TAGEngine STATIC ${TAG_SOURCES})
 
-add_library(TAGEngine STATIC tag_engine\src)
-
-target_include_directories(TAGEngine PUBLIC tag_engine\include\vendor tag_engine\include\tag)
+target_include_directories(TAGEngine PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/tag_engine/include/vendor
+    ${CMAKE_CURRENT_SOURCE_DIR}/tag_engine/include/tag
+)
 
 target_link_libraries(TAGEngine PUBLIC glfw)
-
 target_compile_features(TAGEngine PUBLIC cxx_std_20)

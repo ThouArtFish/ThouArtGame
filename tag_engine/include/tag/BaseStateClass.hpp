@@ -169,4 +169,4 @@ protected:
 	virtual void iconifyCallback() = 0;
 };
 
-#include "../../src/BaseStateClass.inl"
+#include "BaseStateClass.inl"

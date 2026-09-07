@@ -372,4 +372,4 @@ private:
     template<ShaderUniformType::Concept T> static GLenum getEnumType();
 };
 
-#include "../../src/ShaderManagerClass.inl"
+#include "ShaderManagerClass.inl"

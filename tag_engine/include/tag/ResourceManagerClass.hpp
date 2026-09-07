@@ -264,4 +264,4 @@ private:
 	static inline std::map<GLuint, std::vector<BindingData>> shader_binding_indices;
 };
 
-#include "../../src/ResourceManagerClass.inl"
+#include "ResourceManagerClass.inl"
