@@ -16,6 +16,7 @@ FetchContent_MakeAvailable(glfw)
 
 file(GLOB_RECURSE TAG_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/tag_engine/src/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tag_engine/src/*.c
 )
 add_library(TAGEngine STATIC ${TAG_SOURCES})
 
