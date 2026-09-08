@@ -1,7 +1,9 @@
 #include <UtilClass.hpp>
 
 glm::vec3 TAGUtil::parallelComp(const glm::vec3& ref, const glm::vec3& vec) {
-	return ref * (glm::dot(ref, vec) / glm::dot(ref, ref));
+	float dot = glm::dot(ref, vec);
+	if (dot < 0.0f) dot *= bump_factor;
+	return ref * (dot / lengthSq(ref));
 }
 
 glm::vec3 TAGUtil::perpendicularComp(const glm::vec3& ref, const glm::vec3& vec) {
@@ -9,7 +11,9 @@ glm::vec3 TAGUtil::perpendicularComp(const glm::vec3& ref, const glm::vec3& vec)
 }
 
 glm::vec3 TAGUtil::parallelCompNorm(const glm::vec3& ref, const glm::vec3& vec) {
-	return ref * glm::dot(ref, vec);
+	float dot = glm::dot(ref, vec);
+	if (dot < 0.0f) dot *= bump_factor;
+	return ref * dot;
 }
 
 glm::vec3 TAGUtil::perpendicularCompNorm(const glm::vec3& ref, const glm::vec3& vec) {
