@@ -71,7 +71,7 @@ public:
 	/**
 	* Pushes vector further away from normals in case of floating point errors
 	*/
-	static constexpr inline float bump_factor = 1.001f;
+	static inline float bump_factor = 1.0001f;
 	/**
 	* Perpendicular component of vec to ref.
 	* 
