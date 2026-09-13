@@ -382,9 +382,6 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollisionWithMeshIns
 				if (collision_res == 1) {
 					collision_normal = game_plane.frag_plane.normal;
 				}
-				else if (glm::abs(glm::dot(spine, game_plane.volume_planes[collision_res - 2].normal)) < 0.0001f) {
-					collision_normal = game_plane.volume_planes[collision_res - 2].normal;
-				}
 				else {
 					const glm::vec3 start = game_plane.frag_plane.start + (collision_res == 3 ? game_plane.frag_plane.axis[0] : glm::vec3(0.0f));
 					const glm::vec3 ray = (collision_res == 2 ? game_plane.frag_plane.axis[0] : (collision_res == 3 ? game_plane.frag_plane.axis[1] - game_plane.frag_plane.axis[0] : game_plane.frag_plane.axis[1]));

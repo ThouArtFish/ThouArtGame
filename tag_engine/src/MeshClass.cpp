@@ -484,9 +484,12 @@ GLuint TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, const glm::
 		for (size_t i = 0; i < 3; i++) {
 			const DotPlane& plane = volume_planes[i];
 			d = glm::dot(spine, plane.normal);
-			d = (glm::abs(d) < 0.0001f ? 0.0f : (plane.constant - glm::dot(plane.normal, foot)) / d);
+			d = (glm::abs(d) < 0.0001f ? -1.0f : (plane.constant - glm::dot(plane.normal, foot)) / d);
 
-			if (d > 0.0f && d < 1.0f) return 1;
+			if (d >= 0.0f && d <= 1.0f) {
+				on_frag++;
+				continue;
+			}
 
 			d = glm::dot(foot + spine * glm::clamp(d, 0.0f, 1.0f), plane.normal) - plane.constant;
 
