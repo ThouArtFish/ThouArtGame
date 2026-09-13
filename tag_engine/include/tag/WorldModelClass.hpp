@@ -22,6 +22,7 @@ namespace Collision {
 	*/
 	struct Info {
 		TAGMesh::PlaneVolume plane = {};
+		glm::vec3 collision_normal = {};
 		int index = -1;
 	};
 

@@ -400,7 +400,7 @@ bool TAGMesh::BoundingBox::collisionRay(const glm::vec3& start, const glm::vec3&
 	glm::vec3 inv_ray = 1.0f / ray;
 	float t_min = -std::numeric_limits<float>::infinity();
 	float t_max = -t_min;
-	for (unsigned int i = 0; i < 3; i++) {
+	for (size_t i = 0; i < 3; i++) {
 		float t1 = (min[i] - start[i]) * inv_ray[i];
 		float t2 = (max[i] - start[i]) * inv_ray[i];
 
@@ -442,7 +442,7 @@ bool TAGMesh::Plane::collisionPoint(const glm::vec3& point) const {
 bool TAGMesh::Plane::collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t) const {
 	float d = glm::dot(normal, ray);
 
-	if (glm::abs(d) < 0.0001) return false;
+	if (glm::abs(d) < 0.0001f) return false;
 
 	d = glm::dot(normal, this->start - start) / d;
 
@@ -451,36 +451,58 @@ bool TAGMesh::Plane::collisionRay(const glm::vec3& start, const glm::vec3& ray, 
 	return collisionPoint(start + ray * d);
 }
 
-bool TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre, const float& radius) const {
-	for (size_t i = 0; i < 4; i++) {
-		const float signed_dist = (
-			i == 0 ? glm::abs(glm::dot(centre - frag_plane.start, frag_plane.normal))
-			: glm::dot(centre, volume_planes[i - 1].normal) - volume_planes[i - 1].constant
-			);
+GLuint TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre, const float& radius) const {
+	GLuint missed_plane = 1, on_frag = 0;
 
-		if (signed_dist > radius) return false;
+	if (glm::abs(glm::dot(frag_plane.normal, centre - frag_plane.start)) > radius) return 0;
+
+	for (size_t i = 0; i < 3; i++) {
+		const float dist = glm::dot(centre, volume_planes[i].normal) - volume_planes[i].constant;
+
+		if (dist > radius) {
+			return 0;
+		}
+		else if (dist > 0.0f) {
+			missed_plane = i + 2;
+		}
+		else {
+			on_frag++;
+		}
 	}
-	return true;
+
+	return (on_frag == 3 ? 1 : missed_plane);
 }
 
-bool TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const {
-	float d = glm::dot(spine, frag_plane.normal);
-	if (glm::abs(d) < 0.0001) {
-		if (glm::abs(glm::dot(frag_plane.normal, foot - frag_plane.start)) > radius) return false;
+GLuint TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const {
+	GLuint missed_plane = 1, on_frag = 0;
 
-		for (const DotPlane& volume_plane : volume_planes) {
-			d = glm::dot(spine, volume_plane.normal);
-			if (glm::abs(d) < 0.0001) {
-				if (glm::dot(foot, volume_plane.normal) > radius + volume_plane.constant) return false;
+	float d = glm::dot(spine, frag_plane.normal);
+	if (glm::abs(d) < 0.0001f) {
+
+		if (glm::abs(glm::dot(frag_plane.normal, foot - frag_plane.start)) > radius) return 0;
+
+		for (size_t i = 0; i < 3; i++) {
+			const DotPlane& plane = volume_planes[i];
+			d = glm::dot(spine, plane.normal);
+			d = (glm::abs(d) < 0.0001f ? 0.0f : (plane.constant - glm::dot(plane.normal, foot)) / d);
+
+			if (d > 0.0f && d < 1.0f) return 1;
+
+			d = glm::dot(foot + spine * glm::clamp(d, 0.0f, 1.0f), plane.normal) - plane.constant;
+
+			if (d > radius) {
+				return 0;
+			}
+			else if (d > 0.0f) {
+				missed_plane = i + 2;
 			}
 			else {
-				d = glm::min(1.0f, glm::max(0.0f, (volume_plane.constant - glm::dot(foot, volume_plane.normal)) / d));
-
-				if (glm::dot(foot + spine * d, volume_plane.normal) > radius + volume_plane.constant) return false;
+				on_frag++;
 			}
 		}
 
-		return true;
+		return (on_frag == 3 ? 1 : missed_plane);
 	}
+
 	return collisionSphere(foot + spine * glm::clamp(glm::dot(frag_plane.normal, frag_plane.start - foot) / d, 0.0f, 1.0f), radius);
 }

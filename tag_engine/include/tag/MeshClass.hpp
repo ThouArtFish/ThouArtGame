@@ -109,8 +109,8 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             Plane frag_plane;
             std::array<DotPlane, 3> volume_planes;
 
-            bool collisionSphere(const glm::vec3& centre, const float& radius) const;
-            bool collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
+            GLuint collisionSphere(const glm::vec3& centre, const float& radius) const;
+            GLuint collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
         };
 
         static inline GLuint base_attrib = 0;
