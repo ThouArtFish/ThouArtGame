@@ -22,8 +22,7 @@ namespace Collision {
 	*/
 	struct Info {
 		TAGMesh::PlaneVolume plane = {};
-		glm::vec3 collision_normal = {};
-		int index = -1;
+		glm::vec3 collision_normal = glm::vec3(0.0f);
 	};
 
 	/**
@@ -117,12 +116,18 @@ public:
 	* @param max Defines the final point of the ray by [start + (max)(ray_dir)]. If max < 0 then ray is assumed to be infinite in length.
 	*/
 	template<Collision::RayScope T> static Collision::STATIC<T>::TYPE rayCollision(const glm::vec3& start, const glm::vec3& ray_dir, const std::vector<Collision::Info>& collisions, const float& max = 1.0f);
+	/**
+	* Converts a collision object to the game space occupied by a the given object.
+	* 
+	* @param collision A collision struct
+	* @param obj An object struct
+	*/
+	static Collision::Info collisionToGameSpace(const Collision::Info& collision, const Object& obj);
 private:
 	using ui = unsigned int;
 	using vui = std::vector<ui>;
 	using Ret = std::variant<std::vector<Collision::Info>, Collision::Info, vui, int>;
 
-	static TAGMesh::PlaneVolume planeToGameSpace(const TAGMesh::PlaneVolume& plane, const Object& obj);
 	template<Collision::RayScope T> static T rayCollisionWithMeshInstances(const glm::vec3& start, const glm::vec3& ray_dir, const float& max, const TAGMesh& mesh, const std::vector<Object>& objs);
 	template<Collision::ColliderScope T> static T capsuleCollisionMeshInstances(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs);
 	template<Collision::ColliderScope T> static T sphereCollisionWithMeshInstances(const glm::vec3& centre, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs);
