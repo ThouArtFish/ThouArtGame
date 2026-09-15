@@ -9,14 +9,14 @@ Collision::Info TAGWorldModel::collisionToGameSpace(const Collision::Info& colli
 	{
 		.normal = rot_mat * collision.plane.frag_plane.normal,
 		.start = (rot_mat * collision.plane.frag_plane.start * obj.scale) + obj.position,
-		.axis = {rot_mat * collision.plane.frag_plane.axis[0] * obj.scale, rot_mat * collision.plane.frag_plane.axis[1] * obj.scale}
+		.axis = { rot_mat * collision.plane.frag_plane.axis[0] * obj.scale, rot_mat * collision.plane.frag_plane.axis[1] * obj.scale }
 	};
-	std::vector<TAGMesh::DotPlane> new_volume_planes;
-	new_volume_planes.reserve(3);
+	std::array<TAGMesh::DotPlane, 3> new_volume_planes = {};
 	for (size_t i = 0; i < 3; i++) {
 		const glm::vec3 normal = rot_mat * collision.plane.volume_planes[i].normal;
-		new_volume_planes.emplace_back(normal, glm::dot(normal, (i != 1 ? new_frag_plane.start : new_frag_plane.start + new_frag_plane.axis[0])));
+		new_volume_planes[0] = { normal, glm::dot(normal, (i != 1 ? new_frag_plane.start : new_frag_plane.start + new_frag_plane.axis[0])) };
 	}
-	const TAGMesh::PlaneVolume new_volume_plane = { new_frag_plane, *reinterpret_cast<std::array<TAGMesh::DotPlane, 3>*>(new_volume_planes.data()) };
-	return { new_volume_plane, rot_mat * collision.collision_normal };
+
+	const glm::vec3 new_normal = rot_mat * collision.collision_plane.normal;
+	return { { new_frag_plane, new_volume_planes }, { new_normal,  glm::dot(new_normal, (rot_mat * new_normal * obj.scale) + obj.position) } };
 }

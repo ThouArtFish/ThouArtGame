@@ -255,7 +255,6 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollisionWithMeshInstances(c
 				}
 
 				if (cont && plane.frag_plane.collisionPoint(ray_dir * d + start)) {
-
 					if constexpr (std::same_as<T, Collision::ANY>) {
 						return collisionToGameSpace({ plane, plane.frag_plane.normal }, obj);
 					}
@@ -310,7 +309,6 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollisionMeshInstan
 		for (const ui& plane_index : indices) {
 			const glm::vec3 collision_normal = mesh.planes[plane_index].collisionCapsule(local_foot, local_spine, local_radius);
 			if (collision_normal != glm::vec3(0.0f)) {
-				
 				if constexpr (std::same_as<T, Collision::ALL>) {
 					std::get<T>(ret).emplace_back(collisionToGameSpace({ mesh.planes[plane_index], collision_normal }, obj));
 				}
@@ -358,7 +356,6 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollisionWithMeshIns
 		for (const ui& plane_index : indices) {
 			const glm::vec3 collision_normal = mesh.planes[plane_index].collisionSphere(local_centre, local_radius);
 			if (collision_normal != glm::vec3(0.0f)) {
-
 				if constexpr (std::same_as<T, Collision::ALL>) {
 					std::get<T>(ret).emplace_back(collisionToGameSpace({ mesh.planes[plane_index], collision_normal }, obj));
 				}

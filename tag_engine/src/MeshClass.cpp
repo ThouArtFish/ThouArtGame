@@ -31,7 +31,7 @@ void TAGMesh::generatePlanes() {
 	planes.reserve(frags.size());
 
 	for (const TAGMesh::Fragment& frag_struct : frags) {
-		const std::array<GLuint, 3> frag = frag_struct.vertex_indices;
+		const std::array<GLuint, 3>& frag = frag_struct.vertex_indices;
 		const std::array<glm::vec3, 3> frag_vertices = { vertices[frag[0]].position, vertices[frag[1]].position, vertices[frag[2]].position };
 		const std::array<glm::vec3, 2> frag_axis = { frag_vertices[1] - frag_vertices[0], frag_vertices[2] - frag_vertices[0] };
 		const glm::vec3 normal = glm::normalize(glm::cross(frag_axis[0], frag_axis[1]));
@@ -474,7 +474,7 @@ glm::vec3 TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre, const f
 		const glm::vec3 start = frag_plane.start + (missed_plane == 1 ? frag_plane.axis[0] : glm::vec3(0.0f));
 		const glm::vec3 ray = (missed_plane == 0 ? frag_plane.axis[0] : (missed_plane == 1 ? frag_plane.axis[1] - frag_plane.axis[0] : frag_plane.axis[1]));
 
-		return glm::normalize(centre - start - ray * glm::clamp(glm::dot(start - centre, ray) / -glm::dot(ray, ray), 0.0f, 1.0f));
+		return glm::normalize(centre - start - ray * glm::clamp(glm::dot(centre - start, ray) / glm::dot(ray, ray), 0.0f, 1.0f));
 	} 
 	return frag_plane.normal;
 }

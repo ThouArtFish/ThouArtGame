@@ -22,7 +22,7 @@ namespace Collision {
 	*/
 	struct Info {
 		TAGMesh::PlaneVolume plane = {};
-		glm::vec3 collision_normal = glm::vec3(0.0f);
+		TAGMesh::DotPlane collision_plane = {};
 	};
 
 	/**
