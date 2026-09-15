@@ -88,8 +88,8 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         * Smaller plane struct that only represents the infinite plane a fragment lies in
         */
         struct DotPlane {
-            glm::vec3 normal;
-            float constant;
+            glm::vec3 normal = {};
+            float constant = 0.0f;
         };
         /**
         * Represents a mesh fragment in game space
@@ -109,8 +109,8 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             Plane frag_plane;
             std::array<DotPlane, 3> volume_planes;
 
-            glm::vec3 collisionSphere(const glm::vec3& centre, const float& radius) const;
-            glm::vec3 collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
+            DotPlane collisionSphere(const glm::vec3& centre, const float& radius) const;
+            DotPlane collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
         };
 
         static inline GLuint base_attrib = 0;

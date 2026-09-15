@@ -2,7 +2,6 @@
 
 TAGWorldModel::TAGWorldModel(const TAGTexLoader::Params& tex_params, const TAGResourceManager::BufferAccess& access, const std::string& path) : TAGModel(tex_params, access, path) {}
 
-
 Collision::Info TAGWorldModel::collisionToGameSpace(const Collision::Info& collision, const Object& obj) {
 	const glm::mat3 rot_mat = glm::mat3(glm::rotate(glm::mat4(1.0f), obj.angle, obj.rotation_axis));
 	const TAGMesh::Plane new_frag_plane =
