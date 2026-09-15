@@ -17,5 +17,6 @@ Collision::Info TAGWorldModel::collisionToGameSpace(const Collision::Info& colli
 	}
 
 	const glm::vec3 new_normal = rot_mat * collision.collision_plane.normal;
-	return { { new_frag_plane, new_volume_planes }, { new_normal,  glm::dot(new_normal, (rot_mat * new_normal * obj.scale) + obj.position) } };
+	const float new_constant = glm::dot(new_normal, (rot_mat * collision.collision_plane.normal * collision.collision_plane.constant * obj.scale) + obj.position);
+	return { { new_frag_plane, new_volume_planes }, { new_normal, new_constant } };
 }
