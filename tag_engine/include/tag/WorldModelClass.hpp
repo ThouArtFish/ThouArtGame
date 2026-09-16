@@ -21,8 +21,10 @@ namespace Collision {
 	* Collision info for a single plane, negative index means no collision at all
 	*/
 	struct Info {
-		TAGMesh::PlaneVolume plane = {};
 		TAGMesh::DotPlane collision_plane = {};
+		TAGMesh::PlaneVolume plane = {};
+		std::string mesh_name = "";
+		GLuint index = -1;
 	};
 
 	/**
@@ -116,13 +118,6 @@ public:
 	* @param max Defines the final point of the ray by [start + (max)(ray_dir)]. If max < 0 then ray is assumed to be infinite in length.
 	*/
 	template<Collision::RayScope T> static Collision::STATIC<T>::TYPE rayCollision(const glm::vec3& start, const glm::vec3& ray_dir, const std::vector<Collision::Info>& collisions, const float& max = 1.0f);
-	/**
-	* Converts a collision object to the game space occupied by a the given object.
-	* 
-	* @param collision A collision struct
-	* @param obj An object struct
-	*/
-	static Collision::Info collisionToGameSpace(const Collision::Info& collision, const Object& obj);
 private:
 	using ui = unsigned int;
 	using vui = std::vector<ui>;

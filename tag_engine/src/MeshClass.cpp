@@ -386,6 +386,12 @@ TAGMesh::BoundingBox TAGMesh::generateBoundingBox(const glm::vec3* first, const 
 	return { max, min };
 }
 
+TAGMesh::DotPlane TAGMesh::DotPlane::transform(const TAGModel::Object& obj) const {
+	const glm::vec3 new_normal = glm::mat3(glm::rotate(glm::mat4(1.0f), obj.angle, obj.rotation_axis)) * normal;
+	const float new_constant = glm::dot(new_normal, (new_normal * constant * obj.scale) + obj.position);
+	return { new_normal, new_constant };
+}
+
 bool TAGMesh::BoundingBox::collisionPoint(const glm::vec3& point) const {
 	return glm::clamp(point, min, max) == point;
 }
@@ -449,6 +455,18 @@ bool TAGMesh::Plane::collisionRay(const glm::vec3& start, const glm::vec3& ray, 
 	if (d < 0.0f || (t < 0.0f && d > t)) return false;
 
 	return collisionPoint(start + ray * d);
+}
+
+TAGMesh::Plane TAGMesh::Plane::transform(const TAGModel::Object& obj) const {
+	const glm::mat3 rot_mat = glm::mat3(glm::rotate(glm::mat4(1.0f), obj.angle, obj.rotation_axis));
+
+	return
+	{
+		.normal = rot_mat * normal,
+		.start = (rot_mat * start * obj.scale) + obj.position,
+		.axis = { rot_mat * axis[0] * obj.scale, rot_mat * axis[1] * obj.scale }
+	};
+	
 }
 
 TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre, const float& radius) const {
@@ -564,4 +582,12 @@ TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, 
 	}
 
 	return (found ? best_plane : DotPlane());
+}
+
+TAGMesh::PlaneVolume TAGMesh::PlaneVolume::transform(const TAGModel::Object& obj) const {
+	std::array<DotPlane, 3> new_volume_planes = {};
+	for (size_t i = 0; i < 3; i++) {
+		new_volume_planes[i] = volume_planes[i].transform(obj);
+	}
+	return { frag_plane.transform(obj), new_volume_planes };
 }

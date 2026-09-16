@@ -4,16 +4,15 @@
 
 template<Collision::RayScope T> T TAGWorldModel::rayCollision(const glm::vec3& start, const glm::vec3& ray_dir, const float& max) const {
 	Ret ret;
-	Collision::Info info;
 
 	ret.emplace<T>(T());
 
 	for (const auto& instance_pair : instance_buffers) {
-		const auto& instances = instance_pair.second.getAllObjects();
+		const std::vector<Object>& instances = instance_pair.second.getAllObjects();
 		if (!instance_pair.second.empty()) {
 			if (instance_pair.first == "") {
 				for (const auto& mesh_pair : meshes) {
-					const T res = rayCollisionWithMeshInstances<T>(start, ray_dir, max, mesh_pair.second, instances);
+					T res = rayCollisionWithMeshInstances<T>(start, ray_dir, max, mesh_pair.second, instances);
 					if constexpr (std::same_as<T, Collision::ANY>) {
 						if (res.index >= 0) return res;
 					}
@@ -22,24 +21,37 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollision(const glm::vec3& s
 						vec.insert(vec.end(), res.begin(), res.end());
 					}
 					else {
-						ret = res;
+						if (std::get<T>(ret).index < 0) {
+							ret = res;
+						}
+						else {
+							const int i = rayCollision<T>(start, ray_dir, { std::get<T>(ret), res }, max);
+
+							if (i > 0) ret = res;
+						}
 					}
 				}
 			}
 			else {
-				const T res = rayCollisionWithMeshInstances<T>(start, ray_dir, max, meshes.at(instance_pair.first), instances);
+				T res = rayCollisionWithMeshInstances<T>(start, ray_dir, max, meshes.at(instance_pair.first), instances);
 				if constexpr (std::same_as<T, Collision::ANY>) {
-					if (res.collision_normal != glm::vec3(0.0f)) return res;
+					if (res.index >= 0) {
+						res.mesh_name = instance_pair.first;
+						return res;
+					}
 				}
 				else if constexpr (std::same_as<T, Collision::ALL>) {
+					std::for_each(res.begin(), res.end(), [](Collision::Info& info) { info.mesh_name = instance_pair.first; });
 					auto& vec = std::get<T>(ret);
 					vec.insert(vec.end(), res.begin(), res.end());
 				}
 				else {
-					if (res.collision_normal == glm::vec3(0.0f)) ret = res;
-
+					res.mesh_name = instance_pair.first;
+					if (std::get<T>(ret).index < 0) {
+						ret = res;
+					}
 					else {
-						int i = rayCollision<T>(start, ray_dir, { std::get<T>(ret), res }, max);
+						const int i = rayCollision<T>(start, ray_dir, { std::get<T>(ret), res }, max);
 
 						if (i > 0) ret = res;
 					} 
@@ -50,7 +62,7 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollision(const glm::vec3& s
 	return std::get<T>(ret);
 }
 
-template<Collision::RayScope T> Collision::STATIC<T>::TYPE TAGWorldModel::rayCollision(const glm::vec3& start, const glm::vec3& ray_dir, const std::vector<Collision::Info>& collisions, const float& max) {
+template<Collision::RayScope T> static Collision::STATIC<T>::TYPE TAGWorldModel::rayCollision(const glm::vec3& start, const glm::vec3& ray_dir, const std::vector<Collision::Info>& collisions, const float& max) {
 	Ret ret;
 	double t = -1.0;
 
@@ -59,7 +71,9 @@ template<Collision::RayScope T> Collision::STATIC<T>::TYPE TAGWorldModel::rayCol
 	if constexpr (!std::same_as<Collision::ALL, T>) ret = -1;
 
 	for (size_t i = 0; i < collisions.size(); i++) {
-		const TAGMesh::Plane& plane = collisions[i].plane.frag_plane;
+		if (collisions[i].index < 0) continue;
+
+		const TAGMesh::Plane& plane = info.plane.frag_plane;
 		float d = glm::dot(plane.normal, ray_dir);
 
 		if (glm::abs(d) < 0.0001f) continue;
@@ -98,13 +112,13 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollision(const glm
 	ret.emplace<T>(T());
 
 	for (const auto& instance_pair : instance_buffers) {
-		const auto& instances = instance_pair.second.getAllObjects();
+		const std::vector<Object>& instances = instance_pair.second.getAllObjects();
 		if (!instances.empty()) {
 			if (instance_pair.first == "") {
 				for (const auto& mesh_pair : meshes) {
 					T res = capsuleCollisionMeshInstances<T>(foot, spine, radius, mesh_pair.second, instances);
 					if constexpr (std::same_as<T, Collision::ANY>) {
-						if (res.collision_normal != glm::vec3(0.0f)) return res;
+						if (res.index >= 0) return res;
 					}
 					else {
 						auto& vec = std::get<T>(ret);
@@ -115,9 +129,13 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollision(const glm
 			else {
 				T res = capsuleCollisionMeshInstances<T>(foot, spine, radius, meshes.at(instance_pair.first), instances);
 				if constexpr (std::same_as<T, Collision::ANY>) {
-					if (res.collision_normal != glm::vec3(0.0f)) return res;
+					if (res.index >= 0) {
+						res.mesh_name = instance_pair.first;
+						return res;
+					}
 				}
 				else {
+					std::for_each(res.begin(), res.end(), [](const Collision::Info& info) { info.mesh_name = instance_pair.first; });
 					auto& vec = std::get<T>(ret);
 					vec.insert(vec.end(), res.begin(), res.end());
 				}
@@ -135,6 +153,8 @@ template<Collision::ColliderScope T> static Collision::STATIC<T>::TYPE TAGWorldM
 	if constexpr (std::same_as<Collision::ANY, T>) ret = -1;
 
 	for (size_t i = 0; i < collisions.size(); i++) {
+		if (collisions[i].index < 0) continue;
+
 		if (collisions[i].plane.collisionCapsule(foot, spine, radius).normal != glm::vec3(0.0f)) {
 			if constexpr (std::same_as<Collision::ALL, T>) {
 				std::get<Collision::STATIC<T>::TYPE>(ret).push_back(i);
@@ -153,13 +173,13 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollision(const glm:
 	ret.emplace<T>(T());
 
 	for (const auto& instance_pair : instance_buffers) {
-		const auto& instances = instance_pair.second.getAllObjects();
+		const std::vector<Object>& instances = instance_pair.second.getAllObjects();
 		if (!instances.empty()) {
 			if (instance_pair.first == "") {
 				for (const auto& mesh_pair : meshes) {
 					T res = sphereCollisionWithMeshInstances<T>(centre, radius, mesh_pair.second, instances);
 					if constexpr (std::same_as<T, Collision::ANY>) {
-						if (res.collision_normal != glm::vec3(0.0f)) return res;
+						if (res.index >= 0) return res;
 					}
 					else {
 						auto& vec = std::get<T>(ret);
@@ -170,9 +190,13 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollision(const glm:
 			else {
 				T res = sphereCollisionWithMeshInstances<T>(centre, radius, meshes.at(instance_pair.first), instances);
 				if constexpr (std::same_as<T, Collision::ANY>) {
-					if (res.collision_normal != glm::vec3(0.0f)) return res;
+					if (res.index >= 0) {
+						res.mesh_name = instance_pair.first;
+						return res;
+					}
 				}
 				else {
+					std::for_each(res.begin(), res.end(), [](Collision::Info& info) { info.mesh_name = instance_pair.first; });
 					auto& vec = std::get<T>(ret);
 					vec.insert(vec.end(), res.begin(), res.end());
 				}
@@ -182,7 +206,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollision(const glm:
 	return std::get<T>(ret);
 }
 
-template<Collision::ColliderScope T> Collision::STATIC<T>::TYPE TAGWorldModel::sphereCollision(const glm::vec3& centre, const float& radius, const std::vector<Collision::Info>& collisions) {
+template<Collision::ColliderScope T> static Collision::STATIC<T>::TYPE TAGWorldModel::sphereCollision(const glm::vec3& centre, const float& radius, const std::vector<Collision::Info>& collisions) {
 	Ret ret;
 
 	ret.emplace<Collision::STATIC<T>::TYPE>(Collision::STATIC<T>::TYPE());
@@ -190,6 +214,8 @@ template<Collision::ColliderScope T> Collision::STATIC<T>::TYPE TAGWorldModel::s
 	if constexpr (std::same_as<Collision::ANY, T>) ret = -1;
 	
 	for (size_t i = 0; i < collisions.size(); i++) {
+		if (collisions[i].index < 0) continue;
+
 		if (collisions[i].plane.collisionSphere(centre, radius).normal != glm::vec3(0.0f)) {
 			if constexpr (std::same_as<Collision::ALL, T>) {
 				std::get<Collision::STATIC<T>::TYPE>(ret).push_back(i);
@@ -255,15 +281,17 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollisionWithMeshInstances(c
 				}
 
 				if (cont && plane.frag_plane.collisionPoint(ray_dir * d + start)) {
-					const Collision::Info collision = { plane, { plane.frag_plane.normal, glm::dot(plane.frag_plane.normal, plane.frag_plane.start) } };
+					Collision::Info collision = { { plane.frag_plane.normal, glm::dot(plane.frag_plane.normal, plane.frag_plane.start) }, plane, "", plane_index };
+					collision.collision_plane.transform(obj);
+					collision.plane.transform(obj);
 					if constexpr (std::same_as<T, Collision::ANY>) {
-						return collisionToGameSpace(collision, obj);
+						return collision;
 					}
 					else if constexpr (std::same_as<T, Collision::ALL>) {
-						std::get<T>(ret).emplace_back(collisionToGameSpace(collision, obj));
+						std::get<T>(ret).emplace_back(collision);
 					} 
 					else {
-						ret = collisionToGameSpace(collision, obj);
+						ret = collision;
 						t = d;
 					}
 				}
@@ -308,13 +336,15 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollisionMeshInstan
 		}
 
 		for (const ui& plane_index : indices) {
-			const auto collision_plane = mesh.planes[plane_index].collisionCapsule(local_foot, local_spine, local_radius);
+			const TAGMesh::PlaneVolume& plane = mesh.planes[plane_index];
+			const TAGMesh::DotPlane collision_plane = plane.collisionCapsule(local_foot, local_spine, local_radius);
 			if (collision_plane.normal != glm::vec3(0.0f)) {
+				const Collision::Info collision = { collision_plane.transform(obj), plane.transform(obj), "", plane_index };
 				if constexpr (std::same_as<T, Collision::ALL>) {
-					std::get<T>(ret).emplace_back(collisionToGameSpace({ mesh.planes[plane_index], collision_plane }, obj));
+					std::get<T>(ret).emplace_back(collision);
 				}
 				else {
-					return collisionToGameSpace({ mesh.planes[plane_index], collision_plane }, obj);
+					return collision;
 				}
 			}
 		}
@@ -355,13 +385,15 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollisionWithMeshIns
 		}
 
 		for (const ui& plane_index : indices) {
-			const auto collision_plane = mesh.planes[plane_index].collisionSphere(local_centre, local_radius);
+			const TAGMesh::PlaneVolume& plane = mesh.planes[plane_index];
+			const TAGMesh::DotPlane collision_plane = plane.collisionSphere(local_foot, local_spine, local_radius);
 			if (collision_plane.normal != glm::vec3(0.0f)) {
+				const Collision::Info collision = { collision_plane.transform(obj), plane.transform(obj), "", plane_index };
 				if constexpr (std::same_as<T, Collision::ALL>) {
-					std::get<T>(ret).emplace_back(collisionToGameSpace({ mesh.planes[plane_index], collision_plane }, obj));
+					std::get<T>(ret).emplace_back(collision);
 				}
 				else {
-					return collisionToGameSpace({ mesh.planes[plane_index], collision_plane }, obj);
+					return collision;
 				}
 			}
 		}
