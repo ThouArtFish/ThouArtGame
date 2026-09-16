@@ -513,22 +513,30 @@ TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, 
 		}
 	}
 
-	if (t_lo <= t_hi) { // Some part of spine is within frag prism
-		if (glm::abs(spine_normal_dot) < 0.0001f) { // Spine is also perpendicular to frag so its a face collision
-			return { frag_plane.normal, glm::dot(frag_plane.normal, frag_plane.start) };
-		}
-		else { // Get closest point in range to the infinite plane and check the sphere at that point
-			const float spine_t = glm::clamp(glm::dot(frag_plane.start - foot, frag_plane.normal) / spine_normal_dot, t_lo, t_hi);
-			// Spine passes directly through frag so face collision
-			if (spine_t > t_lo && spine_t < t_hi) return { frag_plane.normal, glm::dot(frag_plane.normal, frag_plane.start) };
-			return collisionSphere(foot + spine * spine_t, radius);
-		}
-	}
-
-	// No face overlap so find closest edge
 	DotPlane best_plane{};
 	float best_dist_sq = radius * radius;
 	bool found = false;
+
+	if (t_lo <= t_hi) { // Capsule clips into face prism, so check if capsule is close enough to infinite plane
+		float h;
+		if (glm::abs(spine_normal_dot) < 0.0001f) {
+			h = glm::dot(frag_plane.normal, foot - frag_plane.start);
+		}
+		else {
+			const float spine_t = glm::clamp(
+				glm::dot(frag_plane.start - foot, frag_plane.normal) / spine_normal_dot, t_lo, t_hi);
+			h = glm::dot(frag_plane.normal, foot + spine * spine_t - frag_plane.start);
+		}
+
+		const float dist_sq = h * h;
+		if (dist_sq < best_dist_sq) {
+			best_dist_sq = dist_sq;
+			best_plane = { frag_plane.normal, glm::dot(frag_plane.normal, frag_plane.start) };
+			found = true;
+		}
+	}
+
+	// No face overlap so find closest edge, or there was face overlap but that region does not hit face but outside region could still clip
 	for (size_t i = 0; i < 3; i++) {
 		const DotPlane& plane = volume_planes[i];
 		const glm::vec3 edge_start = frag_plane.start + (i == 1 ? frag_plane.axis[0] : glm::vec3(0.0f));
