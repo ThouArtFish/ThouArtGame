@@ -7,7 +7,6 @@
 #include <concepts>
 #include <glm/glm.hpp>
 #include <glad/glad.h>
-#include "ModelClass.hpp"
 #include "BaseStateClass.hpp"
 #include "ShaderManagerClass.hpp"
 #include "ResourceManagerClass.hpp"
@@ -91,8 +90,6 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         struct DotPlane {
             glm::vec3 normal = {};
             float constant = 0.0f;
-
-            DotPlane transform(const TAGModel::Object& obj) const;
         };
         /**
         * Represents a mesh fragment in game space
@@ -104,7 +101,6 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
 
             bool collisionPoint(const glm::vec3& point) const;
             bool collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t = 1.0f) const;
-            Plane transform(const TAGModel::Object& obj) const;
         };
         /**
         * Represents the volume of a plane used for collision detection with spheres, and ray detection with frag plane.
@@ -115,7 +111,6 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
 
             DotPlane collisionSphere(const glm::vec3& centre, const float& radius) const;
             DotPlane collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
-            PlaneVolume transform(const TAGModel::Object& obj) const;
         };
 
         static inline GLuint base_attrib = 0;

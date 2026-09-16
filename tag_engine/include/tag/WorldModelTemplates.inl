@@ -282,8 +282,8 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollisionWithMeshInstances(c
 
 				if (cont && plane.frag_plane.collisionPoint(local_ray * d + local_start)) {
 					Collision::Info collision = { { plane.frag_plane.normal, glm::dot(plane.frag_plane.normal, plane.frag_plane.start) }, plane, "", plane_index };
-					collision.collision_plane.transform(obj);
-					collision.plane.transform(obj);
+					collision.collision_plane = transformPlane(obj, collision.collision_plane);
+					collision.plane = transformPlane(obj, collision.plane);
 					if constexpr (std::same_as<T, Collision::ANY>) {
 						return collision;
 					}
@@ -339,7 +339,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollisionMeshInstan
 			const TAGMesh::PlaneVolume& plane = mesh.planes[plane_index];
 			const TAGMesh::DotPlane collision_plane = plane.collisionCapsule(local_foot, local_spine, local_radius);
 			if (collision_plane.normal != glm::vec3(0.0f)) {
-				const Collision::Info collision = { collision_plane.transform(obj), plane.transform(obj), "", plane_index };
+				const Collision::Info collision = { transformPlane(obj, collision_plane), transformPlane(obj, plane), "", plane_index};
 				if constexpr (std::same_as<T, Collision::ALL>) {
 					std::get<T>(ret).emplace_back(collision);
 				}
@@ -388,7 +388,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollisionWithMeshIns
 			const TAGMesh::PlaneVolume& plane = mesh.planes[plane_index];
 			const TAGMesh::DotPlane collision_plane = plane.collisionSphere(local_centre, local_radius);
 			if (collision_plane.normal != glm::vec3(0.0f)) {
-				const Collision::Info collision = { collision_plane.transform(obj), plane.transform(obj), "", plane_index };
+				const Collision::Info collision = { transformPlane(obj, collision_plane), transformPlane(obj, plane), "", plane_index };
 				if constexpr (std::same_as<T, Collision::ALL>) {
 					std::get<T>(ret).emplace_back(collision);
 				}

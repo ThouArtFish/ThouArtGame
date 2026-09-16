@@ -326,3 +326,39 @@ std::vector<std::string> TAGModel::getMeshNames() const {
 	}
 	return names;
 }
+
+TAGMesh::DotPlane TAGModel::transformPlane(const Object& obj, const TAGMesh::DotPlane& plane) {
+	const glm::vec3 new_normal = glm::mat3(glm::rotate(glm::mat4(1.0f), obj.angle, obj.rotation_axis)) * plane.normal;
+	const float new_constant = glm::dot(new_normal, (new_normal * plane.constant * obj.scale) + obj.position);
+	return { new_normal, new_constant };
+}
+
+TAGMesh::Plane TAGModel::transformPlane(const Object& obj, const TAGMesh::Plane& plane) {
+	const glm::mat3 rot_mat = glm::mat3(glm::rotate(glm::mat4(1.0f), obj.angle, obj.rotation_axis));
+
+	return
+	{
+		.normal = rot_mat * plane.normal,
+		.start = (rot_mat * plane.start * obj.scale) + obj.position,
+		.axis = { rot_mat * plane.axis[0] * obj.scale, rot_mat * plane.axis[1] * obj.scale }
+	};
+}
+
+TAGMesh::PlaneVolume TAGModel::transformPlane(const Object& obj, const TAGMesh::PlaneVolume& plane) {
+	const glm::mat3 rot_mat = glm::mat3(glm::rotate(glm::mat4(1.0f), obj.angle, obj.rotation_axis));
+
+	const TAGMesh::Plane new_frag_plane = {
+		.normal = rot_mat * plane.frag_plane.normal,
+		.start = (rot_mat * plane.frag_plane.start * obj.scale) + obj.position,
+		.axis = { rot_mat * plane.frag_plane.axis[0] * obj.scale, rot_mat * plane.frag_plane.axis[1] * obj.scale }
+	};
+
+	std::array<TAGMesh::DotPlane, 3> new_volume_planes;
+	for (size_t i = 0; i < 3; i++) {
+		const glm::vec3 new_normal = rot_mat * plane.volume_planes[i].normal;
+		const float new_constant = glm::dot(new_normal, (new_normal * plane.volume_planes[i].constant * obj.scale) + obj.position);
+		new_volume_planes[i] = { new_normal, new_constant };
+	}
+
+	return { new_frag_plane, new_volume_planes };
+}

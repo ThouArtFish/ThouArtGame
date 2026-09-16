@@ -168,6 +168,12 @@ public:
 	 * @param mesh_name Name of mesh.
 	 */
 	void deleteMesh(const std::string& mesh_name);
+	/**
+	* Transform different plane objects based on object structs
+	*/
+	static TAGMesh::DotPlane transformPlane(const Object& obj, const TAGMesh::DotPlane& plane);
+	static TAGMesh::Plane transformPlane(const Object& obj, const TAGMesh::Plane& plane);
+	static TAGMesh::PlaneVolume transformPlane(const Object& obj, const TAGMesh::PlaneVolume& plane);
 private:
 	void loadModel(const std::string& path);
 	static ShaderObject shaderConverter(const Object& obj, const GLuint& split);
