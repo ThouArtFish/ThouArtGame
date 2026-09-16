@@ -280,7 +280,7 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollisionWithMeshInstances(c
 					cont = (t < 0.0f || d < t);
 				}
 
-				if (cont && plane.frag_plane.collisionPoint(ray_dir * d + start)) {
+				if (cont && plane.frag_plane.collisionPoint(local_ray * d + local_start)) {
 					Collision::Info collision = { { plane.frag_plane.normal, glm::dot(plane.frag_plane.normal, plane.frag_plane.start) }, plane, "", plane_index };
 					collision.collision_plane.transform(obj);
 					collision.plane.transform(obj);
