@@ -452,7 +452,7 @@ bool TAGMesh::Plane::collisionRay(const glm::vec3& start, const glm::vec3& ray, 
 }
 
 TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre, const float& radius) const {
-	GLuint missed_plane, on_frag = 0;
+	GLuint on_edge = 0, on_frag = 0;
 
 	if (glm::abs(glm::dot(frag_plane.normal, centre - frag_plane.start)) > radius) return {};
 
@@ -463,7 +463,7 @@ TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre,
 			return {};
 		}
 		else if (dist > 0.0f) {
-			missed_plane = i;
+			on_edge = i;
 		}
 		else {
 			on_frag++;
@@ -471,59 +471,97 @@ TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre,
 	}
 
 	if (on_frag != 3) {
-		const glm::vec3 start = frag_plane.start + (missed_plane == 1 ? frag_plane.axis[0] : glm::vec3(0.0f));
-		const glm::vec3 ray = (missed_plane == 0 ? frag_plane.axis[0] : (missed_plane == 1 ? frag_plane.axis[1] - frag_plane.axis[0] : frag_plane.axis[1]));
+		const glm::vec3 edge_start = frag_plane.start + (on_edge == 1 ? frag_plane.axis[0] : glm::vec3(0.0f));
+		const glm::vec3 edge_ray = (on_edge == 0 ? frag_plane.axis[0] : (on_edge == 1 ? frag_plane.axis[1] - frag_plane.axis[0] : frag_plane.axis[1]));
 
-		const glm::vec3 norm = glm::normalize(centre - start - ray * glm::clamp(glm::dot(centre - start, ray) / glm::dot(ray, ray), 0.0f, 1.0f));
+		const glm::vec3 norm = glm::normalize(centre - edge_start - edge_ray * glm::clamp(glm::dot(centre - edge_start, edge_ray) / glm::dot(edge_ray, edge_ray), 0.0f, 1.0f));
 
-		return { norm, glm::dot(norm, start) };
+		return { norm, glm::dot(norm, edge_start) };
 	} 
 	return { frag_plane.normal, glm::dot(frag_plane.normal, frag_plane.start) };
 }
 
 TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const {
-	GLuint on_frag = 0;
-	DotPlane edge_plane;
+	const float spine_normal_dot = glm::dot(spine, frag_plane.normal);
 
-	float d = glm::dot(spine, frag_plane.normal);
-	if (glm::abs(d) < 0.0001f) {
+	// All perpendicular cases collide with the infinite plane
+	if (glm::abs(spine_normal_dot) < 0.0001f && glm::abs(glm::dot(frag_plane.normal, foot - frag_plane.start)) > radius) return {};
 
-		if (glm::abs(glm::dot(frag_plane.normal, foot - frag_plane.start)) > radius) return {};
+	// Find parameter range along spine where capsule is within edge planes
+	float t_lo = 0.0f, t_hi = 1.0f;
+	for (size_t i = 0; i < 3; i++) {
+		const DotPlane& plane = volume_planes[i];
+		const float d0 = glm::dot(foot, plane.normal) - plane.constant;
+		const float d1 = glm::dot(foot + spine, plane.normal) - plane.constant;
+		const float denom = d1 - d0;
 
-		for (size_t i = 0; i < 3; i++) {
-			const DotPlane& plane = volume_planes[i];
-			const glm::vec3 start = frag_plane.start + (i == 1 ? frag_plane.axis[0] : glm::vec3(0.0f));
-			const glm::vec3 ray = (i == 0 ? frag_plane.axis[0] : (i == 1 ? frag_plane.axis[1] - frag_plane.axis[0] : frag_plane.axis[1]));
-			d = glm::dot(spine, plane.normal);
-
-			glm::vec3 point;
-			DotPlane possible_edge_plane;
-			if (glm::abs(d) < 0.0001f) {
-				point = foot;
-				possible_edge_plane = { plane.normal, glm::dot(plane.normal, start) };
-			}
-			else {
-				const glm::vec2 res = glm::inverse(glm::mat2x2(glm::dot(ray, spine), glm::dot(spine, spine), -glm::dot(ray, ray), -glm::dot(ray, spine))) * glm::vec2(glm::dot(start - foot, ray), glm::dot(start - foot, spine));
-
-				point = foot + spine * glm::clamp(res.x, 0.0f, 1.0f);
-				const glm::vec3 norm = glm::normalize(point - start - ray * glm::clamp(res.y, 0.0f, 1.0f));
-				possible_edge_plane = { norm, glm::dot(norm, start) };
-			}
-
-			d = glm::dot(point, plane.normal) - plane.constant;
-			if (d > radius) {
-				return {};
-			}
-			else if (d > 0.0f) {
-				edge_plane = possible_edge_plane;
-			}
-			else {
-				on_frag++;
+		if (glm::abs(denom) < 0.0001f) {
+			if (d0 > 0.0f) { // Entire segment is outside frag
+				t_lo = 1.0f;
+				t_hi = 0.0f;
+				break;
 			}
 		}
-
-		return (on_frag == 3 ? DotPlane(frag_plane.normal, glm::dot(frag_plane.normal, frag_plane.start)) : edge_plane);
+		else {
+			const float t = -d0 / denom;
+			if (denom > 0.0f) {
+				t_hi = glm::min(t_hi, t);
+			}
+			else {
+				t_lo = glm::max(t_lo, t);
+			}
+		}
 	}
 
-	return collisionSphere(foot + spine * glm::clamp(glm::dot(frag_plane.normal, frag_plane.start - foot) / d, 0.0f, 1.0f), radius);
+	if (t_lo <= t_hi) { // Some part of spine is within frag prism
+		if (glm::abs(spine_normal_dot) < 0.0001f) { // Spine is also perpendicular to frag so its a face collision
+			return { frag_plane.normal, glm::dot(frag_plane.normal, frag_plane.start) };
+		}
+		else { // Get closest point in range to the infinite plane and check the sphere at that point
+			const float spine_t = glm::clamp(glm::dot(frag_plane.start - foot, frag_plane.normal) / spine_normal_dot, t_lo, t_hi);
+			// Spine passes directly through frag so face collision
+			if (spine_t > t_lo && spine_t < t_hi) return { frag_plane.normal, glm::dot(frag_plane.normal, frag_plane.start) };
+			return collisionSphere(foot + spine * spine_t, radius);
+		}
+	}
+
+	// No face overlap so find closest edge
+	DotPlane best_plane{};
+	float best_dist_sq = radius * radius;
+	bool found = false;
+	for (size_t i = 0; i < 3; i++) {
+		const DotPlane& plane = volume_planes[i];
+		const glm::vec3 edge_start = frag_plane.start + (i == 1 ? frag_plane.axis[0] : glm::vec3(0.0f));
+		const glm::vec3 edge_ray = (i == 0 ? frag_plane.axis[0] : (i == 1 ? frag_plane.axis[1] - frag_plane.axis[0] : frag_plane.axis[1]));
+
+		const float dd = glm::dot(spine, plane.normal);
+
+		glm::vec3 point, point_on_edge;
+		if (glm::abs(dd) < 0.0001f) {
+			point = foot;
+			point_on_edge = edge_start + edge_ray * glm::clamp(
+				glm::dot(foot - edge_start, edge_ray) / glm::dot(edge_ray, edge_ray), 0.0f, 1.0f);
+		}
+		else {
+			const glm::vec2 res = glm::inverse(glm::mat2x2(
+				glm::dot(edge_ray, spine), glm::dot(spine, spine),
+				-glm::dot(edge_ray, edge_ray), -glm::dot(edge_ray, spine)))
+				* glm::vec2(glm::dot(edge_start - foot, edge_ray), glm::dot(edge_start - foot, spine));
+
+			point = foot + spine * glm::clamp(res.x, 0.0f, 1.0f);
+			point_on_edge = edge_start + edge_ray * glm::clamp(res.y, 0.0f, 1.0f);
+		}
+
+		const glm::vec3 sep = point - point_on_edge;
+		const float dist_sq = glm::dot(sep, sep);
+
+		if (dist_sq < best_dist_sq) {
+			best_dist_sq = dist_sq;
+			const glm::vec3 norm = glm::normalize(sep);
+			best_plane = { norm, glm::dot(norm, point_on_edge) };
+			found = true;
+		}
+	}
+
+	return (found ? best_plane : DotPlane());
 }
