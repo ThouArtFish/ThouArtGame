@@ -41,7 +41,7 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollision(const glm::vec3& s
 					}
 				}
 				else if constexpr (std::same_as<T, Collision::ALL>) {
-					std::for_each(res.begin(), res.end(), [&instance_pair.first](Collision::Info& info) { info.mesh_name = instance_pair.first; });
+					std::for_each(res.begin(), res.end(), [&instance_pair](Collision::Info& info) { info.mesh_name = instance_pair.first; });
 					auto& vec = std::get<T>(ret);
 					vec.insert(vec.end(), res.begin(), res.end());
 				}
@@ -135,7 +135,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollision(const glm
 					}
 				}
 				else {
-					std::for_each(res.begin(), res.end(), [&instance_pair.first](Collision::Info& info) { info.mesh_name = instance_pair.first; });
+					std::for_each(res.begin(), res.end(), [&instance_pair](Collision::Info& info) { info.mesh_name = instance_pair.first; });
 					auto& vec = std::get<T>(ret);
 					vec.insert(vec.end(), res.begin(), res.end());
 				}
@@ -196,7 +196,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollision(const glm:
 					}
 				}
 				else {
-					std::for_each(res.begin(), res.end(), [&instance_pair.first](Collision::Info& info) { info.mesh_name = instance_pair.first; });
+					std::for_each(res.begin(), res.end(), [&instance_pair](Collision::Info& info) { info.mesh_name = instance_pair.first; });
 					auto& vec = std::get<T>(ret);
 					vec.insert(vec.end(), res.begin(), res.end());
 				}
