@@ -73,7 +73,7 @@ template<Collision::RayScope T> static Collision::STATIC<T>::TYPE TAGWorldModel:
 	for (size_t i = 0; i < collisions.size(); i++) {
 		if (collisions[i].index < 0) continue;
 
-		const TAGMesh::Plane& plane = info.plane.frag_plane;
+		const TAGMesh::Plane& plane = collisions[i].plane.frag_plane;
 		float d = glm::dot(plane.normal, ray_dir);
 
 		if (glm::abs(d) < 0.0001f) continue;
@@ -386,7 +386,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollisionWithMeshIns
 
 		for (const ui& plane_index : indices) {
 			const TAGMesh::PlaneVolume& plane = mesh.planes[plane_index];
-			const TAGMesh::DotPlane collision_plane = plane.collisionSphere(local_foot, local_spine, local_radius);
+			const TAGMesh::DotPlane collision_plane = plane.collisionSphere(local_centre, local_radius);
 			if (collision_plane.normal != glm::vec3(0.0f)) {
 				const Collision::Info collision = { collision_plane.transform(obj), plane.transform(obj), "", plane_index };
 				if constexpr (std::same_as<T, Collision::ALL>) {
