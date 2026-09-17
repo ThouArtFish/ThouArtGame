@@ -427,7 +427,7 @@ bool TAGMesh::BoundingBox::collisionCapsule(const glm::vec3& foot, const glm::ve
 		closest_ray = foot + spine * std::clamp(glm::dot(closest_box - foot, spine) / s2, 0.0f, 1.0f);
 	}
 
-	return collisionSphere(closest_ray, radius);
+	return (glm::abs(TAGUtil::lengthSq(closest_ray - closest_box)) <= radius);
 }
 
 bool TAGMesh::Plane::collisionPoint(const glm::vec3& point) const {
