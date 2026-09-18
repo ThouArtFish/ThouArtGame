@@ -160,8 +160,7 @@ void TAGMesh::generateBVH() {
 		bvh_octree[current_info.node_index] = current_box;
 	}
 
-	// Clean tree, first pass deal with branches
-	std::vector<size_t> branches;
+	// Clean tree a bit
 	for (size_t i = 0; i < bvh_octree.size(); i++) {
 		BVHNode& node = bvh_octree[i];
 		if (!node.is_leaf) {
@@ -172,43 +171,13 @@ void TAGMesh::generateBVH() {
 				}
 			}
 
-			// If less than two children, mark as leaf for deletion and then swap with only child if one child
-			if (node.indices.size() < 2) {
-				node.is_leaf = true;
-				if (node.indices.size() == 1) {
-					const size_t only_child = node.indices[0];
-					node.indices.clear();
-					std::swap(node, bvh_octree[only_child]);
-					i--;
-				}
+			// Swap if only child
+			if (node.indices.size() == 1) {
+				const size_t only_child = node.indices[0];
+				node.indices.clear();
+				std::swap(node, bvh_octree[only_child]);
+				i--;
 			}
-			else {
-				branches.push_back(i);
-			}
-		}
-	}
-	// Second pass for leaves
-	for (size_t i = 0; i < bvh_octree.size(); i++) {
-		BVHNode& node = bvh_octree[i];
-		if (node.is_leaf && node.indices.empty()) {
-			for (size_t j = 0; j < branches.size(); j++) {
-				std::vector<size_t>& branch_indices = bvh_octree[branches[j]].indices;
-				for (size_t k = 0; k < branch_indices.size(); k++) {
-					if (branch_indices[k] < i) {
-						continue;
-					}
-					else if (branch_indices[k] > i) {
-						branch_indices[k]--;
-					}
-					else {
-						branch_indices.erase(branch_indices.begin() + k);
-					}
-				}
-
-				if (branches[j] > i) branches[j]--;
-			}
-
-			bvh_octree.erase(bvh_octree.begin() + i--);
 		}
 	}
 
@@ -459,7 +428,7 @@ bool TAGMesh::Plane::collisionBBox(const BoundingBox& box) const {
 	// Check aabb of frag against box
 	for (size_t i = 0; i < 3; i++) {
 		float min = glm::min(glm::min(frag_vertices[0][i], frag_vertices[1][i]), frag_vertices[2][i]);
-		float max = glm::max(glm::min(frag_vertices[0][i], frag_vertices[1][i]), frag_vertices[2][i]);
+		float max = glm::max(glm::max(frag_vertices[0][i], frag_vertices[1][i]), frag_vertices[2][i]);
 
 		if (min > half_extents[i] || max < -half_extents[i]) return false;
 	}
@@ -474,9 +443,9 @@ bool TAGMesh::Plane::collisionBBox(const BoundingBox& box) const {
 		glm::vec3 axis{};
 		axis[i] = 1.0f;
 		for (size_t j = 0; j < 3; j++) {
-			const glm::vec3 edge_normal = glm::cross(frag_vertices[(j == 2 ? 0 : j + 1)] - frag_vertices[i], axis);
+			const glm::vec3 edge_normal = glm::cross(frag_vertices[(j == 2 ? 0 : j + 1)] - frag_vertices[j], axis);
 			const float p0 = glm::dot(frag_vertices[j + 2 - (j == 0 ? 0 : 3)], edge_normal);
-			const float p1 = glm::dot(frag_vertices[i], edge_normal);
+			const float p1 = glm::dot(frag_vertices[j], edge_normal);
 
 			if (glm::max(-glm::max(p0, p1), glm::min(p0, p1)) > glm::dot(half_extents, glm::abs(edge_normal))) return false;
 		}
@@ -509,7 +478,8 @@ bool TAGMesh::Plane::collisionRay(const glm::vec3& start, const glm::vec3& ray, 
 TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre, const float& radius) const {
 	GLuint on_edge = 0, on_frag = 0;
 
-	if (glm::abs(glm::dot(frag_plane.normal, centre - frag_plane.start)) > radius) return {};
+	const float dist = glm::dot(frag_plane.normal, centre - frag_plane.start);
+	if (glm::abs(dist) > radius) return {};
 
 	for (size_t i = 0; i < 3; i++) {
 		const float dist = glm::dot(centre, volume_planes[i].normal) - volume_planes[i].constant;
@@ -533,14 +503,15 @@ TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionSphere(const glm::vec3& centre,
 
 		return { norm, glm::dot(norm, edge_start) };
 	} 
-	return { frag_plane.normal, glm::dot(frag_plane.normal, frag_plane.start) };
+	return { frag_plane.normal * (dist < 0.0f ? -1.0f : 1.0f), glm::dot(frag_plane.normal * (dist < 0.0f ? -1.0f : 1.0f), frag_plane.start)};
 }
 
 TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const {
 	const float spine_normal_dot = glm::dot(spine, frag_plane.normal);
+	const float foot_dist = glm::dot(frag_plane.normal, foot - frag_plane.start);
 
 	// All perpendicular cases collide with the infinite plane
-	if (glm::abs(spine_normal_dot) < 0.0001f && glm::abs(glm::dot(frag_plane.normal, foot - frag_plane.start)) > radius) return {};
+	if (glm::abs(spine_normal_dot) < 0.0001f && glm::abs(foot_dist) > radius) return {};
 
 	// Find parameter range along spine where capsule is within edge planes
 	float t_lo = 0.0f, t_hi = 1.0f;
@@ -586,7 +557,7 @@ TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, 
 		const float dist_sq = h * h;
 		if (dist_sq < best_dist_sq) {
 			best_dist_sq = dist_sq;
-			best_plane = { frag_plane.normal, glm::dot(frag_plane.normal, frag_plane.start) };
+			best_plane = { frag_plane.normal * (foot_dist < 0.0f ? -1.0f : 1.0f), glm::dot(frag_plane.normal * (foot_dist < 0.0f ? -1.0f : 1.0f), frag_plane.start)};
 			found = true;
 		}
 	}
