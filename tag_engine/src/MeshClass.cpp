@@ -31,8 +31,10 @@ void TAGMesh::generatePlanes() {
 	planes.reserve(frags.size());
 
 	for (const TAGMesh::Fragment& frag_struct : frags) {
-		const std::array<GLuint, 3>& frag = frag_struct.vertex_indices;
-		const std::array<glm::vec3, 3> frag_vertices = { vertices[frag[0]].position, vertices[frag[1]].position, vertices[frag[2]].position };
+		std::array<glm::vec3, 3> frag_vertices{};
+		for (size_t i = 0; i < 3; i++) {
+			frag_vertices[i] = vertices[frag_struct.vertex_indices[i]].position;
+		}
 		const std::array<glm::vec3, 2> frag_axis = { frag_vertices[1] - frag_vertices[0], frag_vertices[2] - frag_vertices[0] };
 		const glm::vec3 normal = glm::normalize(glm::cross(frag_axis[0], frag_axis[1]));
 
@@ -68,7 +70,7 @@ void TAGMesh::generateBVH() {
 
 	// Info for BVH nodes to be processed during construction
 	struct BVHQueue {
-		GLuint node_index, layer_index, depth;
+		size_t node_index, layer_index, depth;
 	};
 
 	// Get mesh bounding box
@@ -78,23 +80,10 @@ void TAGMesh::generateBVH() {
 		mesh_bb.min = glm::min(mesh_bb.min, vertex.position);
 	}
 
-	// Plane bounding boxes
-	std::vector<BoundingBox> plane_bb;
-	plane_bb.reserve(frags.size());
-	for (const Fragment& frag_struct : frags) {
-		const std::array<unsigned int, 3> frag = frag_struct.vertex_indices;
-		const std::array<glm::vec3, 3> frag_vertices = {
-			vertices[frag[0]].position,
-			vertices[frag[1]].position,
-			vertices[frag[2]].position
-		};
-		plane_bb.push_back(generateBoundingBox(frag_vertices.data(), 3));
-	}
-
-	// Function that splits bounding box into 8 equally sized bounding boxes
-	auto octGen = [this](const BoundingBox& box) {
+	// Function that splits bounding box into 8 equally sized bounding boxes and pushes them to bvh tree
+	auto octGen = [this](BoundingBox box) {
 		const glm::vec3 c = (box.max + box.min) / 2.0f;
-		for (unsigned int i = 0; i < 8; i++) {
+		for (size_t i = 0; i < 8; i++) {
 			glm::vec3 min, max;
 
 			min.x = (i & 1) ? c.x : box.min.x;
@@ -111,33 +100,31 @@ void TAGMesh::generateBVH() {
 	};
 
 	// Creates a range of values
-	auto range = [](const unsigned int& min, const unsigned int& max) {
-		std::vector<unsigned int> nums;
-		nums.reserve(max - min);
-		for (unsigned int i = min; i < max; i++) {
-			nums.push_back(i);;
+	auto range = [](const size_t& min, const size_t& max) {
+		std::vector<size_t> nums(max - min);
+		for (size_t i = min; i < max; i++) {
+			nums[i] = i;
 		}
 		return nums;
 	};
 
 	// The available planes at particular depths in the BVH
-	std::vector<std::vector<unsigned int>> layers;
+	std::vector<std::vector<size_t>> layers;
 
 	// Queue for holding BVH boxes yet to be processed
-	std::vector<BVHQueue> bvh_queue;
+	std::deque<BVHQueue> bvh_queue;
 
 	// Split mesh aabb to avoid checking all plane aabbs since we know planes are already in mesh
-	const std::vector<unsigned int> all_plane_indices = range(0, (unsigned int)planes.size());
+	const std::vector<size_t> all_plane_indices = range(0, planes.size());
 	if (planes.size() <= bvh_box_max_size) {
 		bvh_octree.emplace_back(true, mesh_bb, all_plane_indices);
 		return;
 	}
 	else {
-		std::vector<unsigned int> node_children;
-		node_children.reserve(8);
-		for (unsigned int i = 1; i < 9; i++) {
+		std::vector<size_t> node_children(8);
+		for (size_t i = 1; i < 9; i++) {
 			bvh_queue.push_back({ i, 0, 0 });
-			node_children.push_back(i);
+			node_children[i - 1] = i;
 		}
 		bvh_octree.emplace_back(false, mesh_bb, node_children);
 		layers.push_back(all_plane_indices);
@@ -146,23 +133,23 @@ void TAGMesh::generateBVH() {
 
 	while (!bvh_queue.empty()) {
 		// Next BVH box is removed from front of queue
-		BVHQueue& current_info = bvh_queue.front();
-		BVHNode& current_box = bvh_octree.at(current_info.node_index);
-		std::vector<unsigned int>& layer_indices = layers.at(current_info.layer_index);
+		BVHQueue current_info = bvh_queue.front();
+		BVHNode current_box = bvh_octree[current_info.node_index];
+		std::vector<size_t>& layer_indices = layers[current_info.layer_index];
 
 		// Find which planes within parent bounding box collide with current box
-		for (const unsigned int& plane_index : layer_indices) {
-			if (current_box.bounds.collisionBBox(plane_bb[plane_index])) {
+		for (const size_t& plane_index : layer_indices) {
+			if (planes[plane_index].frag_plane.collisionBBox(current_box.bounds)) {
 				current_box.indices.push_back(plane_index);
 			}
 		}
 
 		// split if too big and depth isnt too deep
-		if (current_box.indices.size() > bvh_box_max_size && current_info.depth < 3) {
+		if (current_box.indices.size() > bvh_box_max_size && current_info.depth < bvh_max_depth) {
 			layers.push_back(current_box.indices);
 			current_box.indices.clear();
-			for (unsigned int i = (unsigned int)bvh_octree.size(); i < (unsigned int)bvh_octree.size() + 8; i++) {
-				bvh_queue.push_back({ i, (unsigned int)layers.size() - 1, current_info.depth + 1});
+			for (size_t i = bvh_octree.size(); i < bvh_octree.size() + 8; i++) {
+				bvh_queue.push_back({ i, layers.size() - 1, current_info.depth + 1});
 				current_box.indices.push_back(i);
 			}
 			current_box.is_leaf = false;
@@ -170,27 +157,62 @@ void TAGMesh::generateBVH() {
 		}
 
 		bvh_queue.erase(bvh_queue.begin());
+		bvh_octree[current_info.node_index] = current_box;
 	}
 
-	// Clean the tree a bit
-	for (int i = 0; i < bvh_octree.size(); i++) {
+	// Clean tree, first pass deal with branches
+	std::vector<size_t> branches;
+	for (size_t i = 0; i < bvh_octree.size(); i++) {
 		BVHNode& node = bvh_octree[i];
 		if (!node.is_leaf) {
-			for (int j = 0; j < node.indices.size(); j++) {
+			// Don't point to empty children
+			for (size_t j = 0; j < node.indices.size(); j++) {
 				if (bvh_octree[node.indices[j]].indices.empty()) {
-					node.indices.erase(node.indices.begin() + j);
-					j--;
+					node.indices.erase(node.indices.begin() + j--);
 				}
 			}
 
-			if (node.indices.size() == 1) {
+			// If less than two children, mark as leaf for deletion and then swap with only child if one child
+			if (node.indices.size() < 2) {
 				node.is_leaf = true;
-				std::swap(node, bvh_octree[node.indices[0]]);
-				i--;
+				if (node.indices.size() == 1) {
+					const size_t only_child = node.indices[0];
+					node.indices.clear();
+					std::swap(node, bvh_octree[only_child]);
+					i--;
+				}
+			}
+			else {
+				branches.push_back(i);
 			}
 		}
-		node.indices.shrink_to_fit();
 	}
+	// Second pass for leaves
+	for (size_t i = 0; i < bvh_octree.size(); i++) {
+		BVHNode& node = bvh_octree[i];
+		if (node.is_leaf && node.indices.empty()) {
+			for (size_t j = 0; j < branches.size(); j++) {
+				std::vector<size_t>& branch_indices = bvh_octree[branches[j]].indices;
+				for (size_t k = 0; k < branch_indices.size(); k++) {
+					if (branch_indices[k] < i) {
+						continue;
+					}
+					else if (branch_indices[k] > i) {
+						branch_indices[k]--;
+					}
+					else {
+						branch_indices.erase(branch_indices.begin() + k);
+					}
+				}
+
+				if (branches[j] > i) branches[j]--;
+			}
+
+			bvh_octree.erase(bvh_octree.begin() + i--);
+		}
+	}
+
+	bvh_octree.shrink_to_fit();
 }
 
 void TAGMesh::setupMesh() {
@@ -427,7 +449,40 @@ bool TAGMesh::BoundingBox::collisionCapsule(const glm::vec3& foot, const glm::ve
 		closest_ray = foot + spine * std::clamp(glm::dot(closest_box - foot, spine) / s2, 0.0f, 1.0f);
 	}
 
-	return (glm::abs(TAGUtil::lengthSq(closest_ray - closest_box)) <= radius);
+	return (glm::abs(TAGUtil::lengthSq(closest_ray - closest_box)) <= radius * radius);
+}
+
+bool TAGMesh::Plane::collisionBBox(const BoundingBox& box) const {
+	const glm::vec3 half_extents = (box.max - box.min) / 2.0f;
+	const std::array<glm::vec3, 3> frag_vertices = { start - box.max + half_extents, start + axis[0] - box.max + half_extents, start + axis[1] - box.max + half_extents };
+
+	// Check aabb of frag against box
+	for (size_t i = 0; i < 3; i++) {
+		float min = glm::min(glm::min(frag_vertices[0][i], frag_vertices[1][i]), frag_vertices[2][i]);
+		float max = glm::max(glm::min(frag_vertices[0][i], frag_vertices[1][i]), frag_vertices[2][i]);
+
+		if (min > half_extents[i] || max < -half_extents[i]) return false;
+	}
+
+	// Check box against infinte plane containing frag
+	const float d = glm::dot(normal, frag_vertices[0]);
+	const float r = glm::dot(half_extents, glm::abs(normal)); // box radius on this axis
+	if (d - r > 0 || d + r < 0) return false;
+
+	// Some math I don't understand
+	for (size_t i = 0; i < 3; i++) {
+		glm::vec3 axis{};
+		axis[i] = 1.0f;
+		for (size_t j = 0; j < 3; j++) {
+			const glm::vec3 edge_normal = glm::cross(frag_vertices[(j == 2 ? 0 : j + 1)] - frag_vertices[i], axis);
+			const float p0 = glm::dot(frag_vertices[j + 2 - (j == 0 ? 0 : 3)], edge_normal);
+			const float p1 = glm::dot(frag_vertices[i], edge_normal);
+
+			if (glm::max(-glm::max(p0, p1), glm::min(p0, p1)) > glm::dot(half_extents, glm::abs(edge_normal))) return false;
+		}
+	}
+
+	return true;
 }
 
 bool TAGMesh::Plane::collisionPoint(const glm::vec3& point) const {

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <deque>
 #include <array>
 #include <iostream>
 #include <concepts>
@@ -82,7 +83,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         struct BVHNode {
             bool is_leaf;
             BoundingBox bounds;
-            std::vector<GLuint> indices;
+            std::vector<size_t> indices;
         };
         /**
         * Smaller plane struct that only represents the infinite plane a fragment lies in
@@ -99,6 +100,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             glm::vec3 start;
             std::array<glm::vec3, 2> axis;
 
+            bool collisionBBox(const BoundingBox& box) const;
             bool collisionPoint(const glm::vec3& point) const;
             bool collisionRay(const glm::vec3& start, const glm::vec3& ray, const float& t = 1.0f) const;
         };
@@ -178,6 +180,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         static BoundingBox generateBoundingBox(const glm::vec3* start, const unsigned int& size);
 	private:
         static constexpr inline unsigned int bvh_box_max_size = 4;
+        static constexpr inline unsigned int bvh_max_depth = 5;
 		std::vector<Vertex> vertices;
 		std::vector<Fragment> frags;
         std::vector<Material> materials;
