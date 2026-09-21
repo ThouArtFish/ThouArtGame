@@ -90,6 +90,27 @@ public:
 	 */
 	static int runGame();
 	/**
+	 * Returns 0 if the key is not being pressed, 1 if the key is being pressed and this is the first time its
+	 * state has been checked and 2 if the key is still being pressed since the last time its state was checked.
+	 *
+	 * @param key The GLFW key
+	 * @return Key state
+	 */
+	static unsigned int getKeyState(const int& key);
+	/**
+	 * Sets the state of the mouse depending on state, TAGEnum::TRUE meaning locked to the centre and hidden,
+	 * FALSE for free movement and TOGGLE to switch between states.
+	 *
+	 * @param state New state for mouse lock.
+	 */
+	static void setMouseLock(const TAGEnum& state);
+	/**
+	 * Sets the fullscreen state of the window, TAGEnum::TRUE for fullscreen, FALSE for windowed and TOGGLE to switch.
+	 *
+	 * @param state New state for window.
+	 */
+	static void setWindowFullscreen(const TAGEnum& state);
+	/**
 	* Get perspective projection matrix based on static values
 	*/
 	static glm::mat4 createPerspectiveMatrix();
@@ -116,27 +137,6 @@ protected:
 	* Default constructor
 	*/
 	TAGBaseState() {};
-	/**
-	 * Returns 0 if the key is not being pressed, 1 if the key is being pressed and this is the first time its
-	 * state has been checked and 2 if the key is still being pressed since the last time its state was checked.
-	 *
-	 * @param key The GLFW key
-	 * @return Key state
-	 */
-	static unsigned int getKeyState(const int& key);
-	/**
-	 * Sets the state of the mouse depending on state, TAGEnum::TRUE meaning locked to the centre and hidden,
-	 * FALSE for free movement and TOGGLE to switch between states.
-	 * 
-	 * @param state New state for mouse lock.
-	 */
-	static void setMouseLock(const TAGEnum& state);
-	/**
-	 * Sets the fullscreen state of the window, TAGEnum::TRUE for fullscreen, FALSE for windowed and TOGGLE to switch.
-	 * 
-	 * @param state New state for window.
-	 */
-	static void setWindowFullscreen(const TAGEnum& state);
 	/**
 	 * The main game loop for a state. This runs every frame if the derived state is the current state.
 	 * The return string determines what happens at the end of every loop:

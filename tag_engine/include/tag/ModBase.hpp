@@ -1,6 +1,6 @@
 #pragma once
 
 namespace TAM {
-	class MouseCamera;
-	class GravityCollision;
+	class PlayerController;
+	class MovementSolver;
 }
