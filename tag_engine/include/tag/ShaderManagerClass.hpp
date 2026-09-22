@@ -358,7 +358,7 @@ private:
         "        float cone_factor = ((flash_lights[i].c.w - acos(dot(light_dir, flash_lights[i].b.xyz))) / 0.0349) + 1.0;\n" 
         "        vec3 colour = flash_lights[i].c.xyz * max(0.0f, min(1.0f, cone_factor));\n"
         "        final_shade += (\n"
-        "            colour * max(0, dot(Normal, flash_lights[i].b.xyz)) +\n"
+        "            colour * max(0, dot(Normal, -light_dir)) +\n"
         "            colour * spec_frag * pow(max(dot(Normal, normalize(normalize(camera_pos - FragPos) + flash_lights[i].b.xyz)), 0.0), spec_exp)\n"
         "        ) * atten;\n"
         "    }\n"
