@@ -313,7 +313,7 @@ TAGModel::ShaderObject TAGModel::shaderConverter(const Object& obj, const GLuint
 }
 
 const TAGTexLoader::Texture TAGModel::loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const {
-	TAGTexLoader::Texture texture = TAGTexLoader::textureFromFile(this->directory + tex_path, this->tex_params);
+	TAGTexLoader::Texture texture = TAGTexLoader::textureFromFile(this->directory + tex_path, "", this->tex_params);
 	texture.type = tex_type;
 	return texture;
 }

@@ -17,6 +17,12 @@ template<OpenGLObjectType::Concept T> TAGResourceManager::OpenGLHandle<T>::~Open
 	else if constexpr (std::same_as<T, OpenGLObjectType::TextureBuffer>) {
 		glDeleteTextures(1, &this->ID);
 	}
+	else if constexpr (std::same_as<T, OpenGLObjectType::Framebuffer>) {
+		glDeleteFramebuffers(1, &this->ID);
+	}
+	else if constexpr (std::same_as<T, OpenGLObjectType::Renderbuffer>) {
+		glDeleteRenderbuffers(1, &this->ID);
+	}
 	else { // OpenGLObjectType::VertexArrayObject
 		vao_binding_indices.erase(this->ID);
 		glDeleteVertexArrays(1, &this->ID);
@@ -42,6 +48,16 @@ template<OpenGLObjectType::Concept T> GLuint TAGResourceManager::OpenGLHandle<T>
 		GLuint tex_ID;
 		glGenTextures(1, &tex_ID);
 		return tex_ID;
+	}
+	else if constexpr (std::same_as<T, OpenGLObjectType::Framebuffer>) {
+		GLuint buf_ID;
+		glGenFramebuffers(1, &buf_ID);
+		return buf_ID;
+	}
+	else if constexpr (std::same_as<T, OpenGLObjectType::Renderbuffer>) {
+		GLuint buf_ID;
+		glGenRenderbuffers(1, &buf_ID);
+		return buf_ID;
 	}
 	else { // OpenGLObjectType::VertexArrayObject
 		GLuint vao_ID;

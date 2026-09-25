@@ -18,7 +18,7 @@ TAGHUDManager::~TAGHUDManager() {
 
 void TAGHUDManager::loadImage(const std::string& path, const TAGTexLoader::Params& params, const std::string& name) {
 	const std::string tex_name = (name == "" ? static_cast<std::filesystem::path>(path).stem().string() : name);
-	images.push_back(TAGTexLoader::textureFromFile(TAGResourceManager::asset_path + path, params, tex_name));
+	images.push_back(TAGTexLoader::textureFromFile(TAGResourceManager::asset_path + path, tex_name, params));
 }
 
 void TAGHUDManager::addImage(const TAGTexLoader::Texture& texture) {

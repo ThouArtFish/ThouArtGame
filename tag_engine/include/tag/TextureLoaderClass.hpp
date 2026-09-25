@@ -32,7 +32,7 @@ enum class TAGTexParam {
 };
 
 /**
- * Loads images. Probably not needed to be user by the user explicitly.
+ * Loads images from paths into Texture objects.
  */
 class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 	public:
@@ -40,7 +40,7 @@ class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 		* Handles pointers to image data blocks
 		*/
 		struct ImageDataContainer {
-			unsigned char* data;
+			unsigned char* data = nullptr;
 			~ImageDataContainer();
 		};
 
@@ -49,10 +49,9 @@ class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 		 */
 		struct Info {
 			ImageDataContainer data_container;
-			int width;
-			int height;
-			int nr_channels;
+			int width = 1024, height = 1024, nr_channels = 3;
 		};
+
 		/*
 		* Container for info on image loading and texture setup
 		*/
@@ -60,8 +59,7 @@ class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 			TAGTexParam wrap_type = TAGTexParam::REPEAT_TEX;
 			TAGTexParam min_filter = TAGTexParam::LINEAR_INTERP_PIX;
 			TAGTexParam mag_filter = TAGTexParam::NEAREST_PIX;
-			bool srgb = false;
-			bool flip = false;
+			bool srgb = false, flip = false;
 		};
 
 		/**
@@ -69,9 +67,7 @@ class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 		*/
 		struct Texture {
 			std::string name;
-			unsigned int id;
-			unsigned int width;
-			unsigned int height;
+			GLuint id, width, height;
 			TAGTexType type = TAGTexType::NONE_MAP;
 		};
 
@@ -96,22 +92,41 @@ class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 		* Creates texture buffer from image path and texture parameters
 		*
 		* @param tex_path The path to the image.
-		* @param params Settings for texture setup.
 		* @param name Name of texture, if blank then texture filename is used.
+		* @param params Settings for texture setup.
 		* @return Texture struct containing info about texture handle buffer, such as ID.
 		*/
-		static Texture textureFromFile(const std::string& tex_path, const Params& params = {}, const std::string& name = "");
+		static Texture textureFromFile(const std::string& tex_path, const std::string& name = "", const Params& params = {});
 		/*
-		* Creates texture buffer from directory path and texture parameters for a cubemap.
-		* The images within the directory should be named "right", "left", "top", "bottom", "front" and "back"
-		* for each side of the cubemap.
-		*
-		* @param folder_path Path to folder containing images.
+		* Creates an empty 2D texture.
+		* 
+		* @param name Name of texture.
+		* @param width Width of texture.
+		* @param height Height of texture.
+		* @param nr_channels Number of colour channels for each pixel.
 		* @param params Settings for texture setup.
-		* @return ID for OpenGL texture buffer.
+		* @return Texture struct containing info about texture handle buffer, such as ID.
 		*/
-		static unsigned int cubemapFromFile(const std::string& folder_path, const Params& params = {});
+		static Texture emptyTexture(const std::string& name, const GLuint width, const GLuint height, const GLuint nr_channels, const Params& params = {});
+		/*
+		* Creates a cubemap texture from the first 6 image paths in tex_paths, for each side of the cubemap.
+		* Uses last path for remaining sides of cubemap if size < 6.
+		*
+		* @param tex_paths Paths to image files.
+		* @param params Settings for texture setup.
+		* @return ID for OpenGL texture object.
+		*/
+		static GLuint cubemapFromMultipleFiles(const std::vector<std::string>& tex_paths, const Params& params = {});
+		/*
+		* Creates an empty cubemap texture.
+		* 
+		* @param face_size Length of each square face in the cubemap.
+		* @param nr_channels Number of colour channels for each pixel.
+		* @param params Settings for texture setup.
+		* @return ID for OpenGL texture object.
+		*/
+		static GLuint emptyCubemap(const GLuint face_size, const GLuint nr_channels, const Params& params = {});
 	private:
-		static GLenum getTextureFormat(const int&, const bool&);
-		static GLenum removeMipmapTag(const TAGTexParam& param);
+		static GLenum getTextureFormat(const int& nr_channels, const bool& srgb);
+		static GLenum removeMipmapTag(const TAGTexParam& params);
 };

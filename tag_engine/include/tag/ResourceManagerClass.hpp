@@ -21,6 +21,8 @@ namespace OpenGLObjectType {
 	struct FragmentShader : TagStruct { constexpr static GLuint TYPE_ID = 3; constexpr inline static std::string_view NAME = "FragmentShader"; };
 	struct TextureBuffer : TagStruct { constexpr static GLuint TYPE_ID = 4; constexpr inline static std::string_view NAME = "TextureBuffer"; };
 	struct GenericBuffer : TagStruct { constexpr static GLuint TYPE_ID = 5; constexpr inline static std::string_view NAME = "GenericBuffer"; };
+	struct Framebuffer : TagStruct { constexpr static GLuint TYPE_ID = 6; constexpr inline static std::string_view NAME = "Framebuffer"; };
+	struct Renderbuffer : TagStruct { constexpr static GLuint TYPE_ID = 7; constexpr inline static std::string_view NAME = "Renderbuffer"; };
 
 	template<class T> concept Concept = !std::same_as<T, TagStruct> && std::derived_from<T, TagStruct>;
 };
@@ -84,7 +86,7 @@ public:
 	/**
 	* The base path from the executable to loadable assets
 	*/
-	static inline std::string asset_path = "game/assets/";
+	static inline std::string asset_path = "assets/";
 
 	/**
 	* Default constructible wrapper for GLsync objects

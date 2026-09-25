@@ -111,6 +111,9 @@ void TAGBaseState::initGame(const GameInitializer& game_init) {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	// Enable seamless cubemap rendering
+	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
 	// Enable back-face culling globally
 	glEnable(GL_CULL_FACE);
 

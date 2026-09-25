@@ -145,61 +145,11 @@ public:
 
     static inline ShaderOptions default_options = {};
 
-    /**
-    * Pass one or multiple shader program sources (stored within a vector) to load them.
-    * 
-    * @param source(s) Source structs containing shader program component paths
-    */
-    TAGShaderManager();
-    TAGShaderManager(const Source& source);
-    TAGShaderManager(const std::vector<Source>& sources);
-    ~TAGShaderManager();
-
-    /**
-    * Add new shader program(s)
-    * 
-    * @param source(s) Source struct(s) containing shader program component paths
-    */
-    void addShader(const Source& source);
-    void addShader(const std::vector<Source>& sources);
-    /**
-    * Delete shader program(s), identifying by name.
-    * 
-    * @param name(s) Name(s) of shader program(s)
-    */
-    void deleteShader(const std::string& name);
-    void deleteShader(const std::vector<std::string>& names);
-    /**
-    * For each shader named in shader_names, sets the corresponding value in values to the corresponding uniform in 
-    * uniform_names. If the length of uniform_names or values is less than shader_names, then the last value in each
-    * vector is used for the remaining shaders.
-    * 
-    * @param shader_names Names of each shader
-    * @param uniform_names Names of uniforms in each shader
-    * @param values Values to set to uniforms
-    * @param count Number of individual values to set, default is 1
-    */
-    template<ShaderUniformType::Concept T> void setAll(const std::vector<std::string>& shader_names, const std::vector<std::string>& uniform_names, const std::vector<T>& values, const GLuint& count = 1) const;
-    /**
-    * Activates a shader program and returns a reference to allow uniforms to be set.
-    * The shader program is active until useShader activates a different shader program
-    * or stopShader deactivates the current program.
-    * 
-    * @param name The name of the shader program
-    */
-    const Shader& useShader(const std::string& name) const;
-    /**
-    * Gets all shader program names.
-    */
-    std::vector<std::string> getShaderNames() const;
-    /**
-    * Deactivates the current shader.
-    */
-    static void stopShader();
-private:
-    static constexpr unsigned int DEFAULT_SHADER_COUNT = 8;
+    // Default shader version
     static constexpr std::string_view shader_version = "#version 460 core\n";
-    static constexpr std::array<std::string_view, DEFAULT_SHADER_COUNT> default_source = {
+
+    // Default shader source code
+    static constexpr std::array<std::string_view, 9> default_source = {
         // Uninstanced vertex 0
         "layout (location = 0) in vec3 aPos;\n"
         "layout (location = 1) in vec3 aNormal;\n"
@@ -355,15 +305,77 @@ private:
         "        float dist = length(light_dir);\n"
         "        float atten = 1.0f / (1.0f + flash_lights[i].a.w * dist + flash_lights[i].b.w * dist * dist);\n"
         "        light_dir /= dist;\n"
-        "        float cone_factor = ((flash_lights[i].c.w - acos(dot(light_dir, flash_lights[i].b.xyz))) / 0.0349) + 1.0;\n" 
+        "        float cone_factor = ((flash_lights[i].c.w - acos(dot(light_dir, flash_lights[i].b.xyz))) / 0.0349) + 1.0;\n"
         "        vec3 colour = flash_lights[i].c.xyz * max(0.0f, min(1.0f, cone_factor));\n"
         "        final_shade += (\n"
         "            colour * max(0, dot(Normal, -light_dir)) +\n"
         "            colour * spec_frag * pow(max(dot(Normal, normalize(normalize(camera_pos - FragPos) + flash_lights[i].b.xyz)), 0.0), spec_exp)\n"
         "        ) * atten;\n"
         "    }\n"
-        "    FragColour = vec4(obj_base.xyz * final_shade, obj_base.w * opacity);\n}"
+        "    FragColour = vec4(obj_base.xyz * final_shade, obj_base.w * opacity);\n}",
+        // Skybox setup fragment 8
+        "out vec4 FragColor;\n"
+        "in vec3 TexCoords;\n"
+        "uniform sampler2D cubemap;\n"
+        "void main() {\n"
+        "   vec3 d = normalize(TexCoords);\n"
+        "   float u = atan(d.z, d.x) / (2.0 * 3.14159265) + 0.5;\n"
+        "   float v = acos(clamp(d.y, -1.0, 1.0)) / 3.14159265;\n"
+        "   FragColor = texture(cubemap, vec2(u, v));\n}"
     };
+
+    /**
+    * Pass one or multiple shader program sources (stored within a vector) to load them.
+    * 
+    * @param source(s) Source structs containing shader program component paths
+    */
+    TAGShaderManager();
+    TAGShaderManager(const Source& source);
+    TAGShaderManager(const std::vector<Source>& sources);
+    ~TAGShaderManager();
+
+    /**
+    * Add new shader program(s)
+    * 
+    * @param source(s) Source struct(s) containing shader program component paths
+    */
+    void addShader(const Source& source);
+    void addShader(const std::vector<Source>& sources);
+    /**
+    * Delete shader program(s), identifying by name.
+    * 
+    * @param name(s) Name(s) of shader program(s)
+    */
+    void deleteShader(const std::string& name);
+    void deleteShader(const std::vector<std::string>& names);
+    /**
+    * For each shader named in shader_names, sets the corresponding value in values to the corresponding uniform in 
+    * uniform_names. If the length of uniform_names or values is less than shader_names, then the last value in each
+    * vector is used for the remaining shaders.
+    * 
+    * @param shader_names Names of each shader
+    * @param uniform_names Names of uniforms in each shader
+    * @param values Values to set to uniforms
+    * @param count Number of individual values to set, default is 1
+    */
+    template<ShaderUniformType::Concept T> void setAll(const std::vector<std::string>& shader_names, const std::vector<std::string>& uniform_names, const std::vector<T>& values, const GLuint& count = 1) const;
+    /**
+    * Activates a shader program and returns a reference to allow uniforms to be set.
+    * The shader program is active until useShader activates a different shader program
+    * or stopShader deactivates the current program.
+    * 
+    * @param name The name of the shader program
+    */
+    const Shader& useShader(const std::string& name) const;
+    /**
+    * Gets all shader program names.
+    */
+    std::vector<std::string> getShaderNames() const;
+    /**
+    * Deactivates the current shader.
+    */
+    static void stopShader();
+private:
     std::unordered_map<std::string, Shader> shaders;
 
     static Shader loadShader(const Source& source);

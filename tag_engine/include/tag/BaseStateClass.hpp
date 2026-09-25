@@ -147,25 +147,25 @@ protected:
 	 * @return Determines what happens before the next main game loop.
 	 */
 	virtual std::string mainLoop() = 0;
-	/**
-	 * Run when the state is set to the current state. This includes if the state is the starting state.
-	 */
+	/*
+	* Run when the state is set to the current state. This includes if the state is the starting state.
+	*/
 	virtual void enter() = 0;
-	/**
-	 * Run when the state is removed from the current state position. This includes when the game ends due to "END" return string.
-	 */
+	/*
+	* Run when the state is removed from the current state position. This includes when the game ends due to "END" return string.
+	*/
 	virtual void exit() = 0;
-	/**
-	 * Run whenever the mouse moves.
-	 */
+	/*
+	* Run whenever the mouse moves.
+	*/
 	virtual void mouseCallback() = 0;
-	/**
-	 * Run when the size of the window changes.
-	 */
+	/*
+	* Run when the size of the window changes.
+	*/
 	virtual void framebufferSizeCallback() = 0;
-	/**
-	 * Run when the window is iconified.
-	 */
+	/*
+	* Run when the window is iconified.
+	*/
 	virtual void iconifyCallback() = 0;
 };
 

@@ -14,13 +14,14 @@
 class TAGSkybox : public TAGBaseState::OpenGLContextChecker {
 	public:
 		/**
-		* Pass a path to the directory containing all skybox images.
+		* Pass a path to single image, or multiple paths for each side of the skybox cubemap.
 		* Params decide the loading parameters for each skybox texture.
 		* 
-		* @param directory Directory containing all skybox images
+		* @param path(s) Path to an image file
 		* @param params Texture loading parameters
 		*/
-		TAGSkybox(const std::string& directory, const TAGTexLoader::Params& params);
+		TAGSkybox(const std::vector<std::string>& paths, const TAGTexLoader::Params& params = {});
+		TAGSkybox(const std::string& path, const TAGTexLoader::Params& params = {});
 		~TAGSkybox();
 
 		/**
@@ -31,7 +32,9 @@ class TAGSkybox : public TAGBaseState::OpenGLContextChecker {
 		*/
 		void draw(const TAGShaderManager::Shader& shader, const std::string& cubemap_name = TAGShaderManager::default_options.cubemap) const;
 	private:
-		unsigned int VBO, EBO, VAO, cubemap_ID;
+		static void generateCube();
+	
+		static inline GLuint VBO = 0, EBO = 0, VAO = 0, cubemap_ID = 0;
 };
 
 
