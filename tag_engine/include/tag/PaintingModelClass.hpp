@@ -59,10 +59,10 @@ public:
 	static Object faceDirec(const glm::vec3& position, const Object& obj, const bool& lock_axis);
 private:
 	inline static constexpr std::array<glm::vec2, 4> tex_coords = { glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 0.0f), glm::vec2(1.0f, 1.0f), glm::vec2(0.0f, 1.0f) };
-	inline static constexpr TAGMesh::Fragment frag_1 = { { 0, 1, 3 }, 0 };
-	inline static constexpr TAGMesh::Fragment frag_2 = { { 1, 2, 3 }, 0 };
-	inline static constexpr glm::vec3 defArm = { -1.0f, 0.0f, 0.0f };
-	inline static constexpr glm::vec3 defNormal = { 0.0f, 0.0f, 1.0f };
+	inline static constexpr TAGMesh::Fragment frag_1 = { 0, 1, 3 };
+	inline static constexpr TAGMesh::Fragment frag_2 = { 1, 2, 3 };
+	inline static constexpr glm::vec3 def_arm = { -1.0f, 0.0f, 0.0f };
+	inline static constexpr glm::vec3 def_normal = { 0.0f, 0.0f, 1.0f };
 
 	using TAGModel::addMesh;
 };

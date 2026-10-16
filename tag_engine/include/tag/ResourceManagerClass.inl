@@ -253,7 +253,7 @@ template<class T> void TAGResourceManager::OrphanBuffer<T>::resizeBuffer(const G
 	this->buffer_id = new_buffer_id;
 }
 
-template<class C, class G, GLuint DIVISIONS> TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::ObjectBuffer(const GLuint& max_objs, const std::function<G(const C&, const GLuint&)>& converter, const BufferAccess& access, const bool& include_size) {
+template<class C, class G, GLuint DIVISIONS> TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::ObjectBuffer(const GLuint& max_objs, const std::function<std::array<G, DIVISIONS + 1>(const C&)>& converter, const BufferAccess& access, const bool& include_size) {
 	this->converter = converter;
 	if (access != BufferAccess::STREAM) {
 		this->buffer = std::make_unique<OrphanBuffer<G>>(max_objs * (DIVISIONS + 1), access, include_size);
@@ -358,15 +358,14 @@ template<class C, class G, GLuint DIVISIONS> const std::unique_ptr<TAGResourceMa
 
 template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::updateBuffer() {
 	std::vector<G> buffer_data;
-	const GLuint buffer_data_size = (GLuint) objs.size() * (DIVISIONS + 1);
+	const size_t buffer_data_size = objs.size() * (DIVISIONS + 1);
 	buffer_data.reserve(buffer_data_size);
 
 	if (buffer_data_size > buffer->getMaxObjects()) buffer->resizeBuffer(buffer_data_size * 2u);
 
 	for (const C& obj : objs) {
-		for (GLuint i = 0; i < DIVISIONS + 1; i++) {
-			buffer_data.push_back(converter(obj, i));
-		}
+		const std::array<G, DIVISIONS + 1> data = converter(obj);
+		buffer_data.insert(buffer_data.end(), data.begin(), data.end());
 	}
 
 	buffer->updateBuffer(buffer_data);

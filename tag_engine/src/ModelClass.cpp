@@ -11,7 +11,7 @@ TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const TAGResourceMana
 void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
 	if ((mesh_name != "" && meshes.find(mesh_name) == meshes.end()) || instance_buffers.find(mesh_name) == instance_buffers.end()) return;
 
-	TAGResourceManager::ObjectBuffer<Object, ShaderObject>& instance_buffer = instance_buffers.at(mesh_name);
+	InstanceBuffer& instance_buffer = instance_buffers.at(mesh_name);
 
 	for (const auto& pair : shader.buffer_locations) {
 		TAGResourceManager::updateAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
@@ -24,19 +24,22 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 	if (mesh_name != "") {
 		TAGMesh& mesh = meshes.at(mesh_name);
 
-		instance_buffer.bindToVertexArrayObject(default_vao_instance_binding_point, 0, mesh.getVAO());
+		glVertexArrayVertexBuffer(mesh.VAO, TAGMesh::default_vao_instance_binding_point, instance_buffer.getBuffer()->getBufferID(), 0, sizeof(ShaderObject));
 
 		mesh.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
+
+		glVertexArrayVertexBuffer(mesh.VAO, TAGMesh::default_vao_instance_binding_point, 0, 0, 0);
 	}
 	else {
-		for (const std::string& name : mesh_draw_order) {
-			TAGMesh& mesh = meshes.at(name);
+		for (auto& pair : meshes) {
+			glVertexArrayVertexBuffer(pair.second.VAO, TAGMesh::default_vao_instance_binding_point, instance_buffer.getBuffer()->getBufferID(), 0, sizeof(ShaderObject));
 
-			instance_buffer.bindToVertexArrayObject(default_vao_instance_binding_point, 0, mesh.getVAO());
+			pair.second.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
 
-			mesh.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
+			glVertexArrayVertexBuffer(pair.second.VAO, TAGMesh::default_vao_instance_binding_point, 0, 0, 0);
 		}
 	}
+
 	instance_buffer.setFence();
 
 	for (const auto& pair : shader.buffer_locations) {
@@ -61,8 +64,8 @@ void TAGModel::drawOne(const TAGShaderManager::Shader& shader, const Object& obj
 		meshes.at(mesh_name).draw(shader, options);
 	}
 	else {
-		for (const std::string& mesh_name : mesh_draw_order) {
-			meshes.at(mesh_name).draw(shader, options);
+		for (auto& pair : meshes) {
+			pair.second.draw(shader, options);
 		}
 	}
 
@@ -109,33 +112,17 @@ const std::vector<TAGModel::Object>& TAGModel::getAllInstances(const std::string
 }
 
 void TAGModel::updateInstanceBuffer(const std::string& mesh_name) {
-	auto& instance_buffer = instance_buffers.at(mesh_name);
-	std::vector<Object>& object_vec = instance_buffer.changeObjects();
-	if (mesh_name == "" ? meshes.at(mesh_draw_order.back()).is_transparent : meshes.at(mesh_name).is_transparent) {
-		std::sort(object_vec.begin(), object_vec.end(),
-			[](const Object& a, const Object& b) {
-				return TAGUtil::lengthSq(TAGBaseState::camera_position - a.position) > TAGUtil::lengthSq(TAGBaseState::camera_position - b.position);
-			}
-		);
-	}
-	instance_buffer.updateBuffer();
+	if (instance_buffers.contains(mesh_name)) instance_buffers.at(mesh_name).updateBuffer();
 }
 
 TAGMesh& TAGModel::getMesh(const std::string& mesh_name) {
 	return meshes.at(mesh_name);
 }
 
-void TAGModel::addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const std::vector<TAGMesh::Material>& materials) {
+void TAGModel::addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const TAGMesh::Material& material) {
 	if (mesh_name == "") return;
 
-	meshes.try_emplace(mesh_name, vertices, frags, materials);
-
-	if (meshes[mesh_name].is_transparent) {
-		mesh_draw_order.insert(mesh_draw_order.begin(), mesh_name);
-	}
-	else {
-		mesh_draw_order.push_back(mesh_name);
-	}
+	meshes.try_emplace(mesh_name, vertices, frags, material);
 }
 
 void TAGModel::deleteMesh(const std::string& mesh_name) {
@@ -143,7 +130,6 @@ void TAGModel::deleteMesh(const std::string& mesh_name) {
 
 	meshes.erase(mesh_name);
 	instance_buffers.erase(mesh_name);
-	mesh_draw_order.erase(std::find(mesh_draw_order.begin(), mesh_draw_order.end(), mesh_name));
 }
 
 void TAGModel::loadModel(const std::string& path) {
@@ -180,18 +166,18 @@ void TAGModel::loadModel(const std::string& path) {
 	all_texcoords.assign(array_sizes[2], glm::vec2(0));
 	for (size_t i = 0; i < max_index; i++) {
 		if (i < array_sizes[0]) {
-			for (unsigned int j = 0; j < 3; j++) {
+			for (size_t j = 0; j < 3; j++) {
 				all_vertices[i][j] = attrib.vertices[i * 3 + j];
 			}
 		}
 		if (i < array_sizes[1]) {
-			for (unsigned int j = 0; j < 3; j++) {
+			for (size_t j = 0; j < 3; j++) {
 				all_normals[i][j] = attrib.normals[i * 3 + j];
 			}
 			all_normals[i] = glm::normalize(all_normals[i]);
 		}
 		if (i < array_sizes[2]) {
-			for (unsigned int j = 0; j < 2; j++) {
+			for (size_t j = 0; j < 2; j++) {
 				all_texcoords[i][j] = attrib.texcoords[i * 2 + j];
 			}
 		}
@@ -201,13 +187,12 @@ void TAGModel::loadModel(const std::string& path) {
 	for (const tinyobj::shape_t& shape : shapes) {
 		if (shape.name == "") continue;
 
-		meshes.try_emplace(shape.name);
-		TAGMesh& mesh = meshes.at(shape.name);
+		// Mesh data
+		std::vector<TAGMesh::Vertex> mesh_vertices; mesh_vertices.reserve(shape.mesh.indices.size());
+		std::vector<TAGMesh::MaterialFragments> mesh_material_frags; mesh_material_frags.reserve(materials.size());
+		std::vector<TAGMesh::Material> mesh_materials; mesh_materials.reserve(materials.size());
 
-		mesh.vertices.reserve(shape.mesh.indices.size());
-		mesh.frags.reserve(shape.mesh.num_face_vertices.size());
-
-		// Indices of materials used by current mesh
+		// Indices of materials found in mesh
 		std::vector<GLuint> found_materials;
 
 		// Vertices which are part of mesh already
@@ -225,8 +210,8 @@ void TAGModel::loadModel(const std::string& path) {
 			const size_t index_address = current_index.texcoord_index + (current_index.normal_index + current_index.vertex_index * max_index) * max_index;
 
 			if (!unique_indices.contains(index_address)) {
-				unique_indices[index_address] = (GLuint)mesh.vertices.size();
-				mesh.vertices.emplace_back(all_vertices[current_index.vertex_index], all_normals[current_index.normal_index], all_texcoords[current_index.texcoord_index]);
+				unique_indices[index_address] = (GLuint)mesh_vertices.size();
+				mesh_vertices.emplace_back(all_vertices[current_index.vertex_index], all_normals[current_index.normal_index], all_texcoords[current_index.texcoord_index]);
 			}
 			primitive[primitive_index] = unique_indices[index_address];
 
@@ -240,7 +225,14 @@ void TAGModel::loadModel(const std::string& path) {
 				else {
 					material_index = (GLuint)std::distance(found_materials.begin(), material_pos);
 				}
-				mesh.frags.emplace_back(primitive, material_index);
+				
+				const auto& material_frag_pos = std::find_if(mesh_material_frags.begin(), mesh_material_frags.end(), [&material_index](const TAGMesh::MaterialFragments& mat_frags) { return mat_frags.material_index == material_index; });
+				if (material_frag_pos == mesh_material_frags.end()) {
+					mesh_material_frags.emplace_back(material_index, std::vector<TAGMesh::Fragment>{ primitive });
+				}
+				else {
+					material_frag_pos->frags.push_back(primitive);
+				}
 				primitive_index = 0;
 			}
 			else {
@@ -248,14 +240,11 @@ void TAGModel::loadModel(const std::string& path) {
 			}
 		}
 
-		mesh.vertices.shrink_to_fit();
-		mesh.frags.shrink_to_fit();
-
 		// Loaded textures
 		std::vector<TAGTexLoader::Texture> loaded_textures;
 
 		// Load materials for model
-		for (const unsigned int& material_index : found_materials) {
+		for (const GLuint& material_index : found_materials) {
 			const tinyobj::material_t& material = materials[material_index];
 			TAGMesh::Material mesh_material;
 
@@ -289,22 +278,12 @@ void TAGModel::loadModel(const std::string& path) {
 			mesh_material.spec_exp = material.shininess;
 			mesh_material.spec_fac = material.specular[0];
 			mesh_material.opacity = material.dissolve;
-			if (mesh_material.opacity < 1.0f) {
-				mesh.is_transparent = true;
-			}
 			mesh_material.colour = *((glm::vec3*)&material.diffuse);
 
-			mesh.materials.push_back(mesh_material);
+			mesh_materials.push_back(mesh_material);
 		}
 
-		mesh.setupMesh();
-
-		if (mesh.is_transparent) {
-			mesh_draw_order.insert(mesh_draw_order.begin(), shape.name);
-		}
-		else {
-			mesh_draw_order.push_back(shape.name);
-		}
+		meshes.try_emplace(shape.name, mesh_vertices, mesh_material_frags, mesh_materials);
 	}
 }
 

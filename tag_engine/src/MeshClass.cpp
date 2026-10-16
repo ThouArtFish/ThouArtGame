@@ -1,20 +1,56 @@
 #include <MeshClass.hpp>
 
-TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const std::vector<Material>& materials) {
-	this->vertices = vertices;
-	this->frags = frags;
-	this->materials = materials;
+TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<MaterialFragments>& material_frags, const std::vector<Material>& materials) {
+	if (VAO == 0) setupMeshVertexArrayObject();
 
-	setupMesh();
+	VBO = VertexBuffer(vertices.size(), convertVertex, TAGResourceManager::BufferAccess::STATIC);
+	VBO.setAllObjects(vertices);
+	VBO.updateBuffer();
+
+	size_t num_frags = 0;
+	std::vector<Fragment> frags;
+	for (const MaterialFragments& frag_struct : material_frags) {
+		draw_commands.emplace_back(frag_struct.material_index, num_frags * fragment_component_count, frag_struct.frags.size() * fragment_component_count);
+		frags.insert(frags.end(), frag_struct.frags.begin(), frag_struct.frags.end());
+		num_frags += frag_struct.frags.size();
+	}
+	EBO = FragmentBuffer(num_frags, convertFragment, TAGResourceManager::BufferAccess::STATIC);
+	EBO.setAllObjects(frags);
+	EBO.updateBuffer();
+
+	material_buffer = MaterialBuffer(materials.size(), convertMaterial, TAGResourceManager::BufferAccess::STATIC, true);
+	material_buffer.setAllObjects(materials);
+	material_buffer.updateBuffer();
+
+	setupMeshBoundingBox();
+
+	generatePlanes();
+	generateBVH();
 }
 
-TAGMesh::TAGMesh() {}
+TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const Material& material) {
+	if (VAO == 0) setupMeshVertexArrayObject();
+
+	VBO = VertexBuffer(vertices.size(), convertVertex, TAGResourceManager::BufferAccess::STATIC);
+	VBO.setAllObjects(vertices);
+	VBO.updateBuffer();
+
+	EBO = FragmentBuffer(frags.size(), convertFragment, TAGResourceManager::BufferAccess::STATIC);
+	EBO.setAllObjects(frags);
+	EBO.updateBuffer();
+	draw_commands.emplace_back(0, 0, frags.size() * fragment_component_count);
+
+	material_buffer = MaterialBuffer(1, convertMaterial, TAGResourceManager::BufferAccess::STATIC, true);
+	material_buffer.pushObject(material);
+	material_buffer.updateBuffer();
+
+	setupMeshBoundingBox();
+
+	generatePlanes();
+	generateBVH();
+}
 
 TAGMesh::~TAGMesh() {
-	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(VBO);
-	for (const MaterialElementBuffer& material_ebo : material_ebos) {
-		TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(material_ebo.EBO);
-	}
 	TAGResourceManager::deleteBuffer<OpenGLObjectType::VertexArrayObject>(VAO);
 }
 
@@ -22,18 +58,16 @@ TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) {
 	return *std::find_if(textures.begin(), textures.end(), [&name](const TAGTexLoader::Texture& tex) { return name == tex.name; });
 }
 
-TAGMesh::MaterialElementBuffer::~MaterialElementBuffer() {
-	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(EBO);
-}
-
 void TAGMesh::generatePlanes() {
 	planes.clear();
-	planes.reserve(frags.size());
+	planes.reserve(EBO.getAllObjects().size());
 
-	for (const TAGMesh::Fragment& frag_struct : frags) {
+	const std::vector<Vertex>& vertices = VBO.getAllObjects();
+
+	for (const Fragment& frag : EBO.getAllObjects()) {
 		std::array<glm::vec3, 3> frag_vertices{};
 		for (size_t i = 0; i < 3; i++) {
-			frag_vertices[i] = vertices[frag_struct.vertex_indices[i]].position;
+			frag_vertices[i] = vertices[frag[i]].position;
 		}
 		const std::array<glm::vec3, 2> frag_axis = { frag_vertices[1] - frag_vertices[0], frag_vertices[2] - frag_vertices[0] };
 		const glm::vec3 normal = glm::normalize(glm::cross(frag_axis[0], frag_axis[1]));
@@ -72,13 +106,6 @@ void TAGMesh::generateBVH() {
 	struct BVHQueue {
 		size_t node_index, layer_index, depth;
 	};
-
-	// Get mesh bounding box
-	mesh_bb = { vertices[0].position, vertices[0].position };
-	for (const TAGMesh::Vertex& vertex : vertices) {
-		mesh_bb.max = glm::max(mesh_bb.max, vertex.position);
-		mesh_bb.min = glm::min(mesh_bb.min, vertex.position);
-	}
 
 	// Function that splits bounding box into 8 equally sized bounding boxes and pushes them to bvh tree
 	auto octGen = [this](BoundingBox box) {
@@ -184,104 +211,23 @@ void TAGMesh::generateBVH() {
 	bvh_octree.shrink_to_fit();
 }
 
-void TAGMesh::setupMesh() {
-	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(VBO);
-	TAGResourceManager::deleteBuffer<OpenGLObjectType::VertexArrayObject>(VAO);
-	material_ebos.clear();
-
-	std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 3>>> material_frags;
-	for (const Fragment& frag_struct : frags) {
-		material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
-	}
-	for (const auto& pair : material_frags) {
-		material_ebos.emplace_back(TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>(), pair.first, (GLsizei) pair.second.size() * 3);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
-	}
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	std::sort(material_ebos.begin(), material_ebos.end(), 
-		[this](const MaterialElementBuffer& a, const MaterialElementBuffer& b) {
-			return this->materials[a.material_index].opacity > this->materials[b.material_index].opacity;
-		}
-	);
-
-	VBO = TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>();
-	VAO = TAGResourceManager::createBuffer<OpenGLObjectType::VertexArrayObject>();
-
+void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const GLuint& number) {
+	// Activate global VAO
 	glBindVertexArray(VAO);
 
-	glBindVertexBuffer(0, VBO, 0, sizeof(Vertex));
-	glNamedBufferData(VBO, sizeof(Vertex) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+	// Bind mesh VBO to global VAO
+	glBindVertexBuffer(default_vao_mesh_binding_point, VBO.getBuffer()->getBufferID(), 0, sizeof(Vertex));
 
-	glEnableVertexAttribArray(base_attrib);
-	glVertexAttribFormat(base_attrib, 3, GL_FLOAT, GL_FALSE, 0);
-	glVertexAttribBinding(base_attrib, 0);
-	glEnableVertexAttribArray(base_attrib + 1);
-	glVertexAttribFormat(base_attrib + 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, normal));
-	glVertexAttribBinding(base_attrib + 1, 0);
-	glEnableVertexAttribArray(base_attrib + 2);
-	glVertexAttribFormat(base_attrib + 2, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, tex_coord));
-	glVertexAttribBinding(base_attrib + 2, 0);
+	// Bind mesh EBO to global VAO
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO.getBuffer()->getBufferID());
 
-	for (unsigned int i = 0; i < 2; i++) {
-		const unsigned int base = base_attrib + i + 3;
-		glEnableVertexAttribArray(base);
-		glVertexAttribFormat(base, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4) * i);
-		glVertexAttribBinding(base, 1);
-	}
-	glVertexBindingDivisor(1, 1);
-
-	glBindVertexArray(0);
-
-	this->vertices_updated = false;
-
-	generatePlanes();
-	generateBVH();
-}
-
-void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const unsigned int& number) {
-	if (vertices_updated || frags_updated) {
-		if (vertices_updated) {
-			glBindBuffer(GL_ARRAY_BUFFER, VBO);
-			GLint vertices_size;
-			glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vertices_size);
-			GLint buffer_size = (GLint)vertices.size() * sizeof(Vertex);
-			if (buffer_size > vertices_size) {
-				glBufferData(GL_ARRAY_BUFFER, buffer_size, vertices.data(), GL_DYNAMIC_DRAW);
-			}
-			else {
-				glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_size, vertices.data());
-			}
-			glBindBuffer(GL_ARRAY_BUFFER, 0);
-			vertices_updated = false;
-		}
-		if (frags_updated) {
-			material_ebos.clear();
-			std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 3>>> material_frags;
-			for (const Fragment& frag_struct : frags) {
-				material_frags[frag_struct.material_index].push_back(frag_struct.vertex_indices);
-			}
-			for (const auto& pair : material_frags) {
-				material_ebos.emplace_back(TAGResourceManager::createBuffer<OpenGLObjectType::GenericBuffer>(), pair.first);
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebos.back().EBO);
-				glBufferData(GL_ELEMENT_ARRAY_BUFFER, pair.second.size() * sizeof(std::array<unsigned int, 3>), pair.second.data(), GL_STATIC_DRAW);
-			}
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-			std::sort(material_ebos.begin(), material_ebos.end(),
-				[this](const MaterialElementBuffer& a, const MaterialElementBuffer& b) {
-					return this->materials[a.material_index].opacity > this->materials[b.material_index].opacity;
-				}
-			);
-			frags_updated = false;
-		}
-		generatePlanes();
-		generateBVH();
-	}
-
-	glBindVertexArray(VAO);
-	for (const MaterialElementBuffer& material_ebo : material_ebos) {
+	for (const DrawCommand& draw_command : draw_commands) {
+		// Bind current material to global VAO
+		glBindVertexBuffer(defualt_vao_material_binding_point, material_buffer.getBuffer()->getBufferID(), draw_command.material_index * sizeof(ShaderMaterial) + sizeof(GLuint), sizeof(ShaderMaterial));
+		glVertexAttribDivisor(defualt_vao_material_binding_point, number);
+		
 		std::vector<GLuint> diffuse, specular;
-		const Material& material = materials[material_ebo.material_index];
+		const Material& material = material_buffer.getObject(draw_command.material_index);
 		for (GLuint i = 0; i < material.textures.size(); i++) {
 			glActiveTexture(GL_TEXTURE0 + i);
 			switch (material.textures[i].type) {
@@ -299,73 +245,19 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 		}
 		glActiveTexture(GL_TEXTURE0);
 
-		if (diffuse.size() == 0) {
-			shader.set<glm::vec3>(options.colour_vec, material.colour);
-		}
-		else {
-			shader.set<ShaderUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse[0], (GLuint) diffuse.size());
-		}
-		shader.set<int>(options.diffuse_tex_num, (GLuint) diffuse.size());
-
-		if (material.spec_fac > 0.0f && specular.size() > 0) {
-			shader.set<ShaderUniformType::SINGLE_2D>(options.specular_tex_array, specular[0], (GLuint) specular.size());
-		}
-		shader.set<float>(options.specular_factor, material.spec_fac);
-		shader.set<float>(options.specular_exp, material.spec_exp);
-		shader.set<int>(options.specular_tex_num, (GLuint) specular.size());
-
-		shader.set<float>(options.opacity_value, material.opacity);
+		shader.set<ShaderUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse[0], (GLuint)diffuse.size());
+		shader.set<ShaderUniformType::SINGLE_2D>(options.specular_tex_array, specular[0], (GLuint)specular.size());
 		shader.set<glm::vec3>(options.camera_pos, TAGBaseState::camera_position);
 
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, material_ebo.EBO);
-		if (number > 1) {
-			glDrawElementsInstanced(GL_TRIANGLES, material_ebo.indices_count, GL_UNSIGNED_INT, nullptr, number);
-		}
-		else {
-			glDrawElements(GL_TRIANGLES, material_ebo.indices_count, GL_UNSIGNED_INT, nullptr);
-		}
+		glDrawElementsInstanced(GL_TRIANGLES, draw_command.element_count, GL_UNSIGNED_INT, (void*)(draw_command.element_start * sizeof(GLuint)), number);
 	}
+	// Reset VAO state
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glVertexAttribDivisor(defualt_vao_material_binding_point, 1);
+	glBindVertexBuffer(defualt_vao_material_binding_point, 0, 0, 0);
+	glBindVertexBuffer(default_vao_mesh_binding_point, 0, 0, 0);
 	glBindVertexArray(0);
 }
-
-std::vector<TAGMesh::Vertex>& TAGMesh::changeVertices() {
-	vertices_updated = true;
-	return vertices;
-}
-
-const std::vector<TAGMesh::Vertex>& TAGMesh::getVertices() const {
-	return vertices;
-}
-
-std::vector<TAGMesh::Fragment>& TAGMesh::changeFragments() {
-	frags_updated = true;
-	return frags;
-}
-
-const std::vector<TAGMesh::Fragment>& TAGMesh::getFragments() const {
-	return frags;
-}
-
-TAGMesh::Material& TAGMesh::getMaterial(const unsigned int& index) {
-	return materials.at(index);
-}
-
-TAGMesh::Material& TAGMesh::getMaterial(const std::string& name) {
-	return *std::find_if(materials.begin(), materials.end(), [&name](const Material& mat) { return mat.name == name; });
-}
-
-const unsigned int& TAGMesh::getVAO() const {
-	return VAO;
-};
-
-const std::vector<TAGMesh::MaterialElementBuffer>& TAGMesh::getEBOs() const {
-	return material_ebos;
-};
-
-const unsigned int& TAGMesh::getVBO() const {
-	return VBO;
-};
 
 TAGMesh::BoundingBox TAGMesh::generateBoundingBox(const glm::vec3* first, const unsigned int& size) {
 	glm::vec3 max, min;
@@ -598,4 +490,75 @@ TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, 
 	}
 
 	return (found ? best_plane : DotPlane());
+}
+
+void TAGMesh::setupMeshBoundingBox() {
+	const std::vector<Vertex>& vertices = VBO.getAllObjects();
+	mesh_bb = { vertices[0].position, vertices[0].position };
+	for (const TAGMesh::Vertex& vertex : vertices) {
+		mesh_bb.max = glm::max(mesh_bb.max, vertex.position);
+		mesh_bb.min = glm::min(mesh_bb.min, vertex.position);
+	}
+}
+
+void TAGMesh::setupMeshVertexArrayObject() {
+	VAO = TAGResourceManager::createBuffer<OpenGLObjectType::VertexArrayObject>();
+
+	glBindVertexArray(VAO);
+
+	// Mesh vertex attributes
+	GLuint attrib = base_attrib;
+	glEnableVertexAttribArray(attrib);
+	glVertexAttribFormat(attrib, 3, GL_FLOAT, GL_FALSE, 0);
+	glVertexAttribBinding(attrib++, default_vao_mesh_binding_point);
+	glEnableVertexAttribArray(attrib);
+	glVertexAttribFormat(attrib, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, normal));
+	glVertexAttribBinding(attrib++, default_vao_mesh_binding_point);
+	glEnableVertexAttribArray(attrib);
+	glVertexAttribFormat(attrib, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, tex_coord));
+	glVertexAttribBinding(attrib++, default_vao_mesh_binding_point);
+
+	// Instance attributes
+	for (GLuint i = 0; i < 2; i++) {
+		glEnableVertexAttribArray(attrib);
+		glVertexAttribFormat(attrib, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4) * i);
+		glVertexAttribBinding(attrib++, default_vao_instance_binding_point);
+	}
+	glVertexBindingDivisor(default_vao_instance_binding_point, 1);
+
+	// Material attributes
+	glEnableVertexAttribArray(attrib);
+	glVertexAttribFormat(attrib, 3, GL_FLOAT, GL_FALSE, 0);
+	glVertexAttribBinding(attrib++, defualt_vao_material_binding_point);
+	glEnableVertexAttribArray(attrib);
+	glVertexAttribFormat(attrib, 3, GL_FLOAT, GL_FALSE, offsetof(ShaderMaterial, colour));
+	glVertexAttribBinding(attrib++, defualt_vao_material_binding_point);
+	glEnableVertexAttribArray(attrib);
+	glVertexAttribIFormat(attrib, 2, GL_UNSIGNED_INT, offsetof(ShaderMaterial, num_diffuse));
+	glVertexAttribBinding(attrib, defualt_vao_material_binding_point);
+	glVertexBindingDivisor(defualt_vao_material_binding_point, 1);
+
+	glBindVertexArray(0);
+}
+
+std::array<GLfloat, TAGMesh::vertex_component_count> TAGMesh::convertVertex(const Vertex& vertex) {
+	return { 
+		 vertex.position.x, vertex.position.y, vertex.position.z,
+		 vertex.normal.x, vertex.normal.y, vertex.normal.z,
+		 vertex.tex_coord.x, vertex.tex_coord.y 
+	};
+}
+
+std::array<GLuint, TAGMesh::fragment_component_count> TAGMesh::convertFragment(const Fragment& frag) {
+	return { frag[0], frag[1], frag[2] };
+}
+
+std::array<TAGMesh::ShaderMaterial, 1> TAGMesh::convertMaterial(const Material& material) {
+	const TAGMesh::ShaderMaterial shader_material = {
+		material.spec_fac, material.spec_exp, material.opacity,
+		material.colour,
+		static_cast<GLuint>(std::count_if(material.textures.begin(), material.textures.end(), [](const TAGTexLoader::Texture& tex) { return tex.type == TAGTexType::DIFFUSE_MAP; })),
+		static_cast<GLuint>(std::count_if(material.textures.begin(), material.textures.end(), [](const TAGTexLoader::Texture& tex) { return tex.type == TAGTexType::SPEC_MAP; }))
+	};
+	return { shader_material };
 }

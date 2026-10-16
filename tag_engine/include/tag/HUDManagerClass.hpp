@@ -26,6 +26,10 @@ namespace QuadMemberName {
 
 class TAGHUDManager : public TAGBaseState::OpenGLContextChecker {
 public:
+	constexpr static inline GLuint base_attrib = 0;
+	constexpr static inline GLuint default_vao_mesh_binding_point = 0;
+	constexpr static inline GLuint default_vao_instance_binding_point = 1;
+
 	/**
 	* How vectors represent positions on the screen or textures
 	* RELATIVE - Values must be within 0 and 1 and represent the proportion of distance from the top left of the surface
@@ -40,27 +44,22 @@ public:
 	* Holds data about an image to be displayed on the screen
 	*/
 	struct Quad {
-		glm::vec2 position;
-		glm::vec2 dimensions;
+		glm::vec2 position, dimensions;
 		std::string image_name;
 		unsigned int layer = 0;
 		DimensionFormat position_format = DimensionFormat::RELATIVE;
 		DimensionFormat dimension_format = DimensionFormat::RELATIVE;
 		DimensionFormat texel_format = DimensionFormat::RELATIVE;
-		glm::vec2 texel_bottom_left = { 0.0f, 0.0f };
-		glm::vec2 texel_top_right = { 1.0f, 1.0f };
+		glm::vec2 texel_bottom_left = { 0.0f, 0.0f }, texel_top_right = { 1.0f, 1.0f };
 	};
 
 	/**
 	* Quad representation within buffer
 	*/
 	struct ShaderQuad {
-		glm::vec4 quad_data;
-		glm::vec4 texel_data;
+		glm::vec4 quad_data, texel_data;
 		GLuint tex_index;
 	};
-
-	static inline GLuint base_attrib = 0;
 
 	/**
 	* @param paths Paths to each image to be loaded
@@ -182,7 +181,7 @@ private:
 	static inline GLuint VAO = 0;
 	static inline GLuint VBO = 0;
 	static inline GLuint EBO = 0;
-	static inline constexpr GLuint MAX_TEXTURES = 16;
+	static inline constexpr size_t MAX_TEXTURES = 16;
 
 	glm::ivec2 screen_dimensions = { 1, 1 };
 	std::vector<TAGTexLoader::Texture> images;
@@ -191,8 +190,8 @@ private:
 	std::vector<GLuint> used_images;
 
 	static void initMesh();
-	static OpenGLIndirectCommand commandConverter(const LayerData& layer_data, const GLuint& split);
-	ShaderQuad shaderConverter(const Quad& quad, const GLuint& split);
+	static std::array<OpenGLIndirectCommand, 1> commandConverter(const LayerData& layer_data);
+	std::array<ShaderQuad, 1> shaderConverter(const Quad& quad);
 };
 
 namespace QuadMemberName {

@@ -20,7 +20,7 @@ void TAGPaintingModel::loadPainting(const std::string& path, const TAGTexLoader:
 	const float angle = glm::atan((float)(tex_info.height) / (float)(tex_info.width));
 	const std::array<float, 4> angles = { angle, glm::pi<float>() - angle, glm::pi<float>() + angle, glm::two_pi<float>() - angle };
 	for (size_t i = 0; i < 4; i++) {
-		vertices.push_back({ glm::normalize(glm::mat3(glm::rotate(glm::mat4(1), angles[i], defNormal)) * defArm), defNormal, tex_coords[i] });
+		vertices.push_back({ glm::normalize(glm::mat3(glm::rotate(glm::mat4(1), angles[i], def_normal)) * def_arm), def_normal, tex_coords[i] });
 	}
 
 	const std::string name = static_cast<std::filesystem::path>(path).stem().string();
@@ -28,7 +28,7 @@ void TAGPaintingModel::loadPainting(const std::string& path, const TAGTexLoader:
 	TAGTexLoader::Texture texture = TAGTexLoader::textureFromInfo(tex_info, name, tex_params);
 	texture.type = TAGTexType::DIFFUSE_MAP;
 	new_material.textures.push_back(texture);
-	addMesh(name, vertices, { frag_1, frag_2 }, { new_material });
+	addMesh(name, vertices, { frag_1, frag_2 }, new_material);
 }
 
 void TAGPaintingModel::addPainting(const std::string& name, const TAGTexLoader::Texture& texture, const TAGMesh::Material& material) {
@@ -37,26 +37,26 @@ void TAGPaintingModel::addPainting(const std::string& name, const TAGTexLoader::
 	const float angle = glm::atan((float)(texture.height) / (float)(texture.width));
 	const std::array<float, 4> angles = { angle, glm::pi<float>() - angle, glm::pi<float>() + angle, glm::two_pi<float>() - angle };
 	for (size_t i = 0; i < 4; i++) {
-		vertices.push_back({ glm::normalize(glm::mat3(glm::rotate(glm::mat4(1), angles[i], defNormal)) * defArm), defNormal, tex_coords[i] });
+		vertices.push_back({ glm::normalize(glm::mat3(glm::rotate(glm::mat4(1), angles[i], def_normal)) * def_arm), def_normal, tex_coords[i] });
 	}
 
 	TAGMesh::Material new_material = material;
 	new_material.textures.push_back(texture);
 
-	addMesh(name, vertices, { frag_1, frag_2 }, { new_material });
+	addMesh(name, vertices, { frag_1, frag_2 }, new_material);
 }
 
 TAGModel::Object TAGPaintingModel::faceDirec(const glm::vec3& point, const Object& obj, const bool& lock_axis) {
 	Object new_obj = obj;
 	const glm::vec3 new_normal = glm::normalize(point - new_obj.position);
-	const glm::vec3 axis = glm::cross(new_normal, defNormal);
+	const glm::vec3 axis = glm::cross(new_normal, def_normal);
 	float angle;
 	if (lock_axis) {
-		angle = glm::acos(glm::dot(glm::normalize(new_normal - new_obj.rotation_axis * glm::dot(new_obj.rotation_axis, new_normal)), defNormal));
+		angle = glm::acos(glm::dot(glm::normalize(new_normal - new_obj.rotation_axis * glm::dot(new_obj.rotation_axis, new_normal)), def_normal));
 	}
 	else {
 		new_obj.rotation_axis = glm::normalize(axis);
-		angle = glm::acos(glm::dot(new_normal, defNormal));
+		angle = glm::acos(glm::dot(new_normal, def_normal));
 	}
 	new_obj.angle = (glm::dot(axis, new_obj.rotation_axis) > 0.0f ? -angle : angle);
 

@@ -33,11 +33,6 @@ namespace ObjectMemberName {
 class TAGModel : public TAGBaseState::OpenGLContextChecker {
 public:
 	/**
-	* Default binding location for object buffers in instanced drawing
-	*/
-	static inline GLuint default_vao_instance_binding_point = 1;
-
-	/**
 	* Default size allocation for instances in buffer
 	*/
 	static inline GLuint default_instance_buffer_size = 20;
@@ -158,10 +153,9 @@ public:
 	* @param mesh_name Name of mesh
 	* @param vertices Vertices of mesh
 	* @param frags Fragments of mesh
-	* @param textures Textures of mesh
-	* @param materials Materials
+	* @param material Material of mesh
 	*/
-	void addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const std::vector<TAGMesh::Material>& materials);
+	void addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const TAGMesh::Material& material);
 	/**
 	 * Delete a mesh.
 	 * 
@@ -179,12 +173,12 @@ private:
 	static ShaderObject shaderConverter(const Object& obj, const GLuint& split);
 	const TAGTexLoader::Texture loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const;
 protected:
+	using InstanceBuffer = TAGResourceManager::ObjectBuffer<Object, ShaderObject>;
 	std::string directory;
 	TAGResourceManager::BufferAccess access;
 	TAGTexLoader::Params tex_params;
-	std::vector<std::string> mesh_draw_order;
 	std::unordered_map<std::string, TAGMesh> meshes;
-	std::unordered_map<std::string, TAGResourceManager::ObjectBuffer<Object, ShaderObject>> instance_buffers;
+	std::unordered_map<std::string, InstanceBuffer> instance_buffers;
 };
 
 namespace ObjectMemberName {

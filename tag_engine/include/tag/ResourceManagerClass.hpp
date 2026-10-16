@@ -173,7 +173,7 @@ public:
 	*/
 	template<class C, class G, GLuint DIVISIONS = 0> class ObjectBuffer : public ObjectBufferWrapper {
 	public:
-		ObjectBuffer(const GLuint& max_objs,  const std::function<G(const C&, const GLuint&)>& converter, const BufferAccess& access, const bool& include_size = false);
+		ObjectBuffer(const GLuint& max_objs, const std::function<std::array<G, DIVISIONS + 1>(const C&)>& converter, const BufferAccess& access, const bool& include_size = false);
 		~ObjectBuffer();
 
 		const std::vector<C>& getAllObjects() const;
@@ -198,7 +198,7 @@ public:
 		auto begin() const;
 		auto end() const;
 	private:
-		std::function<G(const C&, const GLuint&)> converter;
+		std::function<std::array<G, DIVISIONS + 1>(const C&)> converter;
 
 		std::vector<C> objs;
 		std::unique_ptr<BufferBase<G>> buffer;
