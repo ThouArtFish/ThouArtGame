@@ -168,7 +168,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
 		FragmentBuffer EBO;
         MaterialBuffer material_buffer;
 		std::vector<DrawCommand> draw_commands;
-        BoundingBox mesh_bb = { glm::vec3(0.0f), glm::vec3(0.0f) };
+        BoundingBox mesh_bb;
         std::vector<PlaneVolume> planes;
         std::vector<BVHNode> bvh_octree;
         static inline GLuint VAO = 0;
@@ -183,7 +183,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         void draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const GLuint& number = 1);
 
         /**
-		* Conversion functions for converting mesh data to shader compatible data
+		* Conversion functions for converting to shader compatible data
         */
 		static std::array<GLfloat, vertex_component_count> convertVertex(const Vertex& vertex);
         static std::array<GLuint, fragment_component_count> convertFragment(const Fragment& frag);

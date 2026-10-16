@@ -1,9 +1,12 @@
 #include <MeshClass.hpp>
 
-TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<MaterialFragments>& material_frags, const std::vector<Material>& materials) {
+TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<MaterialFragments>& material_frags, const std::vector<Material>& materials) :
+	VBO(vertices.size(), convertVertex, TAGResourceManager::BufferAccess::STATIC),
+	EBO(std::accumulate(material_frags.begin(), material_frags.end(), 0, [](size_t sum, const MaterialFragments& frag_struct) { return sum + frag_struct.frags.size(); }), convertFragment, TAGResourceManager::BufferAccess::STATIC),
+	material_buffer(materials.size(), convertMaterial, TAGResourceManager::BufferAccess::STATIC, true)
+{
 	if (VAO == 0) setupMeshVertexArrayObject();
 
-	VBO = VertexBuffer(vertices.size(), convertVertex, TAGResourceManager::BufferAccess::STATIC);
 	VBO.setAllObjects(vertices);
 	VBO.updateBuffer();
 
@@ -14,11 +17,9 @@ TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Material
 		frags.insert(frags.end(), frag_struct.frags.begin(), frag_struct.frags.end());
 		num_frags += frag_struct.frags.size();
 	}
-	EBO = FragmentBuffer(num_frags, convertFragment, TAGResourceManager::BufferAccess::STATIC);
 	EBO.setAllObjects(frags);
 	EBO.updateBuffer();
 
-	material_buffer = MaterialBuffer(materials.size(), convertMaterial, TAGResourceManager::BufferAccess::STATIC, true);
 	material_buffer.setAllObjects(materials);
 	material_buffer.updateBuffer();
 
@@ -28,19 +29,20 @@ TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Material
 	generateBVH();
 }
 
-TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const Material& material) {
+TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const Material& material) :
+	VBO(vertices.size(), convertVertex, TAGResourceManager::BufferAccess::STATIC),
+	EBO(frags.size(), convertFragment, TAGResourceManager::BufferAccess::STATIC),
+	material_buffer(1, convertMaterial, TAGResourceManager::BufferAccess::STATIC, true)
+{
 	if (VAO == 0) setupMeshVertexArrayObject();
 
-	VBO = VertexBuffer(vertices.size(), convertVertex, TAGResourceManager::BufferAccess::STATIC);
 	VBO.setAllObjects(vertices);
 	VBO.updateBuffer();
 
-	EBO = FragmentBuffer(frags.size(), convertFragment, TAGResourceManager::BufferAccess::STATIC);
 	EBO.setAllObjects(frags);
 	EBO.updateBuffer();
 	draw_commands.emplace_back(0, 0, frags.size() * fragment_component_count);
 
-	material_buffer = MaterialBuffer(1, convertMaterial, TAGResourceManager::BufferAccess::STATIC, true);
 	material_buffer.pushObject(material);
 	material_buffer.updateBuffer();
 
