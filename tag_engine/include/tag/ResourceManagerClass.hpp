@@ -189,7 +189,7 @@ public:
 		void setAllObjects(const std::vector<C>& objs);
 		std::vector<C>& changeObjects();
 
-		const std::unique_ptr<BufferBase<G>>& getBuffer();
+		const std::unique_ptr<BufferBase<G>>& getBuffer() const;
 		void updateBuffer() override;
 		void setFence() override;
 		void bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option);

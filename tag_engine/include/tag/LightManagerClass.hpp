@@ -90,12 +90,12 @@ namespace VariableLightMemberName {
 template<class T> concept LightType = isAnyOf<T, TAGLight::Point, TAGLight::Ray, TAGLight::Flash>;
 
 /**
-* Struct for extracting shader type of light
+* Struct for extracting corresponding shader light data for a light type
 */
-template<LightType T> struct ShaderLightType;
-template<> struct ShaderLightType<TAGLight::Point> { using TYPE = TAGLight::ShaderPoint; static constexpr GLuint default_binding_point = 0; };
-template<> struct ShaderLightType<TAGLight::Ray> { using TYPE = TAGLight::ShaderRay; static constexpr GLuint default_binding_point = 1; };
-template<> struct ShaderLightType<TAGLight::Flash> { using TYPE = TAGLight::ShaderFlash; static constexpr GLuint default_binding_point = 2; };
+template<LightType T> struct ShaderLight;
+template<> struct ShaderLight<TAGLight::Point> { using TYPE = TAGLight::ShaderPoint; static constexpr GLuint default_binding_point = 0; };
+template<> struct ShaderLight<TAGLight::Ray> { using TYPE = TAGLight::ShaderRay; static constexpr GLuint default_binding_point = 1; };
+template<> struct ShaderLight<TAGLight::Flash> { using TYPE = TAGLight::ShaderFlash; static constexpr GLuint default_binding_point = 2; };
 
 /**
 * Manages in-game lights. Stores Light structs in a vector for client-side access and also controls a shader storage buffer object
@@ -103,7 +103,7 @@ template<> struct ShaderLightType<TAGLight::Flash> { using TYPE = TAGLight::Shad
 */
 template<LightType T> class TAGLightManager : public TAGBaseState::OpenGLContextChecker {
 	public:
-		using ShaderT = ShaderLightType<T>::TYPE;
+		using ShaderT = ShaderLight<T>::TYPE;
 
 		/**
 		* Initialize with a number of lights and access manager
@@ -167,7 +167,7 @@ template<LightType T> class TAGLightManager : public TAGBaseState::OpenGLContext
 		 * 
 		 * @param index Binding point of shader storage buffer object in any shader.
 		 */
-		void bindToShader(const GLintptr& offset = 0, const GLuint& index = ShaderLightType<T>::default_binding_point);
+		void bindToShader(const GLintptr& offset = 0, const GLuint& index = ShaderLight<T>::default_binding_point);
 		/**
 		* Updates GPU side buffer with CPU side lights.
 		*/

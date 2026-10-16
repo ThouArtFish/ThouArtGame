@@ -352,7 +352,7 @@ template<class C, class G, GLuint DIVISIONS> std::vector<C>& TAGResourceManager:
 	return objs;
 }
 
-template<class C, class G, GLuint DIVISIONS> const std::unique_ptr<TAGResourceManager::BufferBase<G>>& TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::getBuffer() {
+template<class C, class G, GLuint DIVISIONS> const std::unique_ptr<TAGResourceManager::BufferBase<G>>& TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::getBuffer() const {
 	return buffer;
 }
 

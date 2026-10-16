@@ -60,217 +60,6 @@ TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) {
 	return *std::find_if(textures.begin(), textures.end(), [&name](const TAGTexLoader::Texture& tex) { return name == tex.name; });
 }
 
-void TAGMesh::generatePlanes() {
-	planes.clear();
-	planes.reserve(EBO.getAllObjects().size());
-
-	const std::vector<Vertex>& vertices = VBO.getAllObjects();
-
-	for (const Fragment& frag : EBO.getAllObjects()) {
-		std::array<glm::vec3, 3> frag_vertices{};
-		for (size_t i = 0; i < 3; i++) {
-			frag_vertices[i] = vertices[frag[i]].position;
-		}
-		const std::array<glm::vec3, 2> frag_axis = { frag_vertices[1] - frag_vertices[0], frag_vertices[2] - frag_vertices[0] };
-		const glm::vec3 normal = glm::normalize(glm::cross(frag_axis[0], frag_axis[1]));
-
-		const glm::mat3 rotate_mat = glm::mat3(glm::rotate(glm::mat4(1.0f), -glm::half_pi<float>(), normal)); // Rotate frag sides 90 deg to get normals
-
-		const std::array<glm::vec3, 3> volume_normals = {
-			glm::normalize(rotate_mat * frag_axis[0]),
-			glm::normalize(rotate_mat * (frag_axis[1] - frag_axis[0])),
-			glm::normalize(rotate_mat * -frag_axis[1])
-		}; // Outward facing normals of each side
-
-		std::vector<DotPlane> volume_planes;
-		volume_planes.reserve(3);
-		for (size_t i = 0; i < 3; i++) {
-			volume_planes.emplace_back(volume_normals[i], glm::dot(volume_normals[i], frag_vertices[i]));
-		}
-
-		planes.push_back(
-			{
-				.frag_plane = {
-					.normal = normal,
-					.start = frag_vertices[0],
-					.axis = frag_axis
-				},
-				.volume_planes = *reinterpret_cast<std::array<DotPlane, 3>*>(volume_planes.data())
-			}
-		);
-	}
-}
-
-void TAGMesh::generateBVH() {
-	bvh_octree.clear();
-
-	// Info for BVH nodes to be processed during construction
-	struct BVHQueue {
-		size_t node_index, layer_index, depth;
-	};
-
-	// Function that splits bounding box into 8 equally sized bounding boxes and pushes them to bvh tree
-	auto octGen = [this](BoundingBox box) {
-		const glm::vec3 c = (box.max + box.min) / 2.0f;
-		for (size_t i = 0; i < 8; i++) {
-			glm::vec3 min, max;
-
-			min.x = (i & 1) ? c.x : box.min.x;
-			max.x = (i & 1) ? box.max.x : c.x;
-
-			min.y = (i & 2) ? c.y : box.min.y;
-			max.y = (i & 2) ? box.max.y : c.y;
-
-			min.z = (i & 4) ? c.z : box.min.z;
-			max.z = (i & 4) ? box.max.z : c.z;
-
-			this->bvh_octree.emplace_back(true, BoundingBox(max, min));
-		}
-	};
-
-	// Creates a range of values
-	auto range = [](const size_t& min, const size_t& max) {
-		std::vector<size_t> nums(max - min);
-		for (size_t i = min; i < max; i++) {
-			nums[i] = i;
-		}
-		return nums;
-	};
-
-	// The available planes at particular depths in the BVH
-	std::vector<std::vector<size_t>> layers;
-
-	// Queue for holding BVH boxes yet to be processed
-	std::deque<BVHQueue> bvh_queue;
-
-	// Split mesh aabb to avoid checking all plane aabbs since we know planes are already in mesh
-	const std::vector<size_t> all_plane_indices = range(0, planes.size());
-	if (planes.size() <= bvh_box_max_size) {
-		bvh_octree.emplace_back(true, mesh_bb, all_plane_indices);
-		return;
-	}
-	else {
-		std::vector<size_t> node_children(8);
-		for (size_t i = 1; i < 9; i++) {
-			bvh_queue.push_back({ i, 0, 0 });
-			node_children[i - 1] = i;
-		}
-		bvh_octree.emplace_back(false, mesh_bb, node_children);
-		layers.push_back(all_plane_indices);
-		octGen(mesh_bb);
-	}
-
-	while (!bvh_queue.empty()) {
-		// Next BVH box is removed from front of queue
-		BVHQueue current_info = bvh_queue.front();
-		BVHNode current_box = bvh_octree[current_info.node_index];
-		std::vector<size_t>& layer_indices = layers[current_info.layer_index];
-
-		// Find which planes within parent bounding box collide with current box
-		for (const size_t& plane_index : layer_indices) {
-			if (planes[plane_index].frag_plane.collisionBBox(current_box.bounds)) {
-				current_box.indices.push_back(plane_index);
-			}
-		}
-
-		// split if too big and depth isnt too deep
-		if (current_box.indices.size() > bvh_box_max_size && current_info.depth < bvh_max_depth) {
-			layers.push_back(current_box.indices);
-			current_box.indices.clear();
-			for (size_t i = bvh_octree.size(); i < bvh_octree.size() + 8; i++) {
-				bvh_queue.push_back({ i, layers.size() - 1, current_info.depth + 1});
-				current_box.indices.push_back(i);
-			}
-			current_box.is_leaf = false;
-			octGen(current_box.bounds);
-		}
-
-		bvh_queue.erase(bvh_queue.begin());
-		bvh_octree[current_info.node_index] = current_box;
-	}
-
-	// Clean tree a bit
-	for (size_t i = 0; i < bvh_octree.size(); i++) {
-		BVHNode& node = bvh_octree[i];
-		if (!node.is_leaf) {
-			// Don't point to empty children
-			for (size_t j = 0; j < node.indices.size(); j++) {
-				if (bvh_octree[node.indices[j]].indices.empty()) {
-					node.indices.erase(node.indices.begin() + j--);
-				}
-			}
-
-			// Swap if only child
-			if (node.indices.size() == 1) {
-				const size_t only_child = node.indices[0];
-				node.indices.clear();
-				std::swap(node, bvh_octree[only_child]);
-				i--;
-			}
-		}
-	}
-
-	bvh_octree.shrink_to_fit();
-}
-
-void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const GLuint& number) {
-	// Activate global VAO
-	glBindVertexArray(VAO);
-
-	// Bind mesh VBO to global VAO
-	glBindVertexBuffer(default_vao_mesh_binding_point, VBO.getBuffer()->getBufferID(), 0, sizeof(Vertex));
-
-	// Bind mesh EBO to global VAO
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO.getBuffer()->getBufferID());
-
-	for (const DrawCommand& draw_command : draw_commands) {
-		// Bind current material to global VAO
-		glBindVertexBuffer(defualt_vao_material_binding_point, material_buffer.getBuffer()->getBufferID(), draw_command.material_index * sizeof(ShaderMaterial) + sizeof(GLuint), sizeof(ShaderMaterial));
-		glVertexAttribDivisor(defualt_vao_material_binding_point, number);
-		
-		std::vector<GLuint> diffuse, specular;
-		const Material& material = material_buffer.getObject(draw_command.material_index);
-		for (GLuint i = 0; i < material.textures.size(); i++) {
-			glActiveTexture(GL_TEXTURE0 + i);
-			switch (material.textures[i].type) {
-			case TAGTexType::DIFFUSE_MAP:
-				if (diffuse.size() < 16) {
-					diffuse.push_back(i);
-				}
-				break;
-			case TAGTexType::SPEC_MAP:
-				if (specular.size() < 16) {
-					specular.push_back(i);
-				}
-			}
-			glBindTexture(GL_TEXTURE_2D, material.textures[i].id);
-		}
-		glActiveTexture(GL_TEXTURE0);
-
-		shader.set<ShaderUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse[0], (GLuint)diffuse.size());
-		shader.set<ShaderUniformType::SINGLE_2D>(options.specular_tex_array, specular[0], (GLuint)specular.size());
-		shader.set<glm::vec3>(options.camera_pos, TAGBaseState::camera_position);
-
-		glDrawElementsInstanced(GL_TRIANGLES, draw_command.element_count, GL_UNSIGNED_INT, (void*)(draw_command.element_start * sizeof(GLuint)), number);
-	}
-	// Reset VAO state
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glVertexAttribDivisor(defualt_vao_material_binding_point, 1);
-	glBindVertexBuffer(defualt_vao_material_binding_point, 0, 0, 0);
-	glBindVertexBuffer(default_vao_mesh_binding_point, 0, 0, 0);
-	glBindVertexArray(0);
-}
-
-TAGMesh::BoundingBox TAGMesh::generateBoundingBox(const glm::vec3* first, const unsigned int& size) {
-	glm::vec3 max, min;
-	max = min = *first;
-	for (unsigned int i = 1; i < size; i++) {
-		max = glm::max(max, *(first + i));
-		min = glm::min(min, *(first + i));
-	}
-	return { max, min };
-}
-
 bool TAGMesh::BoundingBox::collisionPoint(const glm::vec3& point) const {
 	return glm::clamp(point, min, max) == point;
 }
@@ -494,6 +283,61 @@ TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, 
 	return (found ? best_plane : DotPlane());
 }
 
+GLuint TAGMesh::getVBO() const { return VBO.getBuffer()->getBufferID(); };
+GLuint TAGMesh::getEBO() const { return EBO.getBuffer()->getBufferID(); };
+GLuint TAGMesh::getMaterialBuffer() const { return material_buffer.getBuffer()->getBufferID(); };
+TAGMesh::BoundingBox TAGMesh::getBoundingBox() const { return mesh_bb; };
+const std::vector<TAGMesh::PlaneVolume>& TAGMesh::getPlanes() const { return planes; };
+const std::vector<TAGMesh::BVHNode>& TAGMesh::getBVH() const { return bvh_octree; };
+
+void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const GLuint& number) {
+	// Activate global VAO
+	glBindVertexArray(VAO);
+
+	// Bind mesh VBO to global VAO
+	glBindVertexBuffer(default_vao_mesh_binding_point, VBO.getBuffer()->getBufferID(), 0, sizeof(Vertex));
+
+	// Bind mesh EBO to global VAO
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO.getBuffer()->getBufferID());
+
+	for (const DrawCommand& draw_command : draw_commands) {
+		// Bind current material to global VAO
+		glBindVertexBuffer(defualt_vao_material_binding_point, material_buffer.getBuffer()->getBufferID(), draw_command.material_index * sizeof(ShaderMaterial) + sizeof(GLuint), sizeof(ShaderMaterial));
+		glVertexAttribDivisor(defualt_vao_material_binding_point, number);
+
+		std::vector<GLuint> diffuse, specular;
+		const Material& material = material_buffer.getObject(draw_command.material_index);
+		for (GLuint i = 0; i < material.textures.size(); i++) {
+			glActiveTexture(GL_TEXTURE0 + i);
+			switch (material.textures[i].type) {
+			case TAGTexType::DIFFUSE_MAP:
+				if (diffuse.size() < 16) {
+					diffuse.push_back(i);
+				}
+				break;
+			case TAGTexType::SPEC_MAP:
+				if (specular.size() < 16) {
+					specular.push_back(i);
+				}
+			}
+			glBindTexture(GL_TEXTURE_2D, material.textures[i].id);
+		}
+		glActiveTexture(GL_TEXTURE0);
+
+		shader.set<ShaderUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse[0], (GLuint)diffuse.size());
+		shader.set<ShaderUniformType::SINGLE_2D>(options.specular_tex_array, specular[0], (GLuint)specular.size());
+		shader.set<glm::vec3>(options.camera_pos, TAGBaseState::camera_position);
+
+		glDrawElementsInstanced(GL_TRIANGLES, draw_command.element_count, GL_UNSIGNED_INT, (void*)(draw_command.element_start * sizeof(GLuint)), number);
+	}
+	// Reset VAO state
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glVertexAttribDivisor(defualt_vao_material_binding_point, 1);
+	glBindVertexBuffer(defualt_vao_material_binding_point, 0, 0, 0);
+	glBindVertexBuffer(default_vao_mesh_binding_point, 0, 0, 0);
+	glBindVertexArray(0);
+}
+
 void TAGMesh::setupMeshBoundingBox() {
 	const std::vector<Vertex>& vertices = VBO.getAllObjects();
 	mesh_bb = { vertices[0].position, vertices[0].position };
@@ -563,4 +407,167 @@ std::array<TAGMesh::ShaderMaterial, 1> TAGMesh::convertMaterial(const Material& 
 		static_cast<GLuint>(std::count_if(material.textures.begin(), material.textures.end(), [](const TAGTexLoader::Texture& tex) { return tex.type == TAGTexType::SPEC_MAP; }))
 	};
 	return { shader_material };
+}
+
+TAGMesh::BoundingBox TAGMesh::generateBoundingBox(const glm::vec3* first, const unsigned int& size) {
+	glm::vec3 max, min;
+	max = min = *first;
+	for (unsigned int i = 1; i < size; i++) {
+		max = glm::max(max, *(first + i));
+		min = glm::min(min, *(first + i));
+	}
+	return { max, min };
+}
+
+void TAGMesh::generatePlanes() {
+	planes.clear();
+	planes.reserve(EBO.getAllObjects().size());
+
+	const std::vector<Vertex>& vertices = VBO.getAllObjects();
+
+	for (const Fragment& frag : EBO.getAllObjects()) {
+		std::array<glm::vec3, 3> frag_vertices{};
+		for (size_t i = 0; i < 3; i++) {
+			frag_vertices[i] = vertices[frag[i]].position;
+		}
+		const std::array<glm::vec3, 2> frag_axis = { frag_vertices[1] - frag_vertices[0], frag_vertices[2] - frag_vertices[0] };
+		const glm::vec3 normal = glm::normalize(glm::cross(frag_axis[0], frag_axis[1]));
+
+		const glm::mat3 rotate_mat = glm::mat3(glm::rotate(glm::mat4(1.0f), -glm::half_pi<float>(), normal)); // Rotate frag sides 90 deg to get normals
+
+		const std::array<glm::vec3, 3> volume_normals = {
+			glm::normalize(rotate_mat * frag_axis[0]),
+			glm::normalize(rotate_mat * (frag_axis[1] - frag_axis[0])),
+			glm::normalize(rotate_mat * -frag_axis[1])
+		}; // Outward facing normals of each side
+
+		std::vector<DotPlane> volume_planes;
+		volume_planes.reserve(3);
+		for (size_t i = 0; i < 3; i++) {
+			volume_planes.emplace_back(volume_normals[i], glm::dot(volume_normals[i], frag_vertices[i]));
+		}
+
+		planes.push_back(
+			{
+				.frag_plane = {
+					.normal = normal,
+					.start = frag_vertices[0],
+					.axis = frag_axis
+				},
+				.volume_planes = *reinterpret_cast<std::array<DotPlane, 3>*>(volume_planes.data())
+			}
+		);
+	}
+}
+
+void TAGMesh::generateBVH() {
+	bvh_octree.clear();
+
+	// Info for BVH nodes to be processed during construction
+	struct BVHQueue {
+		size_t node_index, layer_index, depth;
+	};
+
+	// Function that splits bounding box into 8 equally sized bounding boxes and pushes them to bvh tree
+	auto octGen = [this](BoundingBox box) {
+		const glm::vec3 c = (box.max + box.min) / 2.0f;
+		for (size_t i = 0; i < 8; i++) {
+			glm::vec3 min, max;
+
+			min.x = (i & 1) ? c.x : box.min.x;
+			max.x = (i & 1) ? box.max.x : c.x;
+
+			min.y = (i & 2) ? c.y : box.min.y;
+			max.y = (i & 2) ? box.max.y : c.y;
+
+			min.z = (i & 4) ? c.z : box.min.z;
+			max.z = (i & 4) ? box.max.z : c.z;
+
+			this->bvh_octree.emplace_back(true, BoundingBox(max, min));
+		}
+		};
+
+	// Creates a range of values
+	auto range = [](const size_t& min, const size_t& max) {
+		std::vector<size_t> nums(max - min);
+		for (size_t i = min; i < max; i++) {
+			nums[i] = i;
+		}
+		return nums;
+		};
+
+	// The available planes at particular depths in the BVH
+	std::vector<std::vector<size_t>> layers;
+
+	// Queue for holding BVH boxes yet to be processed
+	std::deque<BVHQueue> bvh_queue;
+
+	// Split mesh aabb to avoid checking all plane aabbs since we know planes are already in mesh
+	const std::vector<size_t> all_plane_indices = range(0, planes.size());
+	if (planes.size() <= bvh_box_max_size) {
+		bvh_octree.emplace_back(true, mesh_bb, all_plane_indices);
+		return;
+	}
+	else {
+		std::vector<size_t> node_children(8);
+		for (size_t i = 1; i < 9; i++) {
+			bvh_queue.push_back({ i, 0, 0 });
+			node_children[i - 1] = i;
+		}
+		bvh_octree.emplace_back(false, mesh_bb, node_children);
+		layers.push_back(all_plane_indices);
+		octGen(mesh_bb);
+	}
+
+	while (!bvh_queue.empty()) {
+		// Next BVH box is removed from front of queue
+		BVHQueue current_info = bvh_queue.front();
+		BVHNode current_box = bvh_octree[current_info.node_index];
+		std::vector<size_t>& layer_indices = layers[current_info.layer_index];
+
+		// Find which planes within parent bounding box collide with current box
+		for (const size_t& plane_index : layer_indices) {
+			if (planes[plane_index].frag_plane.collisionBBox(current_box.bounds)) {
+				current_box.indices.push_back(plane_index);
+			}
+		}
+
+		// split if too big and depth isnt too deep
+		if (current_box.indices.size() > bvh_box_max_size && current_info.depth < bvh_max_depth) {
+			layers.push_back(current_box.indices);
+			current_box.indices.clear();
+			for (size_t i = bvh_octree.size(); i < bvh_octree.size() + 8; i++) {
+				bvh_queue.push_back({ i, layers.size() - 1, current_info.depth + 1 });
+				current_box.indices.push_back(i);
+			}
+			current_box.is_leaf = false;
+			octGen(current_box.bounds);
+		}
+
+		bvh_queue.erase(bvh_queue.begin());
+		bvh_octree[current_info.node_index] = current_box;
+	}
+
+	// Clean tree a bit
+	for (size_t i = 0; i < bvh_octree.size(); i++) {
+		BVHNode& node = bvh_octree[i];
+		if (!node.is_leaf) {
+			// Don't point to empty children
+			for (size_t j = 0; j < node.indices.size(); j++) {
+				if (bvh_octree[node.indices[j]].indices.empty()) {
+					node.indices.erase(node.indices.begin() + j--);
+				}
+			}
+
+			// Swap if only child
+			if (node.indices.size() == 1) {
+				const size_t only_child = node.indices[0];
+				node.indices.clear();
+				std::swap(node, bvh_octree[only_child]);
+				i--;
+			}
+		}
+	}
+
+	bvh_octree.shrink_to_fit();
 }

@@ -142,15 +142,16 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         TAGMesh(const std::vector<Vertex>& vertices, const std::vector<MaterialFragments>& material_frags, const std::vector<Material>& materials);
         TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const Material& material);
         ~TAGMesh();
+
         /**
-        * Generates game space planes to represent primitives for mesh
+        * Getters for mesh data
         */
-        void generatePlanes();
-        /**
-        * Generates Bounding Volume Heirarchy for mesh, implemented with an octree.
-        * Requires planes to be generated with generatePlanes first or does nothing.
-        */
-        void generateBVH();
+        GLuint getVBO() const;
+        GLuint getEBO() const;
+        GLuint getMaterialBuffer() const;
+        BoundingBox getBoundingBox() const;
+        const std::vector<PlaneVolume>& getPlanes() const;
+        const std::vector<BVHNode>& getBVH() const;
 
         /**
         * Generate bounding box from array of vectors
@@ -194,4 +195,13 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         */
         void setupMeshBoundingBox();
         static void setupMeshVertexArrayObject();
+        /**
+        * Generates game space planes to represent primitives for mesh
+        */
+        void generatePlanes();
+        /**
+        * Generates Bounding Volume Heirarchy for mesh, implemented with an octree.
+        * Requires planes to be generated with generatePlanes first or does nothing.
+        */
+        void generateBVH();
 };

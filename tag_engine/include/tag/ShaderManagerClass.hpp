@@ -128,16 +128,11 @@ public:
     struct ShaderOptions {
         std::string perspective_mat = "perspective";
         std::string camera_mat = "view";
+        std::string ambience = "ambience";
         std::string camera_pos = "camera_pos";
         std::string camera_dir = "camera_dir";
         std::string shader_object = "object";
-        std::string colour_vec = "colour";
-        std::string opacity_value = "opacity";
         std::string cubemap = "cubemap";
-        std::string specular_exp = "spec_exp";
-        std::string specular_factor = "spec_fac";
-        std::string diffuse_tex_num = "diff_tex_num";
-        std::string specular_tex_num = "spec_tex_num";
         std::string diffuse_tex_array = "diff_texs";
         std::string specular_tex_array = "spec_texs";
         bool cull_backface = true;
