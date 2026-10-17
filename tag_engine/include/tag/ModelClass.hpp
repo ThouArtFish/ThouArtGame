@@ -170,7 +170,7 @@ public:
 	static TAGMesh::PlaneVolume transformPlane(const Object& obj, const TAGMesh::PlaneVolume& plane);
 private:
 	void loadModel(const std::string& path);
-	static ShaderObject shaderConverter(const Object& obj, const GLuint& split);
+	static std::array<ShaderObject, 1> shaderConverter(const Object& obj);
 	const TAGTexLoader::Texture loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const;
 protected:
 	using InstanceBuffer = TAGResourceManager::ObjectBuffer<Object, ShaderObject>;

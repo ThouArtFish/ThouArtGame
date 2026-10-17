@@ -59,7 +59,7 @@ template<LightType T> unsigned int TAGLightManager<T>::bufferSize() const {
 	return lights.getBuffer()->getCurrentObjects();
 }
 
-template<LightType T> std::array<TAGLightManager<T>::ShaderT, 1> TAGLightManager<T>::shaderLightConverter(const T& light) {
+template<LightType T> std::array<typename TAGLightManager<T>::ShaderT, 1> TAGLightManager<T>::shaderLightConverter(const T& light) {
 	if constexpr (std::same_as<T, TAGLight::Point>) {
 		return { { glm::vec4(light.position, light.attenuation.x), glm::vec4(light.colour, light.attenuation.y) } };
 	}
