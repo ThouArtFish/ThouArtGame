@@ -158,11 +158,17 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         GLuint getFragmentBufferID() const;
         GLuint getMaterialBufferID() const;
         BoundingBox& getBoundingBox();
+		const BoundingBox& getBoundingBox() const;
         std::vector<PlaneVolume>& getPlanes();
+		const std::vector<PlaneVolume>& getPlanes() const;
         std::vector<BVHNode>& getBVH();
+        const std::vector<BVHNode>& getBVH() const;
 		VertexBuffer& getVertexBuffer();
+		const VertexBuffer& getVertexBuffer() const;
 		FragmentBuffer& getFragmentBuffer();
+		const FragmentBuffer& getFragmentBuffer() const;
 		MaterialBuffer& getMaterialBuffer();
+		const MaterialBuffer& getMaterialBuffer() const;
 
         /**
         * Generate bounding box from array of vectors

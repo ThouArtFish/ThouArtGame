@@ -283,11 +283,17 @@ GLuint TAGMesh::getVertexBufferID() const { return VBO.getBuffer()->getBufferID(
 GLuint TAGMesh::getFragmentBufferID() const { return EBO.getBuffer()->getBufferID(); };
 GLuint TAGMesh::getMaterialBufferID() const { return material_buffer.getBuffer()->getBufferID(); };
 TAGMesh::BoundingBox& TAGMesh::getBoundingBox() { return mesh_bb; };
+const TAGMesh::BoundingBox& TAGMesh::getBoundingBox() const { return mesh_bb; };
 std::vector<TAGMesh::PlaneVolume>& TAGMesh::getPlanes() { return planes; };
+const std::vector<TAGMesh::PlaneVolume>& TAGMesh::getPlanes() const { return planes; };
 std::vector<TAGMesh::BVHNode>& TAGMesh::getBVH() { return bvh_octree; };
+const std::vector<TAGMesh::BVHNode>& TAGMesh::getBVH() const { return bvh_octree; };
 TAGMesh::VertexBuffer& TAGMesh::getVertexBuffer() { return VBO; };
+const TAGMesh::VertexBuffer& TAGMesh::getVertexBuffer() const { return VBO; };
 TAGMesh::FragmentBuffer& TAGMesh::getFragmentBuffer() { return EBO; };
+const TAGMesh::FragmentBuffer& TAGMesh::getFragmentBuffer() const { return EBO; };
 TAGMesh::MaterialBuffer& TAGMesh::getMaterialBuffer() { return material_buffer; };
+const TAGMesh::MaterialBuffer& TAGMesh::getMaterialBuffer() const { return material_buffer; };
 
 void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const GLuint& number) {
 	// Activate global VAO
