@@ -52,10 +52,6 @@ TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment
 	generateBVH();
 }
 
-TAGMesh::~TAGMesh() {
-	TAGResourceManager::deleteBuffer<OpenGLObjectType::VertexArrayObject>(VAO);
-}
-
 TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) {
 	return *std::find_if(textures.begin(), textures.end(), [&name](const TAGTexLoader::Texture& tex) { return name == tex.name; });
 }

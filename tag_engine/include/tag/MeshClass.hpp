@@ -141,7 +141,6 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
          */
         TAGMesh(const std::vector<Vertex>& vertices, const std::vector<MaterialFragments>& material_frags, const std::vector<Material>& materials);
         TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const Material& material);
-        ~TAGMesh();
 
         /**
         * Getters for mesh data
