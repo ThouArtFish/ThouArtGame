@@ -279,26 +279,29 @@ TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, 
 	return (found ? best_plane : DotPlane());
 }
 
-GLuint TAGMesh::getVBO() const { return VBO.getBuffer()->getBufferID(); };
-GLuint TAGMesh::getEBO() const { return EBO.getBuffer()->getBufferID(); };
-GLuint TAGMesh::getMaterialBuffer() const { return material_buffer.getBuffer()->getBufferID(); };
-TAGMesh::BoundingBox TAGMesh::getBoundingBox() const { return mesh_bb; };
-const std::vector<TAGMesh::PlaneVolume>& TAGMesh::getPlanes() const { return planes; };
-const std::vector<TAGMesh::BVHNode>& TAGMesh::getBVH() const { return bvh_octree; };
+GLuint TAGMesh::getVertexBufferID() const { return VBO.getBuffer()->getBufferID(); };
+GLuint TAGMesh::getFragmentBufferID() const { return EBO.getBuffer()->getBufferID(); };
+GLuint TAGMesh::getMaterialBufferID() const { return material_buffer.getBuffer()->getBufferID(); };
+TAGMesh::BoundingBox& TAGMesh::getBoundingBox() { return mesh_bb; };
+std::vector<TAGMesh::PlaneVolume>& TAGMesh::getPlanes() { return planes; };
+std::vector<TAGMesh::BVHNode>& TAGMesh::getBVH() { return bvh_octree; };
+TAGMesh::VertexBuffer& TAGMesh::getVertexBuffer() { return VBO; };
+TAGMesh::FragmentBuffer& TAGMesh::getFragmentBuffer() { return EBO; };
+TAGMesh::MaterialBuffer& TAGMesh::getMaterialBuffer() { return material_buffer; };
 
 void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const GLuint& number) {
 	// Activate global VAO
 	glBindVertexArray(VAO);
 
 	// Bind mesh VBO to global VAO
-	glBindVertexBuffer(default_vao_mesh_binding_point, VBO.getBuffer()->getBufferID(), 0, sizeof(Vertex));
+	glBindVertexBuffer(default_vao_mesh_binding_point, getVertexBufferID(), 0, sizeof(Vertex));
 
 	// Bind mesh EBO to global VAO
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO.getBuffer()->getBufferID());
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, getFragmentBufferID());
 
-	for (const DrawCommand& draw_command : draw_commands) {
+	for (const PerMaterialDrawCommand& draw_command : draw_commands) {
 		// Bind current material to global VAO
-		glBindVertexBuffer(defualt_vao_material_binding_point, material_buffer.getBuffer()->getBufferID(), draw_command.material_index * sizeof(ShaderMaterial) + sizeof(GLuint), sizeof(ShaderMaterial));
+		glBindVertexBuffer(defualt_vao_material_binding_point, getMaterialBufferID(), draw_command.material_index * sizeof(ShaderMaterial) + sizeof(GLuint), sizeof(ShaderMaterial));
 		glVertexAttribDivisor(defualt_vao_material_binding_point, number);
 
 		std::vector<GLuint> diffuse, specular;
@@ -325,6 +328,9 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 		shader.set<glm::vec3>(options.camera_pos, TAGBaseState::camera_position);
 
 		glDrawElementsInstanced(GL_TRIANGLES, draw_command.element_count, GL_UNSIGNED_INT, (void*)(draw_command.element_start * sizeof(GLuint)), number);
+		VBO.setFence();
+		EBO.setFence();
+		material_buffer.setFence();
 	}
 	// Reset VAO state
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);

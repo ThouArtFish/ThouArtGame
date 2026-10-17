@@ -60,7 +60,6 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             GLuint material_index = 0;
             std::vector<Fragment> frags;
         };
-
         /**
          * Container for various values that modify the material of a mesh.
          */
@@ -81,6 +80,12 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
 			GLfloat spec_fac = 0.0f, spec_exp = 32.0f, opacity = 1.0f;
             glm::vec3 colour = glm::vec3(1.0f, 0.0f, 0.0f);
 			GLuint num_diffuse = 0, num_specular = 0;
+        };
+        /**
+		* Represents a draw command for a group of fragments that share the same material
+        */
+        struct PerMaterialDrawCommand {
+            size_t material_index, element_start, element_count;
         };
 
         /**
@@ -132,6 +137,10 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             DotPlane collisionCapsule(const glm::vec3& foot, const glm::vec3& spine, const float& radius) const;
         };
 
+        using VertexBuffer = TAGResourceManager::ObjectBuffer<Vertex, GLfloat, vertex_component_count - 1>;
+        using FragmentBuffer = TAGResourceManager::ObjectBuffer<Fragment, GLuint, fragment_component_count - 1>;
+        using MaterialBuffer = TAGResourceManager::ObjectBuffer<Material, ShaderMaterial>;
+
         /**
          * Define a mesh from the parameters.
          * 
@@ -143,31 +152,27 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const Material& material);
 
         /**
-        * Getters for mesh data
+        * Getters and setters for mesh data
         */
-        GLuint getVBO() const;
-        GLuint getEBO() const;
-        GLuint getMaterialBuffer() const;
-        BoundingBox getBoundingBox() const;
-        const std::vector<PlaneVolume>& getPlanes() const;
-        const std::vector<BVHNode>& getBVH() const;
+        GLuint getVertexBufferID() const;
+        GLuint getFragmentBufferID() const;
+        GLuint getMaterialBufferID() const;
+        BoundingBox& getBoundingBox();
+        std::vector<PlaneVolume>& getPlanes();
+        std::vector<BVHNode>& getBVH();
+		VertexBuffer& getVertexBuffer();
+		FragmentBuffer& getFragmentBuffer();
+		MaterialBuffer& getMaterialBuffer();
 
         /**
         * Generate bounding box from array of vectors
         */
         static BoundingBox generateBoundingBox(const glm::vec3* start, const unsigned int& size);
 	private:
-        struct DrawCommand {
-            size_t material_index, element_start, element_count;
-        };
-		using VertexBuffer = TAGResourceManager::ObjectBuffer<Vertex, GLfloat, vertex_component_count - 1>;
-		using FragmentBuffer = TAGResourceManager::ObjectBuffer<Fragment, GLuint, fragment_component_count - 1>;
-		using MaterialBuffer = TAGResourceManager::ObjectBuffer<Material, ShaderMaterial>;
-
 		VertexBuffer VBO;
 		FragmentBuffer EBO;
         MaterialBuffer material_buffer;
-		std::vector<DrawCommand> draw_commands;
+		std::vector<PerMaterialDrawCommand> draw_commands;
         BoundingBox mesh_bb;
         std::vector<PlaneVolume> planes;
         std::vector<BVHNode> bvh_octree;
