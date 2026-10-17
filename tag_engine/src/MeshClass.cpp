@@ -320,8 +320,8 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 		}
 		glActiveTexture(GL_TEXTURE0);
 
-		shader.set<ShaderUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse[0], (GLuint)diffuse.size());
-		shader.set<ShaderUniformType::SINGLE_2D>(options.specular_tex_array, specular[0], (GLuint)specular.size());
+		if (!diffuse.empty()) shader.set<ShaderUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse[0], (GLuint)diffuse.size());
+		if (!specular.empty()) shader.set<ShaderUniformType::SINGLE_2D>(options.specular_tex_array, specular[0], (GLuint)specular.size());
 		shader.set<glm::vec3>(options.camera_pos, TAGBaseState::camera_position);
 
 		glDrawElementsInstanced(GL_TRIANGLES, draw_command.element_count, GL_UNSIGNED_INT, (void*)(draw_command.element_start * sizeof(GLuint)), number);
