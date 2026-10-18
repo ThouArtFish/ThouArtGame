@@ -237,7 +237,7 @@ void TAGHUDManager::initMesh() {
 		}
 		glVertexAttribBinding(attrib, default_vao_instance_binding_point);
 	}
-	glVertexBindingDivisor(1, default_vao_instance_binding_point);
+	glVertexBindingDivisor(default_vao_instance_binding_point, 1);
 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);

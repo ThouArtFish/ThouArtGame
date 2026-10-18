@@ -313,7 +313,7 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 	for (const PerMaterialDrawCommand& draw_command : draw_commands) {
 		// Bind current material to global VAO
 		glBindVertexBuffer(defualt_vao_material_binding_point, getMaterialBufferID(), draw_command.material_index * sizeof(ShaderMaterial) + sizeof(GLuint), sizeof(ShaderMaterial));
-		glVertexAttribDivisor(defualt_vao_material_binding_point, number);
+		glVertexBindingDivisor(defualt_vao_material_binding_point, number);
 
 		std::vector<GLuint> diffuse, specular;
 		const Material& material = material_buffer.getObject(draw_command.material_index);
@@ -345,7 +345,7 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 	}
 	// Reset VAO state
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glVertexAttribDivisor(defualt_vao_material_binding_point, 1);
+	glVertexBindingDivisor(defualt_vao_material_binding_point, 1);
 	glBindVertexBuffer(defualt_vao_material_binding_point, 0, 0, 0);
 	glBindVertexBuffer(default_vao_mesh_binding_point, 0, 0, 0);
 	glBindVertexArray(0);
