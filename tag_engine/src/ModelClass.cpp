@@ -226,9 +226,9 @@ void TAGModel::loadModel(const std::string& path) {
 					material_index = (GLuint)std::distance(found_materials.begin(), material_pos);
 				}
 				
-				const auto& material_frag_pos = std::find_if(mesh_material_frags.begin(), mesh_material_frags.end(), [&material_index](const TAGMesh::MaterialFragments& mat_frags) { return mat_frags.material_index == material_index; });
+				auto material_frag_pos = std::find_if(mesh_material_frags.begin(), mesh_material_frags.end(), [&material_index](const TAGMesh::MaterialFragments& mat_frags) { return mat_frags.material_index == material_index; });
 				if (material_frag_pos == mesh_material_frags.end()) {
-					mesh_material_frags.emplace_back(material_index, std::vector<TAGMesh::Fragment>{ primitive });
+					mesh_material_frags.emplace_back(material_index, std::vector<TAGMesh::Fragment>(1, primitive));
 				}
 				else {
 					material_frag_pos->frags.push_back(primitive);

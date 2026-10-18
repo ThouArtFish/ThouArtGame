@@ -24,7 +24,7 @@ namespace Collision {
 		TAGMesh::DotPlane collision_plane = {};
 		TAGMesh::PlaneVolume plane = {};
 		std::string mesh_name = "";
-		GLuint index = -1;
+		int index = -1;
 	};
 
 	/**

@@ -104,22 +104,23 @@ public:
 		virtual ~BufferBase() = default;
 
 		const BufferAccess access;
-		const GLuint include_size;
+		const size_t include_size;
 
-		GLuint getMaxObjects() const;
-		GLuint getCurrentObjects() const;
+		size_t getMaxObjects() const;
+		size_t getCurrentObjects() const;
 		GLuint getBufferID() const;
 	protected:
-		GLuint buffer_id = 0, current_objs = 0, current_fence = 0, max_objs;
+		GLuint buffer_id = 0;
+		size_t current_objs = 0, current_fence = 0, max_objs;
 		std::unique_ptr<GLsyncWrap[]> fences;
 		std::vector<GLuint> bound_vaos;
 		std::vector<ShaderBufferType> bound_buffers;
 		GLintptr internal_offset = 0;
 
-		BufferBase(const bool& include_size, const GLuint& max_objs, const BufferAccess& access);
-		void updateBindings(const GLuint& new_buffer_id);
+		BufferBase(size_t max_objs, BufferAccess access, bool include_size);
+		void updateBindings(GLuint new_buffer_id);
 		virtual void updateBuffer(const std::vector<T>& data) = 0;
-		virtual void resizeBuffer(const GLuint& new_size) = 0;
+		virtual void resizeBuffer(size_t new_size) = 0;
 	};
 
 	/**
@@ -129,13 +130,13 @@ public:
 		static_assert(MAX_FENCES > 1 && MAX_FENCES < 6, "MAX_FENCES must be between 2 and 5");
 		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
-		RingBuffer(const GLuint& max_objs, const bool& include_size = false);
+		RingBuffer(size_t max_objs, bool include_size = false);
 		~RingBuffer();
 	private:
 		GLchar* buffer_ptr = nullptr;
 
 		void updateBuffer(const std::vector<T>& data) override;
-		void resizeBuffer(const GLuint& new_size) override;
+		void resizeBuffer(size_t new_size) override;
 	};
 
 	/**
@@ -144,11 +145,11 @@ public:
 	template<class T> class OrphanBuffer : public BufferBase<T> {
 		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
-		OrphanBuffer(const GLuint& max_objs, const BufferAccess& access, const bool& include_size = false);
+		OrphanBuffer(size_t max_objs, BufferAccess access, bool include_size = false);
 		~OrphanBuffer();
 	private:
 		void updateBuffer(const std::vector<T>& data) override;
-		void resizeBuffer(const GLuint& new_size) override;
+		void resizeBuffer(size_t new_size) override;
 	};
 
 	/**
@@ -173,18 +174,18 @@ public:
 	*/
 	template<class C, class G, GLuint DIVISIONS = 0> class ObjectBuffer : public ObjectBufferWrapper {
 	public:
-		ObjectBuffer(const GLuint& max_objs, const std::function<std::array<G, DIVISIONS + 1>(const C&)>& converter, const BufferAccess& access, const bool& include_size = false);
+		ObjectBuffer(size_t max_objs, const std::function<std::array<G, DIVISIONS + 1>(const C&)>& converter, const BufferAccess& access, const bool& include_size = false);
 		~ObjectBuffer();
 
 		const std::vector<C>& getAllObjects() const;
-		const C& getObject(const GLuint& index) const;
+		const C& getObject(size_t index) const;
 		const C& peekObject() const;
 		void pushObject(const C& obj);
-		void setObject(const C& obj, const GLuint& index);
-		template<typename T> void setObjectMember(const T& value, const GLuint& offset, const GLuint& index);
-		void insertObject(const C& obj, const GLuint& index);
+		void setObject(const C& obj, size_t index);
+		template<typename T> void setObjectMember(const T& value, size_t offset, size_t index);
+		void insertObject(const C& obj, size_t index);
 		C popObject();
-		C removeObject(const GLuint& index);
+		C removeObject(size_t index);
 		void clearObjects();
 		void setAllObjects(const std::vector<C>& objs);
 		std::vector<C>& changeObjects();

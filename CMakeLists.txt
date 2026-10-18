@@ -11,10 +11,11 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 # Build with executable, not as a library
-option(TAG_BUILD_EXECUTABLE "Build with executable, not as a library" OFF)
+option(TAG_BUILD_EXECUTABLE "Build with executable, not as a library" ON)
 
-# Path to test folder
-set(TAG_TESTING_PATH ${CMAKE_SOURCE_DIR}/test/)
+# Path to test source code and executable output
+set(TAG_TEST_SOURCE ${CMAKE_SOURCE_DIR}/test/src/)
+set(TAG_TEST_EXE ${CMAKE_SOURCE_DIR}/test/)
 
 # Fetch GLFW 
 FetchContent_Declare(
@@ -38,11 +39,11 @@ target_link_libraries(TAGEngine PUBLIC glfw)
 
 # Build executable if enabled
 if(TAG_BUILD_EXECUTABLE)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TAG_TESTING_PATH})
-    file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS
-        ${TAG_TESTING_PATH}*.cpp
-        ${TAG_TESTING_PATH}*.c
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TAG_TEST_EXE})
+    file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS
+        ${TAG_TEST_SOURCE}*.cpp
+        ${TAG_TEST_SOURCE}*.c
     )
-    add_executable(testing ${GAME_SOURCES})
+    add_executable(testing ${TEST_SOURCES})
     target_link_libraries(testing PRIVATE TAGEngine)
 endif()

@@ -2,7 +2,7 @@
 
 TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<MaterialFragments>& material_frags, const std::vector<Material>& materials) :
 	VBO(vertices.size(), convertVertex, TAGResourceManager::BufferAccess::STATIC),
-	EBO(std::accumulate(material_frags.begin(), material_frags.end(), 0, [](size_t sum, const MaterialFragments& frag_struct) { return sum + frag_struct.frags.size(); }), convertFragment, TAGResourceManager::BufferAccess::STATIC),
+	EBO(std::accumulate(material_frags.begin(), material_frags.end(), (size_t)0, [](size_t sum, const MaterialFragments& frag_struct) { return sum + frag_struct.frags.size(); }), convertFragment, TAGResourceManager::BufferAccess::STATIC),
 	material_buffer(materials.size(), convertMaterial, TAGResourceManager::BufferAccess::STATIC, true)
 {
 	if (VAO == 0) setupMeshVertexArrayObject();
@@ -296,6 +296,11 @@ TAGMesh::MaterialBuffer& TAGMesh::getMaterialBuffer() { return material_buffer; 
 const TAGMesh::MaterialBuffer& TAGMesh::getMaterialBuffer() const { return material_buffer; };
 
 void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const GLuint& number) {
+	// Update buffers if client side objects have changed
+	if (VBO.isObjectsChanged()) VBO.updateBuffer();
+	if (EBO.isObjectsChanged()) EBO.updateBuffer();
+	if (material_buffer.isObjectsChanged()) material_buffer.updateBuffer();
+
 	// Activate global VAO
 	glBindVertexArray(VAO);
 

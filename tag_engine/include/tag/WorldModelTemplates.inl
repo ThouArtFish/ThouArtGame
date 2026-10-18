@@ -230,7 +230,7 @@ template<Collision::ColliderScope T> static Collision::STATIC<T>::TYPE TAGWorldM
 
 template<Collision::RayScope T> T TAGWorldModel::rayCollisionWithMeshInstances(const glm::vec3& start, const glm::vec3& ray_dir, const float& max, const TAGMesh& mesh, const std::vector<Object>& objs) {
 	Ret ret;
-	vui octree_stack, indices;
+	std::vector<size_t> octree_stack, indices;
 	double t = -1.0;
 
 	ret.emplace<T>(T());
@@ -256,7 +256,7 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollisionWithMeshInstances(c
 					octree_stack.insert(octree_stack.end(), current_box.indices.begin(), current_box.indices.end());
 				}
 				else {
-					for (const ui& plane_index : current_box.indices) {
+					for (const size_t& plane_index : current_box.indices) {
 						if (std::find(indices.begin(), indices.end(), plane_index) == indices.end()) {
 							indices.push_back(plane_index);
 						}
@@ -265,7 +265,7 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollisionWithMeshInstances(c
 			}
 		}
 
-		for (const ui& plane_index : indices) {
+		for (const size_t& plane_index : indices) {
 			const TAGMesh::PlaneVolume& plane = planes[plane_index];
 
 			float d = glm::dot(plane.frag_plane.normal, local_ray);
@@ -284,7 +284,7 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollisionWithMeshInstances(c
 				}
 
 				if (cont && plane.frag_plane.collisionPoint(local_ray * d + local_start)) {
-					Collision::Info collision = { { plane.frag_plane.normal, glm::dot(plane.frag_plane.normal, plane.frag_plane.start) }, plane, "", plane_index };
+					Collision::Info collision = { { plane.frag_plane.normal, glm::dot(plane.frag_plane.normal, plane.frag_plane.start) }, plane, "", (int)plane_index };
 					collision.collision_plane = transformPlane(obj, collision.collision_plane);
 					collision.plane = transformPlane(obj, collision.plane);
 					if constexpr (std::same_as<T, Collision::ANY>) {
@@ -306,7 +306,7 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollisionWithMeshInstances(c
 
 template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollisionMeshInstances(const glm::vec3& foot, const glm::vec3& spine, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs) {
 	Ret ret;
-	vui indices, octree_stack;
+	std::vector<size_t> octree_stack, indices;
 	
 	ret.emplace<T>(T());
 
@@ -332,7 +332,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollisionMeshInstan
 					octree_stack.insert(octree_stack.end(), current_box.indices.begin(), current_box.indices.end());
 				}
 				else {
-					for (const ui& plane_index : current_box.indices) {
+					for (const size_t& plane_index : current_box.indices) {
 						if (std::find(indices.begin(), indices.end(), plane_index) == indices.end()) {
 							indices.push_back(plane_index);
 						}
@@ -341,11 +341,11 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollisionMeshInstan
 			}
 		}
 
-		for (const ui& plane_index : indices) {
+		for (const size_t& plane_index : indices) {
 			const TAGMesh::PlaneVolume& plane = planes[plane_index];
 			const TAGMesh::DotPlane collision_plane = plane.collisionCapsule(local_foot, local_spine, local_radius);
 			if (collision_plane.normal != glm::vec3(0.0f)) {
-				const Collision::Info collision = { transformPlane(obj, collision_plane), transformPlane(obj, plane), "", plane_index};
+				const Collision::Info collision = { transformPlane(obj, collision_plane), transformPlane(obj, plane), "", (int)plane_index};
 				if constexpr (std::same_as<T, Collision::ALL>) {
 					std::get<T>(ret).emplace_back(collision);
 				}
@@ -360,7 +360,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollisionMeshInstan
 
 template<Collision::ColliderScope T> T TAGWorldModel::sphereCollisionWithMeshInstances(const glm::vec3& centre, const float& radius, const TAGMesh& mesh, const std::vector<Object>& objs) {
 	Ret ret;
-	vui indices, octree_stack;
+	std::vector<size_t> octree_stack, indices;
 
 	ret.emplace<T>(T());
 
@@ -384,7 +384,7 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollisionWithMeshIns
 					octree_stack.insert(octree_stack.end(), current_box.indices.begin(), current_box.indices.end());
 				}
 				else {
-					for (const unsigned int& plane_index : current_box.indices) {
+					for (const size_t& plane_index : current_box.indices) {
 						if (std::find(indices.begin(), indices.end(), plane_index) == indices.end()) {
 							indices.push_back(plane_index);
 						}
@@ -393,11 +393,11 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollisionWithMeshIns
 			}
 		}
 
-		for (const ui& plane_index : indices) {
+		for (const size_t& plane_index : indices) {
 			const TAGMesh::PlaneVolume& plane = planes[plane_index];
 			const TAGMesh::DotPlane collision_plane = plane.collisionSphere(local_centre, local_radius);
 			if (collision_plane.normal != glm::vec3(0.0f)) {
-				const Collision::Info collision = { transformPlane(obj, collision_plane), transformPlane(obj, plane), "", plane_index };
+				const Collision::Info collision = { transformPlane(obj, collision_plane), transformPlane(obj, plane), "", (int)plane_index };
 				if constexpr (std::same_as<T, Collision::ALL>) {
 					std::get<T>(ret).emplace_back(collision);
 				}
