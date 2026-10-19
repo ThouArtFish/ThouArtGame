@@ -105,6 +105,10 @@ template<class T> size_t TAGResourceManager::BufferBase<T>::getCurrentObjects() 
 	return current_objs;
 }
 
+template<class T> GLintptr TAGResourceManager::BufferBase<T>::getInternalOffset() const {
+	return internal_offset;
+}
+
 template<class T> GLuint TAGResourceManager::BufferBase<T>::getBufferID() const {
 	return buffer_id;
 }

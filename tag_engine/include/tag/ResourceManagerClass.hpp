@@ -109,6 +109,7 @@ public:
 
 		size_t getMaxObjects() const;
 		size_t getCurrentObjects() const;
+		GLintptr getInternalOffset() const;
 		GLuint getBufferID() const;
 	protected:
 		GLuint buffer_id = 0;

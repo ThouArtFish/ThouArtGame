@@ -21,20 +21,22 @@ void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string
 
 	if (instance_buffer.isObjectsChanged()) updateInstanceBuffer(mesh_name);
 
+	const auto& buffer = instance_buffer.getBuffer();
+
 	if (mesh_name != "") {
 		TAGMesh& mesh = meshes.at(mesh_name);
 
-		glVertexArrayVertexBuffer(mesh.VAO, TAGMesh::default_vao_instance_binding_point, instance_buffer.getBuffer()->getBufferID(), 0, sizeof(ShaderObject));
+		glVertexArrayVertexBuffer(mesh.VAO, TAGMesh::default_vao_instance_binding_point, buffer->getBufferID(), buffer->getInternalOffset(), sizeof(ShaderObject));
 
-		mesh.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
+		mesh.draw(shader, options, buffer->getCurrentObjects());
 
 		glVertexArrayVertexBuffer(mesh.VAO, TAGMesh::default_vao_instance_binding_point, 0, 0, 0);
 	}
 	else {
 		for (auto& pair : meshes) {
-			glVertexArrayVertexBuffer(pair.second.VAO, TAGMesh::default_vao_instance_binding_point, instance_buffer.getBuffer()->getBufferID(), 0, sizeof(ShaderObject));
+			glVertexArrayVertexBuffer(pair.second.VAO, TAGMesh::default_vao_instance_binding_point, buffer->getBufferID(), buffer->getInternalOffset(), sizeof(ShaderObject));
 
-			pair.second.draw(shader, options, instance_buffer.getBuffer()->getCurrentObjects());
+			pair.second.draw(shader, options, buffer->getCurrentObjects());
 
 			glVertexArrayVertexBuffer(pair.second.VAO, TAGMesh::default_vao_instance_binding_point, 0, 0, 0);
 		}
