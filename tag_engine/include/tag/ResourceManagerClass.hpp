@@ -19,6 +19,7 @@ namespace OpenGLObjectType {
 	struct ShaderProgram : TagStruct { constexpr static GLuint TYPE_ID = 1; constexpr inline static std::string_view NAME = "ShaderProgram"; };
 	struct VertexShader : TagStruct { constexpr static GLuint TYPE_ID = 2; constexpr inline static std::string_view NAME = "VertexShader"; };
 	struct FragmentShader : TagStruct { constexpr static GLuint TYPE_ID = 3; constexpr inline static std::string_view NAME = "FragmentShader"; };
+	struct GeometryShader : TagStruct { constexpr static GLuint TYPE_ID = 8; constexpr inline static std::string_view NAME = "GeometryShader"; };
 	struct TextureBuffer : TagStruct { constexpr static GLuint TYPE_ID = 4; constexpr inline static std::string_view NAME = "TextureBuffer"; };
 	struct GenericBuffer : TagStruct { constexpr static GLuint TYPE_ID = 5; constexpr inline static std::string_view NAME = "GenericBuffer"; };
 	struct Framebuffer : TagStruct { constexpr static GLuint TYPE_ID = 6; constexpr inline static std::string_view NAME = "Framebuffer"; };

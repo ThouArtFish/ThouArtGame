@@ -98,6 +98,7 @@ public:
     struct Source {
         std::string vertex;
         std::string fragment;
+		std::string geometry;
         std::string name;
         bool is_path = true;
         ShaderType shader_type = ShaderType::CUSTOM_DRAW;
@@ -389,8 +390,8 @@ private:
     std::unordered_map<std::string, Shader> shaders;
 
     static Shader loadShader(const Source& source);
-    static void getSourceCodeFromFile(const Source& source, std::string& vertex_code, std::string& fragment_code);
-    static void getSourceCodeFromDefault(const Source&, std::string& vertex_code, std::string& fragment_code);
+    static void getSourceCodeFromFile(const Source& source, std::string& vertex_code, std::string& fragment_code, std::string& geometry_code);
+    static void getSourceCodeFromDefault(const Source&, std::string& vertex_code, std::string& fragment_code, std::string& geometry_code);
     template<ShaderUniformType::Concept T> static GLenum getEnumType();
 };
 
