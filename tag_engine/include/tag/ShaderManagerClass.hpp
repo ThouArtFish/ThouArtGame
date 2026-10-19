@@ -291,7 +291,7 @@ public:
         "uniform sampler2D diff_texs[16];\n"
         "uniform sampler2D spec_texs[16];\n"
         "void main() {\n"
-        "    vec3 Normal = normalize(InterpMeshNormal);\n"
+        "    vec3 Normal = normalize(InterpMeshNormal) * (gl_FrontFacing ? 1.0f : -1.0f);\n"
         "    int i;\n"
         "    vec3 final_shade = vec3(ambience);\n"
         "    vec4 obj_base = (Mat.num_diffuse == 0 ? vec4(Mat.colour, 1.0) : texture(diff_texs[0], InterpMeshTexCoords));\n"
@@ -330,8 +330,8 @@ public:
         "uniform sampler2D cubemap;\n"
         "void main() {\n"
         "   vec3 d = normalize(TexCoords);\n"
-        "   float u = atan(d.z, d.x) / (2.0 * 3.14159265) + 0.5;\n"
-        "   float v = acos(clamp(d.y, -1.0, 1.0)) / 3.14159265;\n"
+        "   float u = atan(d.z, d.x) / (2.0 * 3.14159265359) + 0.5;\n"
+        "   float v = acos(clamp(d.y, -1.0, 1.0)) / 3.14159265359;\n"
         "   FragColor = texture(cubemap, vec2(u, v));\n}"
     };
 
