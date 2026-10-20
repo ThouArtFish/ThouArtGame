@@ -48,15 +48,6 @@ public:
 	* @param material Material for image
 	*/
 	void addPainting(const std::string& name, const TAGTexLoader::Texture& texture, const TAGMesh::Material& material = {});
-	/**
-	* Returns object facing towards point.
-	* If lock_axis is true, the axis of the image model won't change after turning.
-	* 
-	* @param position Position to make painting face
-	* @param obj Object to change facing direction
-	* @param lock_axis Whether to stop the image from changing its vertical axis while turning or not.
-	*/
-	static Object faceDirec(const glm::vec3& position, const Object& obj, const bool& lock_axis);
 private:
 	inline static constexpr std::array<glm::vec2, 4> tex_coords = { glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 0.0f), glm::vec2(1.0f, 1.0f), glm::vec2(0.0f, 1.0f) };
 	inline static constexpr TAGMesh::Fragment frag_1 = { 0, 1, 3 };

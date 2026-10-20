@@ -45,20 +45,3 @@ void TAGPaintingModel::addPainting(const std::string& name, const TAGTexLoader::
 
 	addMesh(name, vertices, { frag_1, frag_2 }, new_material);
 }
-
-TAGModel::Object TAGPaintingModel::faceDirec(const glm::vec3& point, const Object& obj, const bool& lock_axis) {
-	Object new_obj = obj;
-	const glm::vec3 new_normal = glm::normalize(point - new_obj.position);
-	const glm::vec3 axis = glm::cross(new_normal, def_normal);
-	float angle;
-	if (lock_axis) {
-		angle = glm::acos(glm::dot(glm::normalize(new_normal - new_obj.rotation_axis * glm::dot(new_obj.rotation_axis, new_normal)), def_normal));
-	}
-	else {
-		new_obj.rotation_axis = glm::normalize(axis);
-		angle = glm::acos(glm::dot(new_normal, def_normal));
-	}
-	new_obj.angle = (glm::dot(axis, new_obj.rotation_axis) > 0.0f ? -angle : angle);
-
-	return new_obj;
-}
