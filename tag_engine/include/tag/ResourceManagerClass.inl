@@ -49,7 +49,7 @@ template<OpenGLObjectType::Concept T> GLuint TAGResourceManager::OpenGLHandle<T>
 	}
 	else if constexpr (std::same_as<T, OpenGLObjectType::TextureBuffer>) {
 		GLuint tex_ID;
-		glCreateTextures(1, &tex_ID);
+		glGenTextures(1, &tex_ID);
 		return tex_ID;
 	}
 	else if constexpr (std::same_as<T, OpenGLObjectType::Framebuffer>) {
