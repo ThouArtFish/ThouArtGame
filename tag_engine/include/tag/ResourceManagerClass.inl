@@ -49,22 +49,22 @@ template<OpenGLObjectType::Concept T> GLuint TAGResourceManager::OpenGLHandle<T>
 	}
 	else if constexpr (std::same_as<T, OpenGLObjectType::TextureBuffer>) {
 		GLuint tex_ID;
-		glGenTextures(1, &tex_ID);
+		glCreateTextures(1, &tex_ID);
 		return tex_ID;
 	}
 	else if constexpr (std::same_as<T, OpenGLObjectType::Framebuffer>) {
 		GLuint buf_ID;
-		glGenFramebuffers(1, &buf_ID);
+		glCreateFramebuffers(1, &buf_ID);
 		return buf_ID;
 	}
 	else if constexpr (std::same_as<T, OpenGLObjectType::Renderbuffer>) {
 		GLuint buf_ID;
-		glGenRenderbuffers(1, &buf_ID);
+		glCreateRenderbuffers(1, &buf_ID);
 		return buf_ID;
 	}
 	else { // OpenGLObjectType::VertexArrayObject
 		GLuint vao_ID;
-		glGenVertexArrays(1, &vao_ID);
+		glCreateVertexArrays(1, &vao_ID);
 		vao_binding_indices[vao_ID] = {};
 		return vao_ID;
 	}
