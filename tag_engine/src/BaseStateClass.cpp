@@ -48,9 +48,7 @@ TAGBaseState::OpenGLContextChecker::OpenGLContextChecker() {
 }
 
 void TAGBaseState::deleteState(const std::string& name) {
-	if (name != current) {
-		states.erase(name);
-	}
+	if (name != current) states.erase(name);
 }
 
 void TAGBaseState::initGame(const GameInitializer& game_init) {
@@ -200,7 +198,7 @@ void TAGBaseState::baseIconifyCallback(GLFWwindow* window, int iconified) {
 	states[current]->iconifyCallback();
 }
 
-unsigned int TAGBaseState::getKeyState(const int& key) {
+unsigned int TAGBaseState::getKeyState(int key) {
 	if (glfwGetKey(window, key) == GLFW_PRESS) {
 		if (std::find(still_pressed.begin(), still_pressed.end(), key) == still_pressed.end()) {
 			still_pressed.push_back(key);
@@ -211,7 +209,7 @@ unsigned int TAGBaseState::getKeyState(const int& key) {
 	return 0;
 }
 
-void TAGBaseState::setMouseLock(const TAGEnum& state) {
+void TAGBaseState::setMouseLock(TAGEnum state) {
 	int mode;
 	if (state == TAGEnum::TOGGLE) {
 		mode = (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
@@ -222,7 +220,7 @@ void TAGBaseState::setMouseLock(const TAGEnum& state) {
 	glfwSetInputMode(window, GLFW_CURSOR, mode);
 }
 
-void TAGBaseState::setWindowFullscreen(const TAGEnum& state) {
+void TAGBaseState::setWindowFullscreen(TAGEnum state) {
 	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 	const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
 	if (state == TAGEnum::TOGGLE) {
@@ -233,10 +231,18 @@ void TAGBaseState::setWindowFullscreen(const TAGEnum& state) {
 	}
 }
 
+void TAGBaseState::setWindowClearColour(const glm::vec3& colour) {
+	glClearColor(colour.x, colour.y, colour.z, 1.0f);
+}
+
 glm::mat4 TAGBaseState::createPerspectiveMatrix() {
+	if (height <= 0.0f || width <= 0.0f) return glm::perspective(glm::radians(fov), 1.0f, near, far);
+
 	return glm::perspective(glm::radians(fov), (float)width / (float)height, near, far);
 }
 
 glm::mat4 TAGBaseState::createCameraMatrix() {
+	if (TAGUtil::lengthSq(camera_direction) < 0.0001f || TAGUtil::lengthSq(camera_up) <= 0.0001f) return glm::lookAt(camera_position, camera_position + glm::vec3(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
 	return glm::lookAt(camera_position, camera_position + camera_direction, camera_up);
 }

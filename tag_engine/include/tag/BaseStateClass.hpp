@@ -45,7 +45,7 @@ public:
 	};
 
 	/**
-	* Common variables that game states may want to share
+	* Shared variables
 	*/
 	static inline glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);
 	static inline glm::vec3 camera_position = glm::vec3(0.0f);
@@ -96,20 +96,24 @@ public:
 	 * @param key The GLFW key
 	 * @return Key state
 	 */
-	static unsigned int getKeyState(const int& key);
+	static unsigned int getKeyState(int key);
 	/**
 	 * Sets the state of the mouse depending on state, TAGEnum::TRUE meaning locked to the centre and hidden,
 	 * FALSE for free movement and TOGGLE to switch between states.
 	 *
 	 * @param state New state for mouse lock.
 	 */
-	static void setMouseLock(const TAGEnum& state);
+	static void setMouseLock(TAGEnum state);
 	/**
 	 * Sets the fullscreen state of the window, TAGEnum::TRUE for fullscreen, FALSE for windowed and TOGGLE to switch.
 	 *
 	 * @param state New state for window.
 	 */
-	static void setWindowFullscreen(const TAGEnum& state);
+	static void setWindowFullscreen(TAGEnum state);
+	/**
+	* Sets the colour of the screen when it is cleared every frame
+	*/
+	static void setWindowClearColour(const glm::vec3& colour);
 	/**
 	* Get perspective projection matrix based on static values
 	*/
