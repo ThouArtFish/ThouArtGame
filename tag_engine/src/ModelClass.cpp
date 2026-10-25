@@ -145,15 +145,15 @@ void TAGModel::loadModel(const std::string& path) {
 	const bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.c_str(), this->directory.c_str());
 
 	if (!warn.empty()) {
-		std::cout << "TINYOBJLOADER::WARN: " << warn << std::endl;
+		std::cout << "TAGModel : Tinyobjloader Warning :  " << warn << std::endl;
 	}
 
 	if (!err.empty()) {
-		std::cerr << "TINYOBJLOADER::ERR: " << err << std::endl;
+		std::cerr << "TAGModel : Tinyobjloader Error : " << err << std::endl;
 	}
 
 	if (!ret) {
-		std::cout << "Failed to parse model" << std::endl;
+		std::cout << "TAGModel : Failed to parse model" << std::endl;
 		return;
 	}
 

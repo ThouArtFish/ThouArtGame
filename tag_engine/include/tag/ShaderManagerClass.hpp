@@ -22,12 +22,12 @@ namespace ShaderUniformType {
     struct TagType {};
 
     struct SINGLE_2D : SameType<int>, TagType {
-        SINGLE_2D(const int& num) : SameType(num) {}
+        SINGLE_2D(int num) : SameType(num) {}
         static constexpr GLenum ENUM = GL_SAMPLER_2D;
     };
 
     struct CUBEMAP : SameType<int>, TagType {
-        CUBEMAP(const int& num) : SameType(num) {}
+        CUBEMAP(int num) : SameType(num) {}
         static constexpr GLenum ENUM = GL_SAMPLER_CUBE;
     };
 
@@ -63,21 +63,39 @@ namespace ShaderUniformType {
 };
 
 /**
+* Possible program types
+*/
+namespace ProgramType {
+    struct TagType {
+        std::string name;
+    };
+    struct VGF : public TagType {
+        std::string vertex_path, fragment_path, geometry_path;
+    };
+    struct Compute : public TagType {
+        std::string compute_path;
+    };
+    struct Default;
+
+    template<typename T> concept Concept = std::derived_from<T, TagType> && !std::same_as<T, TagType>;
+};
+
+/**
 * Handles shader programs
 */
 class TAGShaderManager : public TAGBaseState::OpenGLContextChecker {
 public:
     /**
-    * Shader types
+    * Default shader programs
     */
-    enum class ShaderType {
+    enum class DefaultProgramType {
         SKYBOX_DRAW = 0,
         UNINSTANCED_BASIC_DRAW,
         INSTANCED_BASIC_DRAW,
         HUD_DRAW,
         UNINSTANCED_MODEL_DRAW,
         INSTANCED_MODEL_DRAW,
-        CUSTOM_DRAW
+        SKYBOX_SETUP
     };
 
     /**
@@ -90,18 +108,6 @@ public:
     struct ShaderUniformInfo {
         GLint location;
         GLenum data_type;
-    };
-
-    /**
-    * Container for a shader program's source 
-    */
-    struct Source {
-        std::string vertex;
-        std::string fragment;
-		std::string geometry;
-        std::string name;
-        bool is_path = true;
-        ShaderType shader_type = ShaderType::CUSTOM_DRAW;
     };
 
     /**
@@ -341,8 +347,6 @@ public:
     * @param source(s) Source structs containing shader program component paths
     */
     TAGShaderManager();
-    TAGShaderManager(const Source& source);
-    TAGShaderManager(const std::vector<Source>& sources);
     ~TAGShaderManager();
 
     /**
@@ -350,8 +354,8 @@ public:
     * 
     * @param source(s) Source struct(s) containing shader program component paths
     */
-    void addShader(const Source& source);
-    void addShader(const std::vector<Source>& sources);
+    template<ProgramType::Concept T> void addShader(const T& source);
+    template<ProgramType::Concept T> void addShader(const std::vector<T>& sources);
     /**
     * Delete shader program(s), identifying by name.
     * 
@@ -389,10 +393,18 @@ public:
 private:
     std::unordered_map<std::string, Shader> shaders;
 
-    static Shader loadShader(const Source& source);
-    static void getSourceCodeFromFile(const Source& source, std::string& vertex_code, std::string& fragment_code, std::string& geometry_code);
-    static void getSourceCodeFromDefault(const Source&, std::string& vertex_code, std::string& fragment_code, std::string& geometry_code);
+    template<OpenGLObjectType::Concept T> static GLuint compileShader(const std::string& source_code);
+    static GLuint compileProgram(const std::vector<GLuint>& shader_ids);
+    static void getSourceCodeFromFile(std::string& source_code, const std::string& path);
+    static void getSourceCodeFromDefault(DefaultProgramType type, std::string& vertex, std::string& fragment);
     template<ShaderUniformType::Concept T> static GLenum getEnumType();
+};
+
+namespace ProgramType {
+    struct Default : public TagType {
+        std::string geometry_path;
+        TAGShaderManager::DefaultProgramType type;
+    };
 };
 
 #include "ShaderManagerClass.inl"

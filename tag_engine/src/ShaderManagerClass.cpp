@@ -2,209 +2,8 @@
 
 TAGShaderManager::TAGShaderManager() {}
 
-TAGShaderManager::TAGShaderManager(const Source& source) {
-    addShader(source);
-}
-
-TAGShaderManager::TAGShaderManager(const std::vector<Source>& sources) {
-    addShader(sources);
-}
-
 TAGShaderManager::~TAGShaderManager() {
-    for (const auto& pair : shaders) {
-        TAGResourceManager::deleteBuffer<OpenGLObjectType::ShaderProgram>(pair.second.ID);
-    }
-}
-
-TAGShaderManager::Shader TAGShaderManager::loadShader(const Source& source) {
-    std::string vertex_code, fragment_code, geometry_code;
-    if (source.shader_type != ShaderType::CUSTOM_DRAW) {
-        getSourceCodeFromDefault(source, vertex_code, fragment_code, geometry_code);
-    }
-    else if (source.is_path) {
-        getSourceCodeFromFile(source, vertex_code, fragment_code, geometry_code);
-    }
-	const bool with_geometry = (!geometry_code.empty() && geometry_code != shader_version.substr());
-
-    // Compile shader program stages
-    GLuint vertex, fragment, geometry = 0;
-    int success;
-    char info_log[512];
-    static std::vector<GLchar*> source_ptr;
-
-    vertex = TAGResourceManager::createBuffer<OpenGLObjectType::VertexShader>();
-    source_ptr.push_back((GLchar*)(source.is_path || source.shader_type != ShaderType::CUSTOM_DRAW ? vertex_code : source.vertex).c_str());
-    glShaderSource(vertex, 1, source_ptr.data(), NULL);
-    glCompileShader(vertex);
-    source_ptr.pop_back();
-    glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(vertex, 512, NULL, info_log);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << info_log << std::endl;
-    };
-
-    fragment = TAGResourceManager::createBuffer<OpenGLObjectType::FragmentShader>();
-    source_ptr.push_back((GLchar*)(source.is_path || source.shader_type != ShaderType::CUSTOM_DRAW ? fragment_code : source.fragment).c_str());
-    glShaderSource(fragment, 1, source_ptr.data(), NULL);
-    glCompileShader(fragment);
-    source_ptr.pop_back();
-    glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(fragment, 512, NULL, info_log);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << info_log << std::endl;
-    };
-
-	if (with_geometry) {
-        geometry = TAGResourceManager::createBuffer<OpenGLObjectType::GeometryShader>();
-        source_ptr.push_back((GLchar*)(source.is_path || source.shader_type != ShaderType::CUSTOM_DRAW ? geometry_code : source.geometry).c_str());
-        glShaderSource(geometry, 1, source_ptr.data(), NULL);
-        glCompileShader(geometry);
-        source_ptr.pop_back();
-        glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
-        if (!success) {
-            glGetShaderInfoLog(geometry, 512, NULL, info_log);
-            std::cout << "ERROR::SHADER::GEOMETRY::COMPILATION_FAILED\n" << info_log << std::endl;
-        };
-	}
-
-    // Compile final shader program
-    const GLuint ID = TAGResourceManager::createBuffer<OpenGLObjectType::ShaderProgram>();
-    glAttachShader(ID, vertex);
-    glAttachShader(ID, fragment);
-    if (with_geometry) glAttachShader(ID, geometry);
-    glLinkProgram(ID);
-    glGetProgramiv(ID, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(ID, 512, NULL, info_log);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << info_log << std::endl;
-    }
-    TAGResourceManager::deleteBuffer<OpenGLObjectType::VertexShader>(vertex);
-    TAGResourceManager::deleteBuffer<OpenGLObjectType::FragmentShader>(fragment);
-
-    Shader shader = { .ID = ID };
-
-    // Get location and names of all uniforms
-    GLint count;
-
-    constexpr static GLsizei data_size = 100;
-    std::array<GLint, data_size> data = {};
-    using char_it = std::array<GLchar, data_size>::iterator;
-
-    glGetProgramiv(ID, GL_ACTIVE_UNIFORMS, &count);
-    for (GLint i = 0; i < count; i++) {
-        GLsizei length;
-        GLint size;
-        GLenum type;
-
-        GLchar* const chars = (GLchar*)data.data();
-
-        glGetActiveUniform(ID, i, (GLsizei)data.max_size(), &length, &size, &type, chars);
-
-        GLint location = glGetUniformLocation(ID, chars);
-
-        if (std::find(chars, chars + length, '[') != chars + length) length -= 3;
-
-        shader.uniform_data[std::string(chars, length)] = { location, type };
-    }
-
-    // Get attribute data
-    glGetProgramiv(ID, GL_ACTIVE_ATTRIBUTES, &count);
-
-    for (GLint i = 0; i < count; i++) {
-        GLsizei length;
-        GLint size;
-        GLenum type;
-
-        glGetActiveAttrib(ID, i, (GLsizei)data.max_size(), &length, &size, &type, (GLchar*)data.data());
-
-        GLint location = glGetAttribLocation(ID, (GLchar*)data.data());
-
-        shader.attribute_data[location] = { std::string((GLchar*)data.data(), length), type };
-    }
-
-    // Get data for each program interface
-    constexpr std::array<GLenum, 2> props = { GL_BUFFER_BINDING, GL_NUM_ACTIVE_VARIABLES };
-    for (const TAGResourceManager::ShaderBufferInterfaceType& type : TAGResourceManager::buffer_interface_types) {
-        glGetProgramInterfaceiv(ID, (GLenum)type, GL_ACTIVE_RESOURCES, &count);
-        for (GLint i = 0; i < count; i++) {
-            GLsizei length;
-            glGetProgramResourceiv(ID, (GLenum)type, i, (GLsizei)props.max_size(), props.data(), sizeof(data), &length, data.data());
-
-            shader.buffer_locations[(GLuint)TAGResourceManager::interfaceToBufferType(type)].push_back(data[0]);
-        }
-    }
-
-    return shader;
-}
-
-void TAGShaderManager::getSourceCodeFromFile(const Source& source, std::string& vertex_code, std::string& fragment_code, std::string& geometry_code) {
-    std::ifstream file;
-    std::stringstream stream;
-
-    // Read source code from shader files and except errors
-    file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    try
-    {
-        file.open(TAGResourceManager::asset_path + source.vertex);
-        stream << file.rdbuf();
-        file.close();
-        vertex_code = stream.str();
-
-        file.open(TAGResourceManager::asset_path + source.fragment);
-        stream << file.rdbuf();
-        file.close();
-        fragment_code = stream.str();
-
-        if (!source.geometry.empty()) {
-            file.open(TAGResourceManager::asset_path + source.geometry);
-            stream << file.rdbuf();
-            file.close();
-            geometry_code = stream.str();
-        }
-    }
-    catch (std::ifstream::failure e)
-    {
-        std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
-    }
-}
-
-void TAGShaderManager::getSourceCodeFromDefault(const Source& source, std::string& vertex_code, std::string& fragment_code, std::string& geometry_code) {
-    vertex_code = fragment_code = geometry_code = shader_version.substr();
-    switch (source.shader_type) {
-    case ShaderType::SKYBOX_DRAW:
-        vertex_code += default_source[2].substr();
-        fragment_code += default_source[4].substr();
-        break;
-    case ShaderType::UNINSTANCED_BASIC_DRAW:
-        vertex_code += default_source[0].substr();
-        fragment_code += default_source[5].substr();
-        break;
-    case ShaderType::INSTANCED_BASIC_DRAW:
-        vertex_code += default_source[1].substr();
-        fragment_code += default_source[5].substr();
-        break;
-    case ShaderType::HUD_DRAW:
-        vertex_code += default_source[3].substr();
-        fragment_code += default_source[6].substr();
-        break;
-    case ShaderType::UNINSTANCED_MODEL_DRAW:
-        vertex_code += default_source[0].substr();
-        fragment_code += default_source[7].substr();
-        break;
-    default: // INSTANCED_MODEL_DRAW
-        vertex_code += default_source[1].substr();
-        fragment_code += default_source[7].substr();
-    }
-}
-
-void TAGShaderManager::addShader(const Source& source) {
-    shaders.insert_or_assign(source.name, loadShader(source));
-}
-
-void TAGShaderManager::addShader(const std::vector<Source>& sources) {
-    for (const Source& source : sources) {
-        shaders.insert_or_assign(source.name, loadShader(source));
-    }
+    for (const auto& pair : shaders) TAGResourceManager::deleteBuffer<OpenGLObjectType::ShaderProgram>(pair.second.ID);
 }
 
 void TAGShaderManager::deleteShader(const std::string& name) {
@@ -212,9 +11,7 @@ void TAGShaderManager::deleteShader(const std::string& name) {
 }
 
 void TAGShaderManager::deleteShader(const std::vector<std::string>& names) {
-    for (const std::string& name : names) {
-        deleteShader(name);
-    }
+    for (const std::string& name : names) deleteShader(name);
 }
 
 const TAGShaderManager::Shader& TAGShaderManager::useShader(const std::string& name) const {
@@ -234,4 +31,71 @@ std::vector<std::string> TAGShaderManager::getShaderNames() const {
 
 void TAGShaderManager::stopShader() {
     glUseProgram(0);
+}
+
+GLuint TAGShaderManager::compileProgram(const std::vector<GLuint>& shader_ids) {
+    int success;
+    const GLuint ID = TAGResourceManager::createBuffer<OpenGLObjectType::ShaderProgram>();
+    for (GLuint shader_id : shader_ids) if (shader_id > 0) glAttachShader(ID, shader_id);
+    glLinkProgram(ID);
+    glGetProgramiv(ID, GL_LINK_STATUS, &success);
+    if (!success) {
+        std::array<GLchar, 512> info_log;
+        glGetProgramInfoLog(ID, 512, NULL, &info_log[0]);
+        std::cout << "TAGShaderManager : Shader program could not be linked:\n" + std::string(&info_log[0], 512) << std::endl;
+        TAGResourceManager::deleteBuffer<OpenGLObjectType::ShaderProgram>(ID);
+        return 0;
+    }
+    return ID;
+}
+
+void TAGShaderManager::getSourceCodeFromFile(std::string& source_code, const std::string& path) {
+    std::ifstream file;
+    std::stringstream stream;
+
+    // Read source code from shader files and except errors
+    file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    try
+    {
+        file.open(TAGResourceManager::asset_path + path);
+        stream << file.rdbuf();
+        file.close();
+        source_code = stream.str();
+    }
+    catch (std::ifstream::failure e)
+    {
+        std::cout << "TAGShaderManager : Shader source code files could not be read" << std::endl;
+    }
+}
+
+void TAGShaderManager::getSourceCodeFromDefault(DefaultProgramType type, std::string& vertex_code, std::string& fragment_code) {
+    vertex_code = fragment_code = shader_version.substr();
+    switch (type) {
+    case DefaultProgramType::SKYBOX_DRAW:
+        vertex_code += default_source[2].substr();
+        fragment_code += default_source[4].substr();
+        break;
+    case DefaultProgramType::UNINSTANCED_BASIC_DRAW:
+        vertex_code += default_source[0].substr();
+        fragment_code += default_source[5].substr();
+        break;
+    case DefaultProgramType::INSTANCED_BASIC_DRAW:
+        vertex_code += default_source[1].substr();
+        fragment_code += default_source[5].substr();
+        break;
+    case DefaultProgramType::HUD_DRAW:
+        vertex_code += default_source[3].substr();
+        fragment_code += default_source[6].substr();
+        break;
+    case DefaultProgramType::UNINSTANCED_MODEL_DRAW:
+        vertex_code += default_source[0].substr();
+        fragment_code += default_source[7].substr();
+        break;
+    case DefaultProgramType::SKYBOX_SETUP:
+        vertex_code += default_source[2].substr();
+        fragment_code += default_source[8].substr();
+    default: // INSTANCED_MODEL_DRAW
+        vertex_code += default_source[1].substr();
+        fragment_code += default_source[7].substr();
+    }
 }

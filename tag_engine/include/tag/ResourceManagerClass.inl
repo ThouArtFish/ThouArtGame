@@ -5,7 +5,7 @@
 template<OpenGLObjectType::Concept T> TAGResourceManager::OpenGLHandle<T>::OpenGLHandle() : OpenGLHandleWrapper(createObjectID(), T::TYPE_ID) {}
 
 template<OpenGLObjectType::Concept T> TAGResourceManager::OpenGLHandle<T>::~OpenGLHandle() {
-	if constexpr (std::same_as<T, OpenGLObjectType::FragmentShader> || std::same_as<T, OpenGLObjectType::VertexShader> || std::same_as<T, OpenGLObjectType::GeometryShader>) {
+	if constexpr (isAnyOf<T, OpenGLObjectType::VertexShader, OpenGLObjectType::FragmentShader, OpenGLObjectType::GeometryShader, OpenGLObjectType::ComputeShader>) {
 		glDeleteShader(this->ID);
 	}
 	else if constexpr (std::same_as<T, OpenGLObjectType::ShaderProgram>) {
@@ -38,6 +38,9 @@ template<OpenGLObjectType::Concept T> GLuint TAGResourceManager::OpenGLHandle<T>
 	}
 	else if constexpr (std::same_as<T, OpenGLObjectType::GeometryShader>) {
 		return glCreateShader(GL_GEOMETRY_SHADER);
+	}
+	else if constexpr (std::same_as<T, OpenGLObjectType::ComputeShader>) {
+		return glCreateShader(GL_COMPUTE_SHADER);
 	}
 	else if constexpr (std::same_as<T, OpenGLObjectType::ShaderProgram>) {
 		return glCreateProgram();

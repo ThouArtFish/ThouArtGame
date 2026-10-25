@@ -40,12 +40,8 @@ TAGSkybox::TAGSkybox(const std::string& path, const TAGTexLoader::Params& params
 	glNamedFramebufferRenderbuffer(capture_FBO, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, capture_RBO);
 
 	// Shader for framebuffer capture
-	std::string vertex_source, fragment_source;
-	vertex_source = fragment_source = TAGShaderManager::shader_version.substr();
-	vertex_source += TAGShaderManager::default_source[2].substr();
-	fragment_source += TAGShaderManager::default_source[8].substr();
-	const TAGShaderManager::Source shader_source = { .vertex = vertex_source, .fragment = fragment_source, .name = "skybox_setup", .is_path = false };
-	const TAGShaderManager setup_shader_manager = TAGShaderManager(shader_source);
+	TAGShaderManager setup_shader_manager;
+	setup_shader_manager.addShader<ProgramType::Default>({ "skybox_setup", "", TAGShaderManager::DefaultProgramType::SKYBOX_SETUP });
 	const TAGShaderManager::Shader& setup_shader = setup_shader_manager.useShader("skybox_setup");
 	setup_shader.set<glm::mat4>("perspective", glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f));
 	setup_shader.set<ShaderUniformType::SINGLE_2D>("cubemap", 0);

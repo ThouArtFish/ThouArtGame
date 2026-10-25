@@ -2,12 +2,117 @@
 
 #include <ShaderManagerClass.hpp>
 
-template<ShaderUniformType::Concept T> void TAGShaderManager::Shader::set(const std::string& name, const T& value, const GLuint& count) const {
-    if (uniform_data.find(name) == uniform_data.end() || getEnumType<T>() != uniform_data.at(name).data_type) {
-        return;
+template<ProgramType::Concept T> void TAGShaderManager::addShader(const T& source) {
+    // Fetch from files or default source code
+    std::string vertex_code, fragment_code, geometry_code, compute_code;
+    if constexpr (std::same_as<T, ProgramType::VGF>) {
+        getSourceCodeFromFile(vertex_code, source.vertex_path);
+        getSourceCodeFromFile(fragment_code, source.fragment_path);
+        if (!source.geometry_path.empty()) getSourceCodeFromFile(geometry_code, source.geometry_path);
+    }
+    if constexpr (std::same_as<T, ProgramType::Compute>) {
+        getSourceCodeFromFile(compute_code, source.compute_path);
+    }
+    else { // ProgramType::Default
+        getSourceCodeFromDefault(source.type, vertex_code, fragment_code);
+        if (!source.geometry_path.empty()) getSourceCodeFromFile(geometry_code, source.geometry_path);
     }
 
-    const GLint& loc = uniform_data.at(name).location;
+    // Compile program stages
+    std::vector<GLuint> shader_ids(4);
+    if (!vertex_code.empty()) shader_ids[0] = compileShader<OpenGLObjectType::VertexShader>(vertex_code);
+    if (!fragment_code.empty()) shader_ids[1] = compileShader<OpenGLObjectType::FragmentShader>(fragment_code);
+    if (!geometry_code.empty()) shader_ids[2] = compileShader<OpenGLObjectType::GeometryShader>(geometry_code);
+    if (!compute_code.empty()) shader_ids[3] = compileShader<OpenGLObjectType::ComputeShader>(geometry_code);
+
+    // Compile final shader program
+    shaders.insert_or_assign(source.name, Shader{ .ID = compileProgram(shader_ids) });
+    Shader& shader = shaders[source.name];
+    const GLuint ID = shader.ID;
+
+    // Delete shaders
+    if (!vertex_code.empty()) TAGResourceManager::deleteBuffer<OpenGLObjectType::VertexShader>(shader_ids[0]);
+    if (!fragment_code.empty()) TAGResourceManager::deleteBuffer<OpenGLObjectType::FragmentShader>(shader_ids[1]);
+    if (!geometry_code.empty()) TAGResourceManager::deleteBuffer<OpenGLObjectType::GeometryShader>(shader_ids[2]);
+    if (!compute_code.empty()) TAGResourceManager::deleteBuffer<OpenGLObjectType::ComputeShader>(shader_ids[3]);
+
+    // Get location and names of all uniforms
+    GLint count;
+
+    constexpr static GLsizei data_size = 100;
+    std::array<GLint, data_size> data = {};
+    using char_it = std::array<GLchar, data_size>::iterator;
+
+    glGetProgramiv(ID, GL_ACTIVE_UNIFORMS, &count);
+    for (GLint i = 0; i < count; i++) {
+        GLsizei length;
+        GLint size;
+        GLenum type;
+
+        GLchar* const chars = (GLchar*)data.data();
+
+        glGetActiveUniform(ID, i, (GLsizei)data.max_size(), &length, &size, &type, chars);
+
+        GLint location = glGetUniformLocation(ID, chars);
+
+        if (std::find(chars, chars + length, '[') != chars + length) length -= 3;
+
+        shader.uniform_data[std::string(chars, length)] = { location, type };
+    }
+
+    // Get attribute data
+    glGetProgramiv(ID, GL_ACTIVE_ATTRIBUTES, &count);
+
+    for (GLint i = 0; i < count; i++) {
+        GLsizei length;
+        GLint size;
+        GLenum type;
+
+        glGetActiveAttrib(ID, i, (GLsizei)data.max_size(), &length, &size, &type, (GLchar*)data.data());
+
+        GLint location = glGetAttribLocation(ID, (GLchar*)data.data());
+
+        shader.attribute_data[location] = { std::string((GLchar*)data.data(), length), type };
+    }
+
+    // Get data for each program interface
+    constexpr std::array<GLenum, 2> props = { GL_BUFFER_BINDING, GL_NUM_ACTIVE_VARIABLES };
+    for (const TAGResourceManager::ShaderBufferInterfaceType& type : TAGResourceManager::buffer_interface_types) {
+        glGetProgramInterfaceiv(ID, (GLenum)type, GL_ACTIVE_RESOURCES, &count);
+        for (GLint i = 0; i < count; i++) {
+            GLsizei length;
+            glGetProgramResourceiv(ID, (GLenum)type, i, (GLsizei)props.max_size(), props.data(), sizeof(data), &length, data.data());
+
+            shader.buffer_locations[(GLuint)TAGResourceManager::interfaceToBufferType(type)].push_back(data[0]);
+        }
+    }
+}
+
+template<ProgramType::Concept T> void TAGShaderManager::addShader(const std::vector<T>& sources) {
+    for (const T& source : sources) addShader(source);
+}
+
+template<OpenGLObjectType::Concept T> GLuint TAGShaderManager::compileShader(const std::string& source_code) {
+    int success;
+    std::vector<GLchar*> source_ptr{ (GLchar*)source_code.c_str() };
+    const GLuint shader_id = TAGResourceManager::createBuffer<T>();
+    glShaderSource(shader_id, 1, source_ptr.data(), NULL);
+    glCompileShader(shader_id);
+    glGetShaderiv(shader_id, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        std::array<GLchar, 512> info_log;
+        glGetShaderInfoLog(shader_id, 512, NULL, &info_log[0]);
+        std::cout << "TAGShaderManager : Compilation of shader failed:\n" << std::string(&info_log[0], 512) << std::endl;
+        TAGResourceManager::deleteBuffer<T>(shader_id);
+        return 0;
+    };
+    return shader_id;
+}
+
+template<ShaderUniformType::Concept T> void TAGShaderManager::Shader::set(const std::string& name, const T& value, const GLuint& count) const {
+    if (uniform_data.find(name) == uniform_data.end() || getEnumType<T>() != uniform_data.at(name).data_type) return;
+
+    const GLint loc = uniform_data.at(name).location;
 
     if constexpr (std::same_as<T, bool>) {
         const GLint conv = (value ? 1 : 0);
