@@ -113,6 +113,9 @@ public:
 		size_t getCurrentObjects() const;
 		GLintptr getInternalOffset() const;
 		GLuint getBufferID() const;
+
+		virtual void updateBuffer(const std::vector<T>& data) = 0;
+		virtual void resizeBuffer(size_t new_size) = 0;
 	protected:
 		GLuint buffer_id = 0;
 		size_t current_objs = 0, current_fence = 0, max_objs;
@@ -123,8 +126,6 @@ public:
 
 		BufferBase(size_t max_objs, BufferAccess access, bool include_size);
 		void updateBindings(GLuint new_buffer_id);
-		virtual void updateBuffer(const std::vector<T>& data) = 0;
-		virtual void resizeBuffer(size_t new_size) = 0;
 	};
 
 	/**
@@ -132,26 +133,24 @@ public:
 	*/
 	template<class T, GLuint MAX_FENCES> class RingBuffer : public BufferBase<T> {
 		static_assert(MAX_FENCES > 1 && MAX_FENCES < 6, "MAX_FENCES must be between 2 and 5");
-		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
 		RingBuffer(size_t max_objs, bool include_size = false);
 		~RingBuffer();
-	private:
-		GLchar* buffer_ptr = nullptr;
 
 		void updateBuffer(const std::vector<T>& data) override;
 		void resizeBuffer(size_t new_size) override;
+	private:
+		GLchar* buffer_ptr = nullptr;
 	};
 
 	/**
 	* Struct for handling orphan buffers, for DYNAMIC and STATIC level buffers
 	*/
 	template<class T> class OrphanBuffer : public BufferBase<T> {
-		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
 		OrphanBuffer(size_t max_objs, BufferAccess access, bool include_size = false);
 		~OrphanBuffer();
-	private:
+
 		void updateBuffer(const std::vector<T>& data) override;
 		void resizeBuffer(size_t new_size) override;
 	};
