@@ -171,6 +171,15 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
 		const MaterialBuffer& getMaterialBuffer() const;
 
         /**
+         * Draw multiple instances of a mesh
+         *
+         * @param shader Shader program
+         * @param options Names of shader uniforms
+         * @param number Number of instances to draw
+         */
+        void draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const GLuint& number = 1);
+
+        /**
         * Generate bounding box from array of vectors
         */
         static BoundingBox generateBoundingBox(const glm::vec3* start, const unsigned int& size);
@@ -183,15 +192,6 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         std::vector<PlaneVolume> planes;
         std::vector<BVHNode> bvh_octree;
         static inline GLuint VAO = 0;
-
-        /**
-         * Draw multiple instances of a mesh
-         *
-         * @param shader Shader program
-         * @param options Names of shader uniforms
-         * @param number Number of instances to draw
-         */
-        void draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const GLuint& number = 1);
 
         /**
 		* Conversion functions for converting to shader compatible data

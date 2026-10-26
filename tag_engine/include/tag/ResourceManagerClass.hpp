@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <span>
 #include <iostream>
 #include <string>
 #include <map>
@@ -109,13 +110,18 @@ public:
 		const BufferAccess access;
 		const size_t include_size;
 
-		size_t getMaxObjects() const;
 		size_t getCurrentObjects() const;
+		size_t getCurrentFence() const;
+		size_t getMaxObjects() const;
 		GLintptr getInternalOffset() const;
 		GLuint getBufferID() const;
 
 		virtual void updateBuffer(const std::vector<T>& data) = 0;
 		virtual void resizeBuffer(size_t new_size) = 0;
+		auto bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option);
+		auto bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao);
+		void setFence();
+		void waitFence();
 	protected:
 		GLuint buffer_id = 0;
 		size_t current_objs = 0, current_fence = 0, max_objs;
@@ -139,6 +145,7 @@ public:
 
 		void updateBuffer(const std::vector<T>& data) override;
 		void resizeBuffer(size_t new_size) override;
+		std::span<GLchar> bufferPtr();
 	private:
 		GLchar* buffer_ptr = nullptr;
 	};
@@ -163,7 +170,7 @@ public:
 		virtual ~ObjectBufferWrapper() = default;
 		ObjectBufferWrapper(const ObjectBufferWrapper&) = delete;
 		ObjectBufferWrapper& operator=(const ObjectBufferWrapper&) = delete;
-		ObjectBufferWrapper() {};
+		ObjectBufferWrapper() {}
 
 		virtual void updateBuffer() = 0;
 		virtual void setFence() = 0;
@@ -194,10 +201,10 @@ public:
 		std::vector<C>& changeObjects();
 
 		const std::unique_ptr<BufferBase<G>>& getBuffer() const;
-		void updateBuffer() override;
-		void setFence() override;
 		void bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option);
 		void bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao);
+		void updateBuffer() override;
+		void setFence() override;
 
 		auto begin() const;
 		auto end() const;

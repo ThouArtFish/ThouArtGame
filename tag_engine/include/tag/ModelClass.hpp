@@ -168,10 +168,6 @@ public:
 	static TAGMesh::DotPlane transformPlane(const Object& obj, const TAGMesh::DotPlane& plane);
 	static TAGMesh::Plane transformPlane(const Object& obj, const TAGMesh::Plane& plane);
 	static TAGMesh::PlaneVolume transformPlane(const Object& obj, const TAGMesh::PlaneVolume& plane);
-	/**
-	* Sets rotation axis and angle in returned Object to point it in the given direction
-	*/
-	static Object pointDirection(const glm::vec3& direction, const glm::vec3& abs_direction);
 private:
 	void loadModel(const std::string& path);
 	static std::array<ShaderObject, 1> shaderConverter(const Object& obj);

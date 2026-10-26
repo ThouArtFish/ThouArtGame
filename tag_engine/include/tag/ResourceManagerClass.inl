@@ -100,12 +100,16 @@ template<OpenGLObjectType::Concept T> bool TAGResourceManager::isBuffer(const GL
 
 template<class T> TAGResourceManager::BufferBase<T>::BufferBase(size_t max_objs, BufferAccess access, bool include_size) : include_size(include_size ? glm::max(alignof(T), sizeof(GLuint)) : 0), max_objs(max_objs), access(access) {}
 
-template<class T> size_t TAGResourceManager::BufferBase<T>::getMaxObjects() const {
-	return max_objs;
-}
-
 template<class T> size_t TAGResourceManager::BufferBase<T>::getCurrentObjects() const {
 	return current_objs;
+}
+
+template<class T> size_t TAGResourceManager::BufferBase<T>::getCurrentFence() const {
+	return current_fence;
+}
+
+template<class T> size_t TAGResourceManager::BufferBase<T>::getMaxObjects() const {
+	return max_objs;
 }
 
 template<class T> GLintptr TAGResourceManager::BufferBase<T>::getInternalOffset() const {
@@ -114,6 +118,34 @@ template<class T> GLintptr TAGResourceManager::BufferBase<T>::getInternalOffset(
 
 template<class T> GLuint TAGResourceManager::BufferBase<T>::getBufferID() const {
 	return buffer_id;
+}
+
+template<class T> auto TAGResourceManager::BufferBase<T>::bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option) {
+	glBindBufferRange((GLenum)buffer_option, binding_index, buffer_id, internal_offset + offset, max_objs * sizeof(T) + include_size);
+	if (std::find(bound_buffers.begin(), bound_buffers.end(), buffer_option) == bound_buffers.end()) bound_buffers.push_back(buffer_option);
+	return shader_binding_indices.try_emplace((GLuint)buffer_option).first;
+}
+
+template<class T> auto TAGResourceManager::BufferBase<T>::bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao) {
+	auto map_it = vao_binding_indices.find(vao);
+	if (map_it != vao_binding_indices.end()) {
+		auto& vec = map_it->second;
+		glVertexArrayVertexBuffer(vao, binding_index, buffer_id, internal_offset + offset + include_size, sizeof(T));
+		if (std::find(bound_vaos.begin(), bound_vaos.end(), vao) == bound_vaos.end()) bound_vaos.push_back(vao);
+	}
+	return map_it;
+}
+
+template<class T> void TAGResourceManager::BufferBase<T>::setFence() {
+	fences[current_fence] = { .sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0) };
+}
+
+template<class T> void TAGResourceManager::BufferBase<T>::waitFence() {
+	if (fences[current_fence].sync) {
+		while (glClientWaitSync(fences[current_fence].sync, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000ULL) == GL_TIMEOUT_EXPIRED) continue;
+		glDeleteSync(fences[current_fence].sync);
+		fences[current_fence].sync = nullptr;
+	}
 }
 
 template<class T> void TAGResourceManager::BufferBase<T>::updateBindings(GLuint new_buffer_id) {
@@ -161,7 +193,7 @@ template<class T, GLuint MAX_FENCES> TAGResourceManager::RingBuffer<T, MAX_FENCE
 
 	const size_t total_size = (max_objs * sizeof(T) + this->include_size) * MAX_FENCES;
 	this->buffer_id = createBuffer<OpenGLObjectType::GenericBuffer>();
-	glNamedBufferStorage(this->buffer_id, total_size, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+	glNamedBufferStorage(this->buffer_id, total_size, nullptr, GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 	this->buffer_ptr = static_cast<GLchar*>(glMapNamedBufferRange(this->buffer_id, 0, total_size, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT));
 }
 
@@ -174,11 +206,7 @@ template<class T, GLuint MAX_FENCES> void TAGResourceManager::RingBuffer<T, MAX_
 	this->current_fence = (this->current_fence + 1) % MAX_FENCES;
 	this->internal_offset = (this->max_objs * sizeof(T) + this->include_size) * this->current_fence;
 
-	if (this->fences[this->current_fence].sync) {
-		while (glClientWaitSync(this->fences[this->current_fence].sync, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000ULL) == GL_TIMEOUT_EXPIRED) continue;
-		glDeleteSync(this->fences[this->current_fence].sync);
-		this->fences[this->current_fence].sync = nullptr;
-	}
+	this->waitFence();
 
 	this->current_objs = glm::min(this->max_objs, data.size());
 	if (this->include_size > 0) std::memcpy(this->buffer_ptr + this->internal_offset, &this->current_objs, sizeof(GLuint));
@@ -212,6 +240,12 @@ template<class T, GLuint MAX_FENCES> void TAGResourceManager::RingBuffer<T, MAX_
 	this->fences = std::make_unique<GLsyncWrap[]>(MAX_FENCES);
 }
 
+template<class T, GLuint MAX_FENCES> std::span<GLchar> TAGResourceManager::RingBuffer<T, MAX_FENCES>::bufferPtr() {
+	this->waitFence();
+
+	return { buffer_ptr + this->internal_offset, this->max_objs * sizeof(T) };
+}
+
 template<class T> TAGResourceManager::OrphanBuffer<T>::OrphanBuffer(size_t max_objs, BufferAccess access, bool include_size) : BufferBase<T>(max_objs, access, include_size) {
 	this->fences = std::make_unique<GLsyncWrap[]>(1);
 	this->buffer_id = createBuffer<OpenGLObjectType::GenericBuffer>();
@@ -227,15 +261,9 @@ template<class T> void TAGResourceManager::OrphanBuffer<T>::updateBuffer(const s
 	glNamedBufferData(this->buffer_id, this->max_objs * sizeof(T) + this->include_size, nullptr, (GLenum)this->access);
 	this->current_objs = glm::min(this->max_objs, data.size());
 
-	if (this->fences[0].sync) {
-		while (glClientWaitSync(this->fences[0].sync, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000ULL) == GL_TIMEOUT_EXPIRED) continue;
-		glDeleteSync(this->fences[0].sync);
-		this->fences[0].sync = nullptr;
-	}
+	this->waitFence();
 
-	if (this->include_size > 0) {
-		glNamedBufferSubData(this->buffer_id, 0, sizeof(GLuint), &this->current_objs);
-	}
+	if (this->include_size > 0) glNamedBufferSubData(this->buffer_id, 0, sizeof(GLuint), &this->current_objs);
 	glNamedBufferSubData(this->buffer_id, this->include_size, this->current_objs * sizeof(T), data.data());
 }
 
@@ -366,6 +394,33 @@ template<class C, class G, GLuint DIVISIONS> const std::unique_ptr<TAGResourceMa
 	return buffer;
 }
 
+template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option) {
+	auto& vec = buffer->bindToShader(binding_index, offset, buffer_option)->second;
+
+	auto vec_it = std::find_if(vec.begin(), vec.end(), [&binding_index](const BindingData& data) { return data.binding_index == binding_index; });
+	if (vec_it == vec.end()) {
+		vec.emplace_back(this, binding_index, buffer->getBufferID(), offset);
+	}
+	else {
+		vec.emplace(vec_it, this, binding_index, buffer->getBufferID(), offset);
+	}
+}
+
+template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao) {
+	auto map_it = buffer->bindToVertexArrayObject(binding_index, offset, vao);
+
+	if (map_it != vao_binding_indices.end()) {
+		auto& vec = map_it->second;
+		auto vec_it = std::find_if(vec.begin(), vec.end(), [&binding_index](const BindingData& data) { return data.binding_index == binding_index; });
+		if (vec_it == vec.end()) {
+			vec.emplace_back(this, binding_index, buffer->getBufferID(), offset);
+		}
+		else {
+			vec.emplace(vec_it, this, binding_index, buffer->getBufferID(), offset);
+		}
+	}
+}
+
 template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::updateBuffer() {
 	std::vector<G> buffer_data;
 	const size_t buffer_data_size = objs.size() * (DIVISIONS + 1);
@@ -383,40 +438,7 @@ template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuff
 }
 
 template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::setFence() {
-	buffer->fences[buffer->current_fence] = { .sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0) };
-}
-
-template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option) {
-	auto& vec = shader_binding_indices.try_emplace((GLuint)buffer_option).first->second;
-	glBindBufferRange((GLenum)buffer_option, binding_index, buffer->buffer_id, buffer->internal_offset + offset, buffer->max_objs * sizeof(G) + buffer->include_size);
-	if (std::find(buffer->bound_buffers.begin(), buffer->bound_buffers.end(), buffer_option) == buffer->bound_buffers.end()) {
-		buffer->bound_buffers.push_back(buffer_option);
-	}
-	auto vec_it = std::find_if(vec.begin(), vec.end(), [&binding_index](const BindingData& data) { return data.binding_index == binding_index; });
-	if (vec_it == vec.end()) {
-		vec.emplace_back(this, binding_index, buffer->buffer_id, offset);
-	}
-	else {
-		vec.emplace(vec_it, this, binding_index, buffer->buffer_id, offset);
-	}
-}
-
-template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao) {
-	auto map_it = vao_binding_indices.find(vao);
-	if (map_it != vao_binding_indices.end()) {
-		auto& vec = map_it->second;
-		glVertexArrayVertexBuffer(vao, binding_index, buffer->buffer_id, buffer->internal_offset + offset + buffer->include_size, sizeof(G));
-		if (std::find(buffer->bound_vaos.begin(), buffer->bound_vaos.end(), vao) == buffer->bound_vaos.end()) {
-			buffer->bound_vaos.push_back(vao);
-		}
-		auto vec_it = std::find_if(vec.begin(), vec.end(), [&binding_index](const BindingData& data) { return data.binding_index == binding_index; });
-		if (vec_it == vec.end()) {
-			vec.emplace_back(this, binding_index, buffer->buffer_id, offset);
-		}
-		else {
-			vec.emplace(vec_it, this, binding_index, buffer->buffer_id, offset);
-		}
-	}
+	buffer->setFence();
 }
 
 template<class C, class G, GLuint DIVISIONS> auto TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::begin() const {

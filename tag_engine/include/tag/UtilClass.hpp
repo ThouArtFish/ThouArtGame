@@ -103,6 +103,13 @@ public:
 	*/
 	static glm::vec3 parallelCompNorm(const glm::vec3& ref, const glm::vec3& vec);
 	/**
+	* Returns (rotation axis, angle) to point the given abs_direction in direction
+	*
+	* @param direction Direction to point towards
+	* @param abs_direction Original pointing direction
+	*/
+	static glm::vec4 pointDirection(const glm::vec3& direction, const glm::vec3& abs_direction);
+	/**
 	* Find the squared length of vec.
 	* 
 	* @param vec 3D vector
