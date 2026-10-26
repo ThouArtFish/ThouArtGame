@@ -94,6 +94,7 @@ void TAGShaderManager::getSourceCodeFromDefault(DefaultProgramType type, std::st
     case DefaultProgramType::SKYBOX_SETUP:
         vertex_code += default_source[2].substr();
         fragment_code += default_source[8].substr();
+        break;
     default: // INSTANCED_MODEL_DRAW
         vertex_code += default_source[1].substr();
         fragment_code += default_source[7].substr();
