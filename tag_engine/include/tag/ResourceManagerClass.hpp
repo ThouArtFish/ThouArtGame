@@ -67,6 +67,16 @@ public:
 	};
 
 	/**
+	* Mapped buffer setup
+	*/
+	enum class MappedBufferAccess : GLuint {
+		CLIENT_READ = GL_MAP_READ_BIT,
+		CLIENT_WRITE = GL_MAP_WRITE_BIT,
+		PERSISTENT =  GL_MAP_PERSISTENT_BIT,
+		COHERENT = GL_MAP_COHERENT_BIT
+	};
+
+	/**
 	* Type of buffer bound to shader
 	*/
 	enum class ShaderBufferType : GLuint {
@@ -108,7 +118,7 @@ public:
 		virtual ~BufferBase() = default;
 
 		const BufferAccess access;
-		const size_t include_size;
+		const size_t include_size, max_fences;
 
 		size_t getCurrentObjects() const;
 		size_t getCurrentFence() const;
@@ -120,8 +130,8 @@ public:
 		virtual void resizeBuffer(size_t new_size) = 0;
 		auto bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option);
 		auto bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao);
-		void setFence();
-		void waitFence();
+		void setFence(size_t fence_index);
+		void waitFence(size_t fence_index);
 	protected:
 		GLuint buffer_id = 0;
 		size_t current_objs = 0, current_fence = 0, max_objs;
@@ -130,33 +140,33 @@ public:
 		std::vector<ShaderBufferType> bound_buffers;
 		GLintptr internal_offset = 0;
 
-		BufferBase(size_t max_objs, BufferAccess access, bool include_size);
+		BufferBase(size_t max_objs, size_t max_fences, BufferAccess access, bool include_size);
 		void updateBindings(GLuint new_buffer_id);
 	};
 
 	/**
 	* Struct for handling ring buffers, for STREAM level buffers
 	*/
-	template<class T, GLuint MAX_FENCES> class RingBuffer : public BufferBase<T> {
-		static_assert(MAX_FENCES > 1 && MAX_FENCES < 6, "MAX_FENCES must be between 2 and 5");
+	template<class T> class MappedBuffer : public BufferBase<T> {
 	public:
-		RingBuffer(size_t max_objs, bool include_size = false);
-		~RingBuffer();
+		MappedBuffer(size_t max_objs, size_t max_fences, BufferAccess access, const std::vector<MappedBufferAccess>& map_access, bool include_size = false);
+		~MappedBuffer();
 
 		void updateBuffer(const std::vector<T>& data) override;
 		void resizeBuffer(size_t new_size) override;
-		std::span<GLchar> bufferPtr();
+		std::span<GLchar> bufferPtr(size_t fence_index);
 	private:
 		GLchar* buffer_ptr = nullptr;
+		GLuint mapped_access_bitfield;
 	};
 
 	/**
 	* Struct for handling orphan buffers, for DYNAMIC and STATIC level buffers
 	*/
-	template<class T> class OrphanBuffer : public BufferBase<T> {
+	template<class T> class UnmappedBuffer : public BufferBase<T> {
 	public:
-		OrphanBuffer(size_t max_objs, BufferAccess access, bool include_size = false);
-		~OrphanBuffer();
+		UnmappedBuffer(size_t max_objs, size_t max_fences, BufferAccess access, bool include_size = false);
+		~UnmappedBuffer();
 
 		void updateBuffer(const std::vector<T>& data) override;
 		void resizeBuffer(size_t new_size) override;
@@ -184,7 +194,7 @@ public:
 	*/
 	template<class C, class G, GLuint DIVISIONS = 0> class ObjectBuffer : public ObjectBufferWrapper {
 	public:
-		ObjectBuffer(size_t max_objs, const std::function<std::array<G, DIVISIONS + 1>(const C&)>& converter, const BufferAccess& access, const bool& include_size = false);
+		ObjectBuffer(size_t max_objs, const std::function<std::array<G, DIVISIONS + 1>(const C&)>& converter, BufferAccess access, bool include_size = false);
 		~ObjectBuffer();
 
 		const std::vector<C>& getAllObjects() const;
@@ -264,6 +274,9 @@ public:
 
 	static ShaderBufferType interfaceToBufferType(const ShaderBufferInterfaceType& interface_type);
 private:
+	/**
+	* Binding data for all buffers
+	*/
 	struct BindingData {
 		ObjectBufferWrapper* ptr = nullptr;
 		GLuint binding_index, buffer_id;
