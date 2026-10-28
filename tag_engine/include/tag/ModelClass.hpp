@@ -51,8 +51,10 @@ public:
 	* GPU representation of objects
 	*/
 	struct alignas(16) ShaderObject {
-		glm::vec4 position_AND_scale;
-		glm::vec4 axis_AND_rotation;
+		glm::vec3 position;
+		GLfloat scale;
+		glm::vec3 axis;
+		GLfloat angle;
 	};
 
 	/**

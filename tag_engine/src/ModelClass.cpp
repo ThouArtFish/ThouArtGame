@@ -290,7 +290,7 @@ void TAGModel::loadModel(const std::string& path) {
 }
 
 std::array<TAGModel::ShaderObject, 1> TAGModel::shaderConverter(const Object& obj) {
-	return { { glm::vec4(obj.position, obj.scale), glm::vec4(obj.rotation_axis, obj.angle) } };
+	return { { obj.position, obj.scale, obj.rotation_axis, obj.angle } };
 }
 
 const TAGTexLoader::Texture TAGModel::loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const {
