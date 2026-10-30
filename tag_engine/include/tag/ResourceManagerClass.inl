@@ -152,6 +152,13 @@ template<class T> void TAGResourceManager::BufferBase<T>::waitFence(size_t fence
 	}
 }
 
+template<class T> void TAGResourceManager::BufferBase<T>::incrementFence() {
+	current_fence = (current_fence + 1) % max_fences;
+	internal_offset = (max_objs * sizeof(T) + include_size) * current_fence;
+
+	waitFence(current_fence);
+}
+
 template<class T> void TAGResourceManager::BufferBase<T>::updateBindings(GLuint new_buffer_id) {
 	for (size_t i = 0; i < bound_vaos.size(); i++) {
 		auto map_it = vao_binding_indices.find(bound_vaos[i]);
@@ -204,10 +211,7 @@ template<class T> TAGResourceManager::MappedBuffer<T>::~MappedBuffer() {
 }
 
 template<class T> void TAGResourceManager::MappedBuffer<T>::updateBuffer(const std::vector<T>& data) {
-	this->current_fence = (this->current_fence + 1) % this->max_fences;
-	this->internal_offset = (this->max_objs * sizeof(T) + this->include_size) * this->current_fence;
-
-	this->waitFence(this->current_fence);
+	this->incrementFence();
 
 	this->current_objs = glm::min(this->max_objs, data.size());
 	if (this->include_size > 0) std::memcpy(this->buffer_ptr + this->internal_offset, &this->current_objs, sizeof(GLuint));
@@ -264,12 +268,9 @@ template<class T> TAGResourceManager::UnmappedBuffer<T>::~UnmappedBuffer() {
 }
 
 template<class T> void TAGResourceManager::UnmappedBuffer<T>::updateBuffer(const std::vector<T>& data) {
-	this->current_fence = (this->current_fence + 1) % this->max_fences;
-	this->internal_offset = (this->max_objs * sizeof(T) + this->include_size) * this->current_fence;
+	this->incrementFence();
 
 	this->current_objs = glm::min((size_t)this->max_objs, data.size());
-
-	this->waitFence(this->current_fence);
 
 	if (this->include_size > 0) glNamedBufferSubData(this->buffer_id, this->internal_offset, sizeof(GLuint), &this->current_objs);
 	glNamedBufferSubData(this->buffer_id, this->internal_offset + this->include_size, this->current_objs * sizeof(T), data.data());

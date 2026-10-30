@@ -132,6 +132,7 @@ public:
 		auto bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset);
 		void setFence(size_t fence_index);
 		void waitFence(size_t fence_index);
+		void incrementFence();
 	protected:
 		GLuint buffer_id = 0;
 		size_t current_objs = 0, current_fence = 0, max_objs;
