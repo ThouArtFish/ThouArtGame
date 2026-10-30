@@ -167,7 +167,7 @@ template<LightType T> class TAGLightManager : public TAGBaseState::OpenGLContext
 		 * 
 		 * @param index Binding point of shader storage buffer object in any shader.
 		 */
-		void bindToShader(const GLintptr& offset = 0, const GLuint& index = ShaderLight<T>::default_binding_point);
+		void bindToShader(const GLuint& index = ShaderLight<T>::default_binding_point);
 		/**
 		* Updates GPU side buffer with CPU side lights.
 		*/

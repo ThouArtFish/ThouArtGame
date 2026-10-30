@@ -2,13 +2,15 @@
 
 #include <LightManagerClass.hpp>
 
-template<LightType T> TAGLightManager<T>::TAGLightManager(const std::vector<T>& lights, const TAGResourceManager::BufferAccess& access, const size_t size) {
-	this->lights = LightBuffer(glm::max(size, lights.size()), shaderLightConverter, access, true);
+template<LightType T> TAGLightManager<T>::TAGLightManager(const std::vector<T>& lights, const TAGResourceManager::BufferAccess& access, const size_t size) :
+	lights(glm::max(size, lights.size()), shaderLightConverter, access, true)
+{
 	this->lights.setAllObjects(lights);
 	this->lights.updateBuffer();
 }
 
-template<LightType T> TAGLightManager<T>::TAGLightManager(const TAGResourceManager::BufferAccess& access, const size_t size) : lights(size, shaderLightConverter, access, true) {}
+template<LightType T> TAGLightManager<T>::TAGLightManager(const TAGResourceManager::BufferAccess& access, const size_t size) : 
+	lights(size, shaderLightConverter, access, true) {}
 
 template<LightType T> void TAGLightManager<T>::setLight(const T& light, const int& index) {
 	if (index < 0) {
@@ -39,8 +41,8 @@ template<LightType T> const std::vector<T>& TAGLightManager<T>::getAllLights() c
 	return lights.getAllObjects();
 }
 
-template<LightType T> void TAGLightManager<T>::bindToShader(const GLintptr& offset, const GLuint& index) {
-	lights.bindToShader(index, offset, TAGResourceManager::ShaderBufferType::SHADER_STORAGE);
+template<LightType T> void TAGLightManager<T>::bindToShader(const GLuint& index) {
+	lights.bindToShader(index, TAGResourceManager::ShaderBufferType::SHADER_STORAGE);
 }
 
 template<LightType T> void TAGLightManager<T>::updateLightBuffer() {

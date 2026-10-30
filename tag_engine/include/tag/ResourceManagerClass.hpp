@@ -44,7 +44,7 @@ public:
 	struct OpenGLHandleWrapper {
 		virtual ~OpenGLHandleWrapper() = default;
 
-		OpenGLHandleWrapper(const GLuint& ID, const GLuint& TYPE_ID);
+		OpenGLHandleWrapper(GLuint ID, GLuint TYPE_ID);
 		const GLuint ID;
 		const GLuint TYPE_ID;
 	};
@@ -128,8 +128,8 @@ public:
 
 		virtual void updateBuffer(const std::vector<T>& data) = 0;
 		virtual void resizeBuffer(size_t new_size) = 0;
-		auto bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option);
-		auto bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao);
+		auto bindToShader(GLuint binding_index, ShaderBufferType buffer_option, GLintptr offset);
+		auto bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset);
 		void setFence(size_t fence_index);
 		void waitFence(size_t fence_index);
 	protected:
@@ -211,8 +211,8 @@ public:
 		std::vector<C>& changeObjects();
 
 		const std::unique_ptr<BufferBase<G>>& getBuffer() const;
-		void bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option);
-		void bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao);
+		void bindToShader(GLuint binding_index, ShaderBufferType buffer_option);
+		void bindToVertexArrayObject(GLuint binding_index, GLuint vao);
 		void updateBuffer() override;
 		void setFence() override;
 
@@ -230,27 +230,27 @@ public:
 	* 
 	* @param vao Vertex array object ID
 	*/
-	static void updateAttachedBuffers(const GLuint& vao);
+	static void updateAttachedBuffers(GLuint vao);
 	/**
 	* Updates every buffer of a particular buffer type at each of the given buffer locations.
 	*
 	* @param buffer_type Type of buffer object.
 	* @param buffer_locations Buffer binding locations for the given buffer type.
 	*/
-	static void updateAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations);
+	static void updateAttachedBuffers(ShaderBufferType buffer_type, const std::vector<int>& buffer_locations);
 	/**
 	* Set fences for each buffer attached to a vertex array object.
 	* 
 	* @param vao Vertex array object ID
 	*/
-	static void fenceAttachedBuffers(const GLuint& vao);
+	static void fenceAttachedBuffers(GLuint vao);
 	/**
 	* Set fences for each buffer attached at the given buffer locations for a particular buffer type.
 	* 
 	* @param buffer_type Type of buffer object.
 	* @param buffer_locations Buffer binding locations for the given buffer type.
 	*/
-	static void fenceAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations);
+	static void fenceAttachedBuffers(ShaderBufferType buffer_type, const std::vector<int>& buffer_locations);
 	/**
 	* Creates a buffer of type T
 	*/
@@ -260,19 +260,19 @@ public:
 	* 
 	* @param ID The ID of the buffer to be deleted
 	*/
-	template<OpenGLObjectType::Concept T> static void deleteBuffer(const GLuint& ID);
+	template<OpenGLObjectType::Concept T> static void deleteBuffer(GLuint ID);
 	/**
 	* Check if buffer of BufferType T exists with buffer handle ID
 	* 
 	* @param ID The ID of the buffer to check
 	*/
-	template<OpenGLObjectType::Concept T> static bool isBuffer(const GLuint& ID);
+	template<OpenGLObjectType::Concept T> static bool isBuffer(GLuint ID);
 	/**
 	* Clears all buffers
 	*/
 	static void clear();
 
-	static ShaderBufferType interfaceToBufferType(const ShaderBufferInterfaceType& interface_type);
+	static ShaderBufferType interfaceToBufferType(ShaderBufferInterfaceType interface_type);
 private:
 	/**
 	* Binding data for all buffers
@@ -280,7 +280,6 @@ private:
 	struct BindingData {
 		ObjectBufferWrapper* ptr = nullptr;
 		GLuint binding_index, buffer_id;
-		GLintptr offset;
 	};
 
 	static inline std::vector<std::unique_ptr<OpenGLHandleWrapper>> buffers;

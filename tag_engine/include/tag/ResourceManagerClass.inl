@@ -78,7 +78,7 @@ template<OpenGLObjectType::Concept T> GLuint TAGResourceManager::createBuffer() 
 	return buffers.back()->ID;
 }
 
-template<OpenGLObjectType::Concept T> void TAGResourceManager::deleteBuffer(const GLuint& ID) {
+template<OpenGLObjectType::Concept T> void TAGResourceManager::deleteBuffer(GLuint ID) {
 	const auto it = std::find_if(buffers.begin(), buffers.end(), [&ID](const std::unique_ptr<OpenGLHandleWrapper>& buf)
 		{
 			return (ID == buf->ID && T::TYPE_ID == buf->TYPE_ID);
@@ -89,7 +89,7 @@ template<OpenGLObjectType::Concept T> void TAGResourceManager::deleteBuffer(cons
 	}
 }
 
-template<OpenGLObjectType::Concept T> bool TAGResourceManager::isBuffer(const GLuint& ID) {
+template<OpenGLObjectType::Concept T> bool TAGResourceManager::isBuffer(GLuint ID) {
 	const auto it = std::find_if(buffers.begin(), buffers.end(), [&ID](const std::unique_ptr<OpenGLHandleWrapper>& buf)
 		{
 			return (ID == buf->ID && T::TYPE_ID == buf->TYPE_ID);
@@ -120,17 +120,17 @@ template<class T> GLuint TAGResourceManager::BufferBase<T>::getBufferID() const 
 	return buffer_id;
 }
 
-template<class T> auto TAGResourceManager::BufferBase<T>::bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option) {
-	glBindBufferRange((GLenum)buffer_option, binding_index, buffer_id, internal_offset + offset, max_objs * sizeof(T) + include_size);
+template<class T> auto TAGResourceManager::BufferBase<T>::bindToShader(GLuint binding_index, ShaderBufferType buffer_option, GLintptr offset) {
+	glBindBufferRange((GLenum)buffer_option, binding_index, buffer_id, offset, max_objs * sizeof(T) + include_size);
 	if (std::find(bound_buffers.begin(), bound_buffers.end(), buffer_option) == bound_buffers.end()) bound_buffers.push_back(buffer_option);
 	return shader_binding_indices.try_emplace((GLuint)buffer_option).first;
 }
 
-template<class T> auto TAGResourceManager::BufferBase<T>::bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao) {
+template<class T> auto TAGResourceManager::BufferBase<T>::bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset) {
 	auto map_it = vao_binding_indices.find(vao);
 	if (map_it != vao_binding_indices.end()) {
 		auto& vec = map_it->second;
-		glVertexArrayVertexBuffer(vao, binding_index, buffer_id, internal_offset + offset + include_size, sizeof(T));
+		glVertexArrayVertexBuffer(vao, binding_index, buffer_id, offset, sizeof(T));
 		if (std::find(bound_vaos.begin(), bound_vaos.end(), vao) == bound_vaos.end()) bound_vaos.push_back(vao);
 	}
 	return map_it;
@@ -162,7 +162,7 @@ template<class T> void TAGResourceManager::BufferBase<T>::updateBindings(GLuint 
 		bool contains_old_id = false;
 		for (BindingData& binding_data : map_it->second) {
 			if (binding_data.buffer_id == buffer_id && binding_data.ptr) {
-				glVertexArrayVertexBuffer(map_it->first, binding_data.binding_index, new_buffer_id, internal_offset + include_size + binding_data.offset, sizeof(T));
+				glVertexArrayVertexBuffer(map_it->first, binding_data.binding_index, new_buffer_id, internal_offset + include_size, sizeof(T));
 				binding_data.buffer_id = new_buffer_id;
 				contains_old_id = true;
 			}
@@ -178,7 +178,7 @@ template<class T> void TAGResourceManager::BufferBase<T>::updateBindings(GLuint 
 		bool contains_old_id = false;
 		for (BindingData& binding_data : map_it->second) {
 			if (binding_data.buffer_id == buffer_id) {
-				glBindBufferRange((GLenum)map_it->first, binding_data.binding_index, new_buffer_id, internal_offset + binding_data.offset, max_objs * sizeof(T) + include_size);
+				glBindBufferRange((GLenum)map_it->first, binding_data.binding_index, new_buffer_id, internal_offset, max_objs * sizeof(T) + include_size);
 				binding_data.buffer_id = new_buffer_id;
 				contains_old_id = true;
 			}
@@ -228,7 +228,11 @@ template<class T> void TAGResourceManager::MappedBuffer<T>::resizeBuffer(size_t 
 	this->current_objs = glm::min(new_size, this->current_objs);
 	if (this->include_size > 0) (GLuint&)*new_buffer_ptr = this->current_objs;
 	std::memcpy(new_buffer_ptr + this->include_size, this->buffer_ptr + this->include_size + (this->max_objs * sizeof(T) + this->include_size) * this->current_fence, this->current_objs * sizeof(T));
+
 	this->max_objs = new_size;
+	this->current_fence = 0;
+	this->internal_offset = 0;
+	this->fences = std::make_unique<GLsyncWrap[]>(this->max_fences);
 
 	this->updateBindings(new_buffer);
 
@@ -237,10 +241,6 @@ template<class T> void TAGResourceManager::MappedBuffer<T>::resizeBuffer(size_t 
 
 	this->buffer_id = new_buffer;
 	this->buffer_ptr = new_buffer_ptr;
-	this->current_fence = 0;
-	this->internal_offset = 0;
-	this->fences = std::make_unique<GLsyncWrap[]>(this->max_fences);
-
 	this->setFence(0);
 }
 
@@ -267,12 +267,12 @@ template<class T> void TAGResourceManager::UnmappedBuffer<T>::updateBuffer(const
 	this->current_fence = (this->current_fence + 1) % this->max_fences;
 	this->internal_offset = (this->max_objs * sizeof(T) + this->include_size) * this->current_fence;
 
-	this->current_objs = glm::min(this->max_objs, data.size());
+	this->current_objs = glm::min((size_t)this->max_objs, data.size());
 
 	this->waitFence(this->current_fence);
 
-	if (this->include_size > 0) glNamedBufferSubData(this->buffer_id, 0, sizeof(GLuint), &this->current_objs);
-	glNamedBufferSubData(this->buffer_id, this->include_size, this->current_objs * sizeof(T), data.data());
+	if (this->include_size > 0) glNamedBufferSubData(this->buffer_id, this->internal_offset, sizeof(GLuint), &this->current_objs);
+	glNamedBufferSubData(this->buffer_id, this->internal_offset + this->include_size, this->current_objs * sizeof(T), data.data());
 
 	this->setFence(this->current_fence);
 	if (this->max_fences > 1) this->updateBindings(this->buffer_id);
@@ -284,7 +284,7 @@ template<class T> void TAGResourceManager::UnmappedBuffer<T>::resizeBuffer(size_
 	const GLuint new_buffer_id = createBuffer<OpenGLObjectType::GenericBuffer>();
 	glNamedBufferData(new_buffer_id, (new_size * sizeof(T) + this->include_size) * this->max_fences, nullptr, (GLenum)this->access);
 
-	this->current_objs = glm::min(new_size, this->current_objs);
+	this->current_objs = glm::min(new_size, (size_t)this->current_objs);
 	glCopyNamedBufferSubData(
 		this->buffer_id,
 		new_buffer_id,
@@ -293,17 +293,17 @@ template<class T> void TAGResourceManager::UnmappedBuffer<T>::resizeBuffer(size_
 		this->current_objs * sizeof(T)
 	);
 	if (this->include_size > 0) glNamedBufferSubData(new_buffer_id, 0, sizeof(GLuint), &this->current_objs);
+
 	this->max_objs = new_size;
+	this->current_fence = 0;
+	this->internal_offset = 0;
+	this->fences = std::make_unique<GLsyncWrap[]>(this->max_fences);
 
 	this->updateBindings(new_buffer_id);
 
 	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(this->buffer_id);
 
 	this->buffer_id = new_buffer_id;
-	this->current_fence = 0;
-	this->internal_offset = 0;
-	this->fences = std::make_unique<GLsyncWrap[]>(this->max_fences);
-
 	this->setFence(0);
 }
 
@@ -410,29 +410,29 @@ template<class C, class G, GLuint DIVISIONS> const std::unique_ptr<TAGResourceMa
 	return buffer;
 }
 
-template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToShader(const GLuint& binding_index, const GLintptr& offset, const ShaderBufferType& buffer_option) {
-	auto& vec = buffer->bindToShader(binding_index, offset, buffer_option)->second;
+template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToShader(GLuint binding_index, ShaderBufferType buffer_option) {
+	auto& vec = buffer->bindToShader(binding_index, buffer_option, buffer->getInternalOffset())->second;
 
 	auto vec_it = std::find_if(vec.begin(), vec.end(), [&binding_index](const BindingData& data) { return data.binding_index == binding_index; });
 	if (vec_it == vec.end()) {
-		vec.emplace_back(this, binding_index, buffer->getBufferID(), offset);
+		vec.emplace_back(this, binding_index, buffer->getBufferID());
 	}
 	else {
-		vec.emplace(vec_it, this, binding_index, buffer->getBufferID(), offset);
+		vec.emplace(vec_it, this, binding_index, buffer->getBufferID());
 	}
 }
 
-template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToVertexArrayObject(const GLuint& binding_index, const GLintptr& offset, const GLuint& vao) {
-	auto map_it = buffer->bindToVertexArrayObject(binding_index, offset, vao);
+template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToVertexArrayObject(GLuint binding_index, GLuint vao) {
+	auto map_it = buffer->bindToVertexArrayObject(binding_index, vao, buffer->getInternalOffset() + buffer->include_size);
 
 	if (map_it != vao_binding_indices.end()) {
 		auto& vec = map_it->second;
 		auto vec_it = std::find_if(vec.begin(), vec.end(), [&binding_index](const BindingData& data) { return data.binding_index == binding_index; });
 		if (vec_it == vec.end()) {
-			vec.emplace_back(this, binding_index, buffer->getBufferID(), offset);
+			vec.emplace_back(this, binding_index, buffer->getBufferID());
 		}
 		else {
-			vec.emplace(vec_it, this, binding_index, buffer->getBufferID(), offset);
+			vec.emplace(vec_it, this, binding_index, buffer->getBufferID());
 		}
 	}
 }

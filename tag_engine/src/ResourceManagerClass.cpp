@@ -1,8 +1,8 @@
 #include <ResourceManagerClass.hpp>
 
-TAGResourceManager::OpenGLHandleWrapper::OpenGLHandleWrapper(const GLuint& ID, const GLuint& TYPE_ID) : ID(ID), TYPE_ID(TYPE_ID) {}
+TAGResourceManager::OpenGLHandleWrapper::OpenGLHandleWrapper(GLuint ID, GLuint TYPE_ID) : ID(ID), TYPE_ID(TYPE_ID) {}
 
-void TAGResourceManager::updateAttachedBuffers(const GLuint& vao) {
+void TAGResourceManager::updateAttachedBuffers(GLuint vao) {
 	if (!vao_binding_indices.contains(vao)) return;
 
 	for (const BindingData& data : vao_binding_indices[vao]) {
@@ -10,7 +10,7 @@ void TAGResourceManager::updateAttachedBuffers(const GLuint& vao) {
 	}
 }
 
-void TAGResourceManager::updateAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations) {
+void TAGResourceManager::updateAttachedBuffers(ShaderBufferType buffer_type, const std::vector<int>& buffer_locations) {
 	if (!shader_binding_indices.contains((GLuint) buffer_type)) return;
 
 	std::vector<BindingData>& data_vec = shader_binding_indices[(GLuint)buffer_type];
@@ -20,7 +20,7 @@ void TAGResourceManager::updateAttachedBuffers(const ShaderBufferType& buffer_ty
 	}
 }
 
-void TAGResourceManager::fenceAttachedBuffers(const GLuint& vao) {
+void TAGResourceManager::fenceAttachedBuffers(GLuint vao) {
 	if (!vao_binding_indices.contains(vao)) return;
 
 	for (const BindingData& data : vao_binding_indices[vao]) {
@@ -28,7 +28,7 @@ void TAGResourceManager::fenceAttachedBuffers(const GLuint& vao) {
 	}
 }
 
-void TAGResourceManager::fenceAttachedBuffers(const ShaderBufferType& buffer_type, const std::vector<int>& buffer_locations) {
+void TAGResourceManager::fenceAttachedBuffers(ShaderBufferType buffer_type, const std::vector<int>& buffer_locations) {
 	if (!shader_binding_indices.contains((GLuint)buffer_type)) return;
 
 	std::vector<BindingData>& data_vec = shader_binding_indices[(GLuint)buffer_type];
@@ -44,7 +44,7 @@ void TAGResourceManager::clear() {
 	shader_binding_indices.clear();
 }
 
-TAGResourceManager::ShaderBufferType TAGResourceManager::interfaceToBufferType(const TAGResourceManager::ShaderBufferInterfaceType& interface_type) {
+TAGResourceManager::ShaderBufferType TAGResourceManager::interfaceToBufferType(TAGResourceManager::ShaderBufferInterfaceType interface_type) {
 	switch (interface_type) {
 	case ShaderBufferInterfaceType::SHADER_STORAGE:
 		return ShaderBufferType::SHADER_STORAGE;
