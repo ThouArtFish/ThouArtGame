@@ -279,7 +279,7 @@ TAGMesh::DotPlane TAGMesh::PlaneVolume::collisionCapsule(const glm::vec3& foot, 
 	return (found ? best_plane : DotPlane());
 }
 
-GLuint TAGMesh::getVertexBufferID() const { return VAO; };
+GLuint TAGMesh::getVertexArrayObjectID() { return VAO; };
 GLuint TAGMesh::getVertexBufferID() const { return VBO.getBuffer()->getBufferID(); };
 GLuint TAGMesh::getFragmentBufferID() const { return EBO.getBuffer()->getBufferID(); };
 GLuint TAGMesh::getMaterialBufferID() const { return material_buffer.getBuffer()->getBufferID(); };

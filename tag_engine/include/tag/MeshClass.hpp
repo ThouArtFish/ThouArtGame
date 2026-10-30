@@ -154,7 +154,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         /**
         * Getters and setters for mesh data
         */
-        GLuint getVertexArrayObjectID() const;
+        static GLuint getVertexArrayObjectID();
         GLuint getVertexBufferID() const;
         GLuint getFragmentBufferID() const;
         GLuint getMaterialBufferID() const;
