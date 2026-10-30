@@ -154,6 +154,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         /**
         * Getters and setters for mesh data
         */
+        GLuint getVertexArrayObjectID() const;
         GLuint getVertexBufferID() const;
         GLuint getFragmentBufferID() const;
         GLuint getMaterialBufferID() const;
@@ -169,7 +170,6 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
 		const FragmentBuffer& getFragmentBuffer() const;
 		MaterialBuffer& getMaterialBuffer();
 		const MaterialBuffer& getMaterialBuffer() const;
-
         /**
          * Draw multiple instances of a mesh
          *
