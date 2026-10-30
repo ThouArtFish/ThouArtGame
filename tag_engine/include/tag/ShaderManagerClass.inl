@@ -10,7 +10,7 @@ template<ProgramType::Concept T> void TAGShaderManager::addShader(const T& sourc
         getSourceCodeFromFile(fragment_code, source.fragment_path);
         if (!source.geometry_path.empty()) getSourceCodeFromFile(geometry_code, source.geometry_path);
     }
-    if constexpr (std::same_as<T, ProgramType::Compute>) {
+    else if constexpr (std::same_as<T, ProgramType::Compute>) {
         getSourceCodeFromFile(compute_code, source.compute_path);
     }
     else { // ProgramType::Default
@@ -23,7 +23,7 @@ template<ProgramType::Concept T> void TAGShaderManager::addShader(const T& sourc
     if (!vertex_code.empty()) shader_ids[0] = compileShader<OpenGLObjectType::VertexShader>(vertex_code);
     if (!fragment_code.empty()) shader_ids[1] = compileShader<OpenGLObjectType::FragmentShader>(fragment_code);
     if (!geometry_code.empty()) shader_ids[2] = compileShader<OpenGLObjectType::GeometryShader>(geometry_code);
-    if (!compute_code.empty()) shader_ids[3] = compileShader<OpenGLObjectType::ComputeShader>(geometry_code);
+    if (!compute_code.empty()) shader_ids[3] = compileShader<OpenGLObjectType::ComputeShader>(compute_code);
 
     // Compile final shader program
     shaders.insert_or_assign(source.name, Shader{ .ID = compileProgram(shader_ids) });
