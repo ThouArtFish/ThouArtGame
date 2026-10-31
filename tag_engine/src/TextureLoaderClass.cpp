@@ -80,17 +80,12 @@ TAGTexLoader::Texture TAGTexLoader::emptyTexture(const std::string& name, const 
 }
 
 GLuint TAGTexLoader::cubemapFromMultipleFiles(const std::vector<std::string>& tex_paths, const Params& params) {
-	if (tex_paths.empty()) return 0;
+	if (tex_paths.size() < 6) return 0;
 
-	Info tex_info;
 	GLuint ID = TAGResourceManager::createBuffer<OpenGLObjectType::TextureBuffer>();
 	glBindTexture(GL_TEXTURE_CUBE_MAP, ID);
 	for (size_t i = 0; i < 6; i++) {
-		if (i < tex_paths.size()) {
-			Info current_info = loadRawImageData(tex_paths.at(i), params.flip);
-			tex_info = std::move(current_info);
-			current_info.data_container.data = nullptr;
-		}
+		Info tex_info = loadRawImageData(tex_paths.at(i), params.flip);
 
 		glTexImage2D(
 			GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,

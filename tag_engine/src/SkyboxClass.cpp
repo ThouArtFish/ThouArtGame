@@ -75,6 +75,7 @@ TAGSkybox::TAGSkybox(const std::string& path, const TAGTexLoader::Params& params
 	// Clean up
 	TAGResourceManager::deleteBuffer<OpenGLObjectType::Framebuffer>(capture_FBO);
 	TAGResourceManager::deleteBuffer<OpenGLObjectType::Renderbuffer>(capture_RBO);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::TextureBuffer>(image_tex.id);
 
 	glViewport(0, 0, TAGBaseState::width, TAGBaseState::height);
 }
