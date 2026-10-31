@@ -190,6 +190,30 @@ template<class T> int TAGResourceManager::BufferBase<T>::bindToVertexArrayObject
 	return -1;
 }
 
+template<class T> void TAGResourceManager::BufferBase<T>::unbindFromShader(GLuint binding_index, ShaderBufferType buffer_option) {
+	if (!shader_binding_indices.contains((GLuint)buffer_option)) return;
+
+	auto& vec = shader_binding_indices.at((GLuint)buffer_option);
+
+	auto vec_it = std::find_if(vec.begin(), vec.end(), [this, binding_index](const BindingData& data) { return data.buffer_id == this->buffer_id && data.binding_index == binding_index; });
+	if (vec_it != vec.end()) {
+		glBindBufferRange((GLenum)buffer_option, binding_index, 0, 0, 0);
+		vec.erase(vec_it);
+	}
+}
+
+template<class T> void TAGResourceManager::BufferBase<T>::unbindFromVertexArrayObject(GLuint binding_index, GLuint vao) {
+	if (!vao_binding_indices.contains(vao)) return;
+
+	auto& vec = vao_binding_indices.at(vao);
+
+	auto vec_it = std::find_if(vec.begin(), vec.end(), [this, binding_index](const BindingData& data) { return data.buffer_id == this->buffer_id && data.binding_index == binding_index; });
+	if (vec_it != vec.end()) {
+		glVertexArrayVertexBuffer(vao, binding_index, 0, 0, 0);
+		vec.erase(vec_it);
+	}
+}
+
 template<class T> void TAGResourceManager::BufferBase<T>::setFence(size_t fence_index) {
 	if (fence_index >= max_fences) return;
 
@@ -456,6 +480,14 @@ template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuff
 	int index = buffer->bindToVertexArrayObject(binding_index, vao, buffer->include_size + offset);
 
 	if (index >= 0) vao_binding_indices.at(vao).at(index).object_ptr = (ObjectBufferWrapper*)this;
+}
+
+template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::unbindFromShader(GLuint binding_index, ShaderBufferType buffer_option) {
+	buffer->unbindFromShader(binding_index, buffer_option);
+}
+
+template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::unbindFromVertexArrayObject(GLuint binding_index, GLuint vao) {
+	buffer->unbindFromVertexArrayObject(binding_index, vao);
 }
 
 template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::updateBuffer() {

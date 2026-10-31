@@ -144,6 +144,8 @@ public:
 		virtual void resizeBuffer(size_t new_size) = 0;
 		int bindToShader(GLuint binding_index, ShaderBufferType buffer_option, GLintptr offset);
 		int bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset);
+		void unbindFromShader(GLuint binding_index, ShaderBufferType buffer_option);
+		void unbindFromVertexArrayObject(GLuint binding_index, GLuint vao);
 		void setFence(size_t fence_index);
 		void setFence() override;
 		void waitFence(size_t fence_index);
@@ -223,6 +225,8 @@ public:
 		const std::unique_ptr<BufferBase<G>>& getBuffer() const;
 		void bindToShader(GLuint binding_index, ShaderBufferType buffer_option, GLintptr offset = 0);
 		void bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset = 0);
+		void unbindFromShader(GLuint binding_index, ShaderBufferType buffer_option);
+		void unbindFromVertexArrayObject(GLuint binding_index, GLuint vao);
 		void updateBuffer() override;
 		void setFence();
 		void waitFence();
