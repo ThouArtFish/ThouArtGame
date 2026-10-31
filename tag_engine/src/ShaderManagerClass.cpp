@@ -7,7 +7,11 @@ TAGShaderManager::~TAGShaderManager() {
 }
 
 void TAGShaderManager::deleteShader(const std::string& name) {
-    if (shaders.erase(name) > 0) TAGResourceManager::deleteBuffer<OpenGLObjectType::ShaderProgram>(shaders.at(name).ID);
+    auto it = shaders.find(name);
+    if (it != shaders.end()) {
+        TAGResourceManager::deleteBuffer<OpenGLObjectType::ShaderProgram>(it->second.ID);
+        shaders.erase(it);
+    }
 }
 
 void TAGShaderManager::deleteShader(const std::vector<std::string>& names) {

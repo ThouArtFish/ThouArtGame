@@ -455,7 +455,7 @@ template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuff
 template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset) {
 	int index = buffer->bindToVertexArrayObject(binding_index, vao, buffer->include_size + offset);
 
-	if (index) vao_binding_indices.at(vao).at(index).object_ptr = (ObjectBufferWrapper*)this;
+	if (index >= 0) vao_binding_indices.at(vao).at(index).object_ptr = (ObjectBufferWrapper*)this;
 }
 
 template<class C, class G, GLuint DIVISIONS> void TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::updateBuffer() {

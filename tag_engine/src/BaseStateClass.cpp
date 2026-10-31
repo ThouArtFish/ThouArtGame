@@ -134,21 +134,21 @@ int TAGBaseState::runGame() {
 	}
 	current_time = glfwGetTime();
 	while (!glfwWindowShouldClose(window)) {
+		// Check events
+		glfwPollEvents();
+
 		// Track time
 		const double new_time = glfwGetTime();
 		delta_time = new_time - current_time;
-		if (delta_time > states[current]->frame_interval && frame_ready && !iconified) {
+		if (delta_time > states[current]->frame_interval && frame_ready) {
 			glfwSwapBuffers(window);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			current_time = new_time;
 			frame_ready = false;
 		}
-		else if (frame_ready || iconified) {
+		else if (frame_ready) {
 			continue;
 		}
-
-		// Check events for next loop
-		glfwPollEvents();
 
 		// Check which keys are still being pressed
 		std::erase_if(still_pressed, [](const int& key) { return glfwGetKey(window, key) != GLFW_PRESS; });

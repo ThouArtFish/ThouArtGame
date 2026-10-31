@@ -119,6 +119,7 @@ public:
 	*/
 	class BufferBaseWrapper {
 	public:
+		virtual ~BufferBaseWrapper() = default;
 		virtual void setFence() = 0;
 	};
 
@@ -192,6 +193,7 @@ public:
 	*/
 	class ObjectBufferWrapper {
 	public:
+		virtual ~ObjectBufferWrapper() = default;
 		virtual void updateBuffer() = 0;
 		inline bool isObjectsChanged() const { return objects_changed; }
 	protected:
