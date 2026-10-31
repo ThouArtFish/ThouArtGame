@@ -11,7 +11,7 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 # Build with executable, not as a library
-option(TAG_BUILD_EXECUTABLE "Build with executable, not as a library" ON)
+option(TAG_BUILD_EXECUTABLE "Build with executable, not as a library" OFF)
 
 # Path to test source code and executable output
 set(TAG_TEST_SOURCE ${CMAKE_SOURCE_DIR}/test/src/)
