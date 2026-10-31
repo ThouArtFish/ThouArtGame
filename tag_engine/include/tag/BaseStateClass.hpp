@@ -129,12 +129,12 @@ private:
 	static inline std::unordered_map<std::string, std::unique_ptr<TAGBaseState>> states;
 	static inline std::string current = "BASE";
 	static inline std::vector<int> still_pressed;
-	static inline GLFWwindow* window = nullptr;
 
 	static void baseFramebufferSizeCallback(GLFWwindow* window, int width, int height);
 	static void baseMouseCallback(GLFWwindow* window, double x_pos, double y_pos);
 	static void baseIconifyCallback(GLFWwindow* window, int inconified);
 protected:
+	static inline GLFWwindow* window = nullptr;
 	double frame_interval = 1.0 / 60.0;
 
 	/**
