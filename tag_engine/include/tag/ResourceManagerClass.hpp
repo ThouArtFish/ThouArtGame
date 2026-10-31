@@ -85,7 +85,12 @@ public:
 		UNIFORM = GL_UNIFORM_BUFFER,
 		TRANSFORM_FEEDBACK = GL_TRANSFORM_FEEDBACK_BUFFER
 	};
-	static constexpr inline std::array<ShaderBufferType, 4> buffer_types = { ShaderBufferType::SHADER_STORAGE, ShaderBufferType::ATOMIC_COUNTER, ShaderBufferType::UNIFORM, ShaderBufferType::TRANSFORM_FEEDBACK };
+	static constexpr inline std::array<ShaderBufferType, 4> buffer_types = { 
+		ShaderBufferType::SHADER_STORAGE, 
+		ShaderBufferType::ATOMIC_COUNTER, 
+		ShaderBufferType::UNIFORM, 
+		ShaderBufferType::TRANSFORM_FEEDBACK 
+	};
 	enum class ShaderBufferInterfaceType : GLuint {
 		SHADER_STORAGE = GL_SHADER_STORAGE_BLOCK,
 		ATOMIC_COUNTER = GL_ATOMIC_COUNTER_BUFFER,
@@ -110,12 +115,20 @@ public:
 	};
 
 	/**
+	* Templateless struct that allows tracking of BufferBase instances
+	*/
+	class BufferBaseWrapper {
+	public:
+		virtual void setFence() = 0;
+	};
+
+	/**
 	* Interface for implementing buffer handling structs
 	*/
-	template<class T> class BufferBase {
+	template<class T> class BufferBase : public BufferBaseWrapper {
 		template<class C, class G, GLuint DIVISIONS> friend class ObjectBuffer;
 	public:
-		virtual ~BufferBase() = default;
+		~BufferBase();
 
 		const BufferAccess access;
 		const size_t include_size, max_fences;
@@ -128,9 +141,10 @@ public:
 
 		virtual void updateBuffer(const std::vector<T>& data) = 0;
 		virtual void resizeBuffer(size_t new_size) = 0;
-		auto bindToShader(GLuint binding_index, ShaderBufferType buffer_option, GLintptr offset);
-		auto bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset);
+		int bindToShader(GLuint binding_index, ShaderBufferType buffer_option, GLintptr offset);
+		int bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset);
 		void setFence(size_t fence_index);
+		void setFence() override;
 		void waitFence(size_t fence_index);
 		void incrementFence();
 	protected:
@@ -146,7 +160,7 @@ public:
 	};
 
 	/**
-	* Struct for handling ring buffers, for STREAM level buffers
+	* Buffer that is mapped to client-side memory
 	*/
 	template<class T> class MappedBuffer : public BufferBase<T> {
 	public:
@@ -162,7 +176,7 @@ public:
 	};
 
 	/**
-	* Struct for handling orphan buffers, for DYNAMIC and STATIC level buffers
+	* Buffer that is not mapped to client-side memory and can only be accessed by GPU commands
 	*/
 	template<class T> class UnmappedBuffer : public BufferBase<T> {
 	public:
@@ -174,29 +188,22 @@ public:
 	};
 
 	/**
-	* Wrapper to allow instance tracking in a map
+	* Templateless class that allows tracking of ObjectBuffer instances
 	*/
 	class ObjectBufferWrapper {
 	public:
-		virtual ~ObjectBufferWrapper() = default;
-		ObjectBufferWrapper(const ObjectBufferWrapper&) = delete;
-		ObjectBufferWrapper& operator=(const ObjectBufferWrapper&) = delete;
-		ObjectBufferWrapper() {}
-
 		virtual void updateBuffer() = 0;
-		virtual void setFence() = 0;
 		inline bool isObjectsChanged() const { return objects_changed; }
 	protected:
 		bool objects_changed = false;
 	};
 
 	/**
-	* Struct for handling buffer access
+	* Sychronises a client-side store of objects, and an equivalent GPU-side buffer
 	*/
 	template<class C, class G, GLuint DIVISIONS = 0> class ObjectBuffer : public ObjectBufferWrapper {
 	public:
 		ObjectBuffer(size_t max_objs, const std::function<std::array<G, DIVISIONS + 1>(const C&)>& converter, BufferAccess access, bool include_size = false);
-		~ObjectBuffer();
 
 		const std::vector<C>& getAllObjects() const;
 		const C& getObject(size_t index) const;
@@ -212,10 +219,11 @@ public:
 		std::vector<C>& changeObjects();
 
 		const std::unique_ptr<BufferBase<G>>& getBuffer() const;
-		void bindToShader(GLuint binding_index, ShaderBufferType buffer_option);
-		void bindToVertexArrayObject(GLuint binding_index, GLuint vao);
+		void bindToShader(GLuint binding_index, ShaderBufferType buffer_option, GLintptr offset = 0);
+		void bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset = 0);
 		void updateBuffer() override;
-		void setFence() override;
+		void setFence();
+		void waitFence();
 
 		auto begin() const;
 		auto end() const;
@@ -276,11 +284,13 @@ public:
 	static ShaderBufferType interfaceToBufferType(ShaderBufferInterfaceType interface_type);
 private:
 	/**
-	* Binding data for all buffers
+	* Binding data for ObjectBuffer instances
 	*/
 	struct BindingData {
-		ObjectBufferWrapper* ptr = nullptr;
+		BufferBaseWrapper* buffer_ptr = nullptr;
+		ObjectBufferWrapper* object_ptr = nullptr;
 		GLuint binding_index, buffer_id;
+		GLintptr offset;
 	};
 
 	static inline std::vector<std::unique_ptr<OpenGLHandleWrapper>> buffers;

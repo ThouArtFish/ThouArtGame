@@ -6,7 +6,7 @@ void TAGResourceManager::updateAttachedBuffers(GLuint vao) {
 	if (!vao_binding_indices.contains(vao)) return;
 
 	for (const BindingData& data : vao_binding_indices[vao]) {
-		if (data.ptr && data.ptr->isObjectsChanged()) data.ptr->updateBuffer();
+		if (data.object_ptr && data.object_ptr->isObjectsChanged()) data.object_ptr->updateBuffer();
 	}
 }
 
@@ -16,7 +16,7 @@ void TAGResourceManager::updateAttachedBuffers(ShaderBufferType buffer_type, con
 	std::vector<BindingData>& data_vec = shader_binding_indices[(GLuint)buffer_type];
 	for (const GLint& index : buffer_locations) {
 		auto it = std::find_if(data_vec.begin(), data_vec.end(), [&index](const BindingData& data) { return index == data.binding_index; });
-		if (it != data_vec.end() && it->ptr && it->ptr->isObjectsChanged()) it->ptr->updateBuffer();
+		if (it != data_vec.end() && it->object_ptr && it->object_ptr->isObjectsChanged()) it->object_ptr->updateBuffer();
 	}
 }
 
@@ -24,7 +24,7 @@ void TAGResourceManager::fenceAttachedBuffers(GLuint vao) {
 	if (!vao_binding_indices.contains(vao)) return;
 
 	for (const BindingData& data : vao_binding_indices[vao]) {
-		if (data.ptr) data.ptr->setFence();
+		if (data.buffer_ptr) data.buffer_ptr->setFence();
 	}
 }
 
@@ -34,7 +34,7 @@ void TAGResourceManager::fenceAttachedBuffers(ShaderBufferType buffer_type, cons
 	std::vector<BindingData>& data_vec = shader_binding_indices[(GLuint)buffer_type];
 	for (const GLint& index : buffer_locations) {
 		auto it = std::find_if(data_vec.begin(), data_vec.end(), [&index](const BindingData& data) { return index == data.binding_index; });
-		if (it != data_vec.end() && it->ptr) it->ptr->setFence();
+		if (it != data_vec.end() && it->buffer_ptr) it->buffer_ptr->setFence();
 	}
 }
 
