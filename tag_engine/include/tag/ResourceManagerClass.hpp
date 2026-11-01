@@ -140,7 +140,7 @@ public:
 		GLintptr getInternalOffset() const;
 		GLuint getBufferID() const;
 
-		virtual void updateBuffer(const std::vector<T>& data, bool append = false) = 0;
+		virtual void updateBuffer(const std::vector<T>& data) = 0;
 		virtual void resizeBuffer(size_t new_size) = 0;
 		int bindToShader(GLuint binding_index, ShaderBufferType buffer_option, GLintptr offset);
 		int bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset);
@@ -170,7 +170,7 @@ public:
 		MappedBuffer(size_t max_objs, size_t max_fences, BufferAccess access, const std::vector<MappedBufferAccess>& map_access, bool include_size = false);
 		~MappedBuffer();
 
-		void updateBuffer(const std::vector<T>& data, bool append = false) override;
+		void updateBuffer(const std::vector<T>& data) override;
 		void resizeBuffer(size_t new_size) override;
 		std::span<GLchar> bufferPtr(size_t fence_index);
 	private:
@@ -186,7 +186,7 @@ public:
 		UnmappedBuffer(size_t max_objs, size_t max_fences, BufferAccess access, bool include_size = false);
 		~UnmappedBuffer();
 
-		void updateBuffer(const std::vector<T>& data, bool append = false) override;
+		void updateBuffer(const std::vector<T>& data) override;
 		void resizeBuffer(size_t new_size) override;
 	};
 

@@ -297,14 +297,12 @@ template<class T> TAGResourceManager::MappedBuffer<T>::~MappedBuffer() {
 	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(this->buffer_id);
 }
 
-template<class T> void TAGResourceManager::MappedBuffer<T>::updateBuffer(const std::vector<T>& data, bool append) {
+template<class T> void TAGResourceManager::MappedBuffer<T>::updateBuffer(const std::vector<T>& data) {
 	this->incrementFence();
-
-	const size_t max_data_append = glm::min(this->max_objs - this->current_objs, data.size());
-	const size_t new_current_objs = glm::min(this->max_objs, data.size() + (append ? this->current_objs : 0));
-	if (this->include_size > 0) std::memcpy(this->buffer_ptr + this->internal_offset, &new_current_objs, sizeof(GLuint));
-	std::memcpy(this->buffer_ptr + this->internal_offset + this->include_size + (append ? this->current_objs * sizeof(T) : 0), (GLchar*)data.data(), (append ? max_data_append : new_current_objs) * sizeof(T));
-	this->current_objs = new_current_objs;
+		
+	this->current_objs = glm::min(this->max_objs, data.size());
+	if (this->include_size > 0) std::memcpy(this->buffer_ptr + this->internal_offset, &this->current_objs, sizeof(GLuint));
+	std::memcpy(this->buffer_ptr + this->internal_offset + this->include_size, (GLchar*)data.data(), this->current_objs * sizeof(T));
 
 	this->setFence(this->current_fence);
 	if (this->max_fences > 1) this->updateBindings(this->buffer_id);
@@ -356,14 +354,12 @@ template<class T> TAGResourceManager::UnmappedBuffer<T>::~UnmappedBuffer() {
 	TAGResourceManager::deleteBuffer<OpenGLObjectType::GenericBuffer>(this->buffer_id);
 }
 
-template<class T> void TAGResourceManager::UnmappedBuffer<T>::updateBuffer(const std::vector<T>& data, bool append) {
+template<class T> void TAGResourceManager::UnmappedBuffer<T>::updateBuffer(const std::vector<T>& data) {
 	this->incrementFence();
 
-	const size_t max_data_append = glm::min(this->max_objs - this->current_objs, data.size());
-	const size_t new_current_objs = glm::min(this->max_objs, data.size() + (append ? this->current_objs : 0));
-	if (this->include_size > 0) glNamedBufferSubData(this->buffer_id, this->internal_offset, sizeof(GLuint), &new_current_objs);
-	glNamedBufferSubData(this->buffer_id, this->internal_offset + this->include_size + (append ? sizeof(T) * this->current_objs : 0), (append ? max_data_append : new_current_objs) * sizeof(T), data.data());
-	this->current_objs = new_current_objs;
+	this->current_objs = glm::min(this->max_objs, data.size());
+	if (this->include_size > 0) glNamedBufferSubData(this->buffer_id, this->internal_offset, sizeof(GLuint), &this->current_objs);
+	glNamedBufferSubData(this->buffer_id, this->internal_offset + this->include_size, this->current_objs * sizeof(T), data.data());
 
 	this->setFence(this->current_fence);
 	if (this->max_fences > 1) this->updateBindings(this->buffer_id);
