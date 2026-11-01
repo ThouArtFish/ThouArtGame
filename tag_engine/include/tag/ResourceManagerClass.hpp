@@ -142,6 +142,8 @@ public:
 
 		virtual void updateBuffer(const std::vector<T>& data) = 0;
 		virtual void resizeBuffer(size_t new_size) = 0;
+		virtual void appendBuffer(const std::vector<T>& data) = 0;
+		virtual void eraseBuffer(size_t start_index) = 0;
 		int bindToShader(GLuint binding_index, ShaderBufferType buffer_option, GLintptr offset);
 		int bindToVertexArrayObject(GLuint binding_index, GLuint vao, GLintptr offset);
 		void unbindFromShader(GLuint binding_index, ShaderBufferType buffer_option);
@@ -172,6 +174,8 @@ public:
 
 		void updateBuffer(const std::vector<T>& data) override;
 		void resizeBuffer(size_t new_size) override;
+		void appendBuffer(const std::vector<T>& data) override;
+		void eraseBuffer(size_t start_index) override;
 		std::span<GLchar> bufferPtr(size_t fence_index);
 	private:
 		GLchar* buffer_ptr = nullptr;
@@ -188,6 +192,8 @@ public:
 
 		void updateBuffer(const std::vector<T>& data) override;
 		void resizeBuffer(size_t new_size) override;
+		void appendBuffer(const std::vector<T>& data) override;
+		void eraseBuffer(size_t start_index) override;
 	};
 
 	/**
