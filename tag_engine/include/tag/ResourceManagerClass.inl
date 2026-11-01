@@ -323,6 +323,9 @@ template<class T> void TAGResourceManager::MappedBuffer<T>::resizeBuffer(size_t 
 	this->max_objs = new_size;
 	this->current_fence = 0;
 	this->internal_offset = 0;
+	for (size_t i = 0; i < this->max_fences; i++) {
+		if (this->fences[i].sync) glDeleteSync(this->fences[i].sync);
+	}
 	this->fences = std::make_unique<GLsyncWrap[]>(this->max_fences);
 
 	this->updateBindings(new_buffer);
