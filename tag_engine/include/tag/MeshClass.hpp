@@ -35,7 +35,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         * BVH tree generation constants
         */
         constexpr static inline GLuint bvh_box_max_size = 4;
-        constexpr static inline GLuint bvh_max_depth = 5;
+        constexpr static inline GLuint bvh_max_depth = 6;
 
         /**
          * Represents a single vertex of a mesh, including its local position, outward normal and texture coordinate.
@@ -104,9 +104,11 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         * A quad tree box, indices could be for lower level quad tree boxes, or mesh planes, depending on is_leaf
         */
         struct BVHNode {
-            bool is_leaf;
             BoundingBox bounds;
-            std::vector<size_t> indices;
+            size_t depth, parent_index, first_child_index = 0;
+            std::vector<size_t> plane_indices;
+
+            bool isLeaf() const { return !first_child_index; }
         };
         /**
         * Smaller plane struct that only represents the infinite plane a fragment lies in
@@ -147,9 +149,10 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
          * @param vertices All the vertices of the mesh.
 		 * @param material_frags Groups of fragments that share the same material.
          * @param materials Mesh materials.
+         * @param gen_bvh Generate an octree for the mesh's fragments for physics simulations
          */
-        TAGMesh(const std::vector<Vertex>& vertices, const std::vector<MaterialFragments>& material_frags, const std::vector<Material>& materials);
-        TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const Material& material);
+        TAGMesh(const std::vector<Vertex>& vertices, const std::vector<MaterialFragments>& material_frags, const std::vector<Material>& materials, bool gen_bvh = false);
+        TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const Material& material, bool gen_bvh = false);
 
         /**
         * Getters and setters for mesh data
@@ -180,6 +183,17 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         void draw(const TAGShaderManager::Shader& shader, const TAGShaderManager::ShaderOptions& options, const GLuint& number = 1);
 
         /**
+        * Generates game space planes to represent primitives for mesh.
+        */
+        void generatePlanes();
+
+        /**
+        * Generates Bounding Volume Heirarchy for mesh, implemented with an octree.
+        * Requires planes to be generated with generatePlanes first or does nothing.
+        */
+        void generateBVH();
+
+        /**
         * Generate bounding box from array of vectors
         */
         static BoundingBox generateBoundingBox(const glm::vec3* start, const unsigned int& size);
@@ -205,13 +219,4 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         */
         void setupMeshBoundingBox();
         static void setupMeshVertexArrayObject();
-        /**
-        * Generates game space planes to represent primitives for mesh
-        */
-        void generatePlanes();
-        /**
-        * Generates Bounding Volume Heirarchy for mesh, implemented with an octree.
-        * Requires planes to be generated with generatePlanes first or does nothing.
-        */
-        void generateBVH();
 };

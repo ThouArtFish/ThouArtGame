@@ -65,8 +65,10 @@ public:
 	 * @param params Parameters for texture loading.
 	 * @param access Frequency of changes.
 	 * @param path Path to model file.
+	 * @param gen_bvh Generate octree and planes on mesh fragments
 	 */
-	TAGModel(const TAGTexLoader::Params& params, const TAGResourceManager::BufferAccess& access, const std::string& path = "");
+	TAGModel(const TAGTexLoader::Params& params, const TAGResourceManager::BufferAccess& access, const std::string& path, bool gen_bvh = false);
+	TAGModel(const TAGTexLoader::Params& params, const TAGResourceManager::BufferAccess& access);
 	TAGModel(const TAGModel&) = delete;
 	TAGModel& operator=(const TAGModel&) = delete;
 
@@ -156,8 +158,9 @@ public:
 	* @param vertices Vertices of mesh
 	* @param frags Fragments of mesh
 	* @param material Material of mesh
+	* @param gen_bvh Generate a octree and planes on mesh fragments
 	*/
-	void addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const TAGMesh::Material& material);
+	void addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const TAGMesh::Material& material, bool gen_bvh = false);
 	/**
 	 * Delete a mesh.
 	 * 
@@ -171,7 +174,7 @@ public:
 	static TAGMesh::Plane transformPlane(const Object& obj, const TAGMesh::Plane& plane);
 	static TAGMesh::PlaneVolume transformPlane(const Object& obj, const TAGMesh::PlaneVolume& plane);
 private:
-	void loadModel(const std::string& path);
+	void loadModel(const std::string& path, bool gen_bvh);
 	static std::array<ShaderObject, 1> shaderConverter(const Object& obj);
 	const TAGTexLoader::Texture loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const;
 protected:

@@ -1,6 +1,6 @@
 #include <MeshClass.hpp>
 
-TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<MaterialFragments>& material_frags, const std::vector<Material>& materials) :
+TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<MaterialFragments>& material_frags, const std::vector<Material>& materials, bool gen_bvh) :
 	VBO(vertices.size(), convertVertex, TAGResourceManager::BufferAccess::STATIC),
 	EBO(std::accumulate(material_frags.begin(), material_frags.end(), (size_t)0, [](size_t sum, const MaterialFragments& frag_struct) { return sum + frag_struct.frags.size(); }), convertFragment, TAGResourceManager::BufferAccess::STATIC),
 	material_buffer(materials.size(), convertMaterial, TAGResourceManager::BufferAccess::STATIC, true)
@@ -25,11 +25,13 @@ TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Material
 
 	setupMeshBoundingBox();
 
-	generatePlanes();
-	generateBVH();
+	if (gen_bvh) {
+		generatePlanes();
+		generateBVH();
+	}
 }
 
-TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const Material& material) :
+TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment>& frags, const Material& material, bool gen_bvh) :
 	VBO(vertices.size(), convertVertex, TAGResourceManager::BufferAccess::STATIC),
 	EBO(frags.size(), convertFragment, TAGResourceManager::BufferAccess::STATIC),
 	material_buffer(1, convertMaterial, TAGResourceManager::BufferAccess::STATIC, true)
@@ -48,8 +50,10 @@ TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment
 
 	setupMeshBoundingBox();
 
-	generatePlanes();
-	generateBVH();
+	if (gen_bvh) {
+		generatePlanes();
+		generateBVH();
+	}
 }
 
 TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) {
@@ -477,13 +481,9 @@ void TAGMesh::generatePlanes() {
 void TAGMesh::generateBVH() {
 	bvh_octree.clear();
 
-	// Info for BVH nodes to be processed during construction
-	struct BVHQueue {
-		size_t node_index, layer_index, depth;
-	};
-
-	// Function that splits bounding box into 8 equally sized bounding boxes and pushes them to bvh tree
-	auto octGen = [this](BoundingBox box) {
+	// Function that splits bounding box into 8 equally sized bounding boxes
+	auto octGen = [this](const BoundingBox& box) {
+		std::vector<BoundingBox> child_boxes(8);
 		const glm::vec3 c = (box.max + box.min) / 2.0f;
 		for (size_t i = 0; i < 8; i++) {
 			glm::vec3 min, max;
@@ -497,90 +497,67 @@ void TAGMesh::generateBVH() {
 			min.z = (i & 4) ? c.z : box.min.z;
 			max.z = (i & 4) ? box.max.z : c.z;
 
-			this->bvh_octree.emplace_back(true, BoundingBox(max, min));
+			child_boxes[i] = { max, min };
 		}
-		};
+		return child_boxes;
+	};
 
 	// Creates a range of values
-	auto range = [](const size_t& min, const size_t& max) {
+	auto range = [](size_t min, size_t max) {
 		std::vector<size_t> nums(max - min);
-		for (size_t i = min; i < max; i++) {
-			nums[i] = i;
-		}
+		for (size_t i = 0; i < max - min; i++) nums[i] = i + min;
 		return nums;
-		};
+	};
 
-	// The available planes at particular depths in the BVH
-	std::vector<std::vector<size_t>> layers;
+	// Planes that collide with parent nodes
+	std::unordered_map<size_t, std::vector<size_t>> parent_plane_indices;
 
-	// Queue for holding BVH boxes yet to be processed
-	std::deque<BVHQueue> bvh_queue;
+	// Stack for holding indices of nodes yet to be processed
+	std::vector<size_t> bvh_build_stack;
 
 	// Split mesh aabb to avoid checking all plane aabbs since we know planes are already in mesh
 	const std::vector<size_t> all_plane_indices = range(0, planes.size());
 	if (planes.size() <= bvh_box_max_size) {
-		bvh_octree.emplace_back(true, mesh_bb, all_plane_indices);
+		bvh_octree.emplace_back(mesh_bb, 0, 0, 0, all_plane_indices);
 		return;
 	}
 	else {
-		std::vector<size_t> node_children(8);
-		for (size_t i = 1; i < 9; i++) {
-			bvh_queue.push_back({ i, 0, 0 });
-			node_children[i - 1] = i;
-		}
-		bvh_octree.emplace_back(false, mesh_bb, node_children);
-		layers.push_back(all_plane_indices);
-		octGen(mesh_bb);
+		bvh_octree.emplace_back(mesh_bb, 0, 0, 1);
+		parent_plane_indices[0] = all_plane_indices;
+
+		bvh_build_stack = range(1, 9);
+
+		const auto child_bbs = octGen(mesh_bb);
+		for (const auto& bb : child_bbs) bvh_octree.emplace_back(bb, 1, 0);
 	}
 
-	while (!bvh_queue.empty()) {
-		// Next BVH box is removed from front of queue
-		BVHQueue current_info = bvh_queue.front();
-		BVHNode current_box = bvh_octree[current_info.node_index];
-		std::vector<size_t>& layer_indices = layers[current_info.layer_index];
+	while (!bvh_build_stack.empty()) {
+		// Next BVH node is removed from stack
+		size_t current_index = bvh_build_stack.back();
+		bvh_build_stack.pop_back();
+		BVHNode current_box = bvh_octree[current_index];
+		std::vector<size_t>& plane_indices = parent_plane_indices[current_box.parent_index];
 
 		// Find which planes within parent bounding box collide with current box
-		for (const size_t& plane_index : layer_indices) {
-			if (planes[plane_index].frag_plane.collisionBBox(current_box.bounds)) {
-				current_box.indices.push_back(plane_index);
-			}
+		for (size_t plane_index : plane_indices) {
+			if (planes[plane_index].frag_plane.collisionBBox(current_box.bounds)) current_box.plane_indices.push_back(plane_index);
 		}
 
-		// split if too big and depth isnt too deep
-		if (current_box.indices.size() > bvh_box_max_size && current_info.depth < bvh_max_depth) {
-			layers.push_back(current_box.indices);
-			current_box.indices.clear();
-			for (size_t i = bvh_octree.size(); i < bvh_octree.size() + 8; i++) {
-				bvh_queue.push_back({ i, layers.size() - 1, current_info.depth + 1 });
-				current_box.indices.push_back(i);
-			}
-			current_box.is_leaf = false;
-			octGen(current_box.bounds);
+		// Split if too big and depth isnt too deep
+		if (current_box.plane_indices.size() > bvh_box_max_size && current_box.depth < bvh_max_depth) {
+			parent_plane_indices[current_index] = current_box.plane_indices;
+			current_box.plane_indices.clear();
+			current_box.plane_indices.shrink_to_fit();
+			current_box.first_child_index = bvh_octree.size();
+
+			const auto child_indices = range(current_box.first_child_index, current_box.first_child_index + 8);
+			bvh_build_stack.insert(bvh_build_stack.end(), child_indices.begin(), child_indices.end());
+
+			const auto child_bbs = octGen(current_box.bounds);
+			for (const auto& bb : child_bbs) bvh_octree.emplace_back(bb, current_box.depth + 1, current_index);
 		}
 
-		bvh_queue.erase(bvh_queue.begin());
-		bvh_octree[current_info.node_index] = current_box;
-	}
-
-	// Clean tree a bit
-	for (size_t i = 0; i < bvh_octree.size(); i++) {
-		BVHNode& node = bvh_octree[i];
-		if (!node.is_leaf) {
-			// Don't point to empty children
-			for (size_t j = 0; j < node.indices.size(); j++) {
-				if (bvh_octree[node.indices[j]].indices.empty()) {
-					node.indices.erase(node.indices.begin() + j--);
-				}
-			}
-
-			// Swap if only child
-			if (node.indices.size() == 1) {
-				const size_t only_child = node.indices[0];
-				node.indices.clear();
-				std::swap(node, bvh_octree[only_child]);
-				i--;
-			}
-		}
+		bvh_octree[current_index] = current_box;
 	}
 
 	bvh_octree.shrink_to_fit();

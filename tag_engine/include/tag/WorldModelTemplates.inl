@@ -252,15 +252,11 @@ template<Collision::RayScope T> T TAGWorldModel::rayCollisionWithMeshInstances(c
 			octree_stack.pop_back();
 
 			if (current_box.bounds.collisionRay(local_start, local_ray, max)) {
-				if (!current_box.is_leaf) {
-					octree_stack.insert(octree_stack.end(), current_box.indices.begin(), current_box.indices.end());
+				if (current_box.isLeaf()) {
+					indices.insert(indices.end(), current_box.plane_indices.begin(), current_box.plane_indices.end());
 				}
 				else {
-					for (const size_t& plane_index : current_box.indices) {
-						if (std::find(indices.begin(), indices.end(), plane_index) == indices.end()) {
-							indices.push_back(plane_index);
-						}
-					}
+					for (size_t i = 0; i < 8; i++) octree_stack.push_back(current_box.first_child_index + i);
 				}
 			}
 		}
@@ -328,15 +324,11 @@ template<Collision::ColliderScope T> T TAGWorldModel::capsuleCollisionMeshInstan
 			octree_stack.pop_back();
 
 			if (current_box.bounds.collisionCapsule(local_foot, local_spine, local_radius)) {
-				if (!current_box.is_leaf) {
-					octree_stack.insert(octree_stack.end(), current_box.indices.begin(), current_box.indices.end());
+				if (current_box.isLeaf()) {
+					indices.insert(indices.end(), current_box.plane_indices.begin(), current_box.plane_indices.end());
 				}
 				else {
-					for (const size_t& plane_index : current_box.indices) {
-						if (std::find(indices.begin(), indices.end(), plane_index) == indices.end()) {
-							indices.push_back(plane_index);
-						}
-					}
+					for (size_t i = 0; i < 8; i++) octree_stack.push_back(current_box.first_child_index + i);
 				}
 			}
 		}
@@ -380,15 +372,11 @@ template<Collision::ColliderScope T> T TAGWorldModel::sphereCollisionWithMeshIns
 			octree_stack.pop_back();
 
 			if (current_box.bounds.collisionSphere(local_centre, local_radius)) {
-				if (!current_box.is_leaf) {
-					octree_stack.insert(octree_stack.end(), current_box.indices.begin(), current_box.indices.end());
+				if (current_box.isLeaf()) {
+					indices.insert(indices.end(), current_box.plane_indices.begin(), current_box.plane_indices.end());
 				}
 				else {
-					for (const size_t& plane_index : current_box.indices) {
-						if (std::find(indices.begin(), indices.end(), plane_index) == indices.end()) {
-							indices.push_back(plane_index);
-						}
-					}
+					for (size_t i = 0; i < 8; i++) octree_stack.push_back(current_box.first_child_index + i);
 				}
 			}
 		}

@@ -1,11 +1,16 @@
 #include <ModelClass.hpp>
 
-TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const TAGResourceManager::BufferAccess& access, const std::string& path) {
+TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const TAGResourceManager::BufferAccess& access, const std::string& path, bool gen_bvh) {
 	this->tex_params = tex_params;
 	this->access = access;
 	directory = TAGResourceManager::asset_path + path.substr(0, path.find_last_of("/") + 1);
 
-	if (path != "") loadModel(TAGResourceManager::asset_path + path);
+	loadModel(TAGResourceManager::asset_path + path, gen_bvh);
+}
+
+TAGModel::TAGModel(const TAGTexLoader::Params& tex_params, const TAGResourceManager::BufferAccess& access) {
+	this->tex_params = tex_params;
+	this->access = access;
 }
 
 void TAGModel::drawAll(const TAGShaderManager::Shader& shader, const std::string& mesh_name, const TAGShaderManager::ShaderOptions& options) {
@@ -121,10 +126,10 @@ TAGMesh& TAGModel::getMesh(const std::string& mesh_name) {
 	return meshes.at(mesh_name);
 }
 
-void TAGModel::addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const TAGMesh::Material& material) {
+void TAGModel::addMesh(const std::string& mesh_name, const std::vector<TAGMesh::Vertex>& vertices, const std::vector<TAGMesh::Fragment>& frags, const TAGMesh::Material& material, bool gen_bvh) {
 	if (mesh_name == "") return;
 
-	meshes.try_emplace(mesh_name, vertices, frags, material);
+	meshes.try_emplace(mesh_name, vertices, frags, material, gen_bvh);
 }
 
 void TAGModel::deleteMesh(const std::string& mesh_name) {
@@ -134,7 +139,7 @@ void TAGModel::deleteMesh(const std::string& mesh_name) {
 	instance_buffers.erase(mesh_name);
 }
 
-void TAGModel::loadModel(const std::string& path) {
+void TAGModel::loadModel(const std::string& path, bool gen_bvh) {
 	// Parse model file
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -285,7 +290,7 @@ void TAGModel::loadModel(const std::string& path) {
 			mesh_materials.push_back(mesh_material);
 		}
 
-		meshes.try_emplace(shape.name, mesh_vertices, mesh_material_frags, mesh_materials);
+		meshes.try_emplace(shape.name, mesh_vertices, mesh_material_frags, mesh_materials, gen_bvh);
 	}
 }
 
