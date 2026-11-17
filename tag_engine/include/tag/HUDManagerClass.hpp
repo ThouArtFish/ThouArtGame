@@ -69,9 +69,9 @@ public:
 	*/
 	TAGHUDManager(const std::vector<std::string>& paths, const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params = {});
 	/**
-	* @param params Texture loading parameters for singular path
 	* @param access Frequency of quad changes
 	* @param size Initial number of quad objects
+	* @param params Texture loading parameters for singular path
 	* @param path Path to an image
 	*/
 	TAGHUDManager(const TAGResourceManager::BufferAccess& access, const GLuint& size, const TAGTexLoader::Params& params = {}, const std::string& path = "");
@@ -110,11 +110,8 @@ public:
 	void setLayerVisibility(const GLuint& layer, const TAGEnum& state);
 	/**
 	* Adds quad in order.
-	* Pushes to end of quad array if no index is passed.
-	* A buffer update function must be used for changes to be reflected in the GPU buffer.
 	*
 	* @param quad New quad
-	* @param index Index in light array
 	*/
 	void addQuad(const Quad& quad);
 	/**
@@ -135,7 +132,6 @@ public:
 	/**
 	* Removes quad at index.
 	* Pops last quad if no index is passed.
-	* A buffer update function must be used for changes to be reflected in the GPU buffer.
 	*
 	* @param index Index in quad array
 	*/

@@ -56,8 +56,10 @@ TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment
 	}
 }
 
-TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) {
-	return *std::find_if(textures.begin(), textures.end(), [&name](const TAGTexLoader::Texture& tex) { return name == tex.name; });
+const TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) const {
+	auto it = std::find_if(textures.begin(), textures.end(), [&name](const TAGTexLoader::Texture& tex) { return name == tex.name; });
+	if (it == textures.end()) return {};
+	return *it;
 }
 
 bool TAGMesh::BoundingBox::collisionPoint(const glm::vec3& point) const {

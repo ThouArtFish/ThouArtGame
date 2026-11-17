@@ -71,7 +71,7 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             glm::vec3 colour = glm::vec3(1.0f, 0.0f, 0.0f);
             std::vector<TAGTexLoader::Texture> textures;
 
-            TAGTexLoader::Texture& getTexture(const std::string& name);
+            const TAGTexLoader::Texture& getTexture(const std::string& name) const;
         };
         /**
 		* Shader equivalent of Material, used for passing values to shaders
