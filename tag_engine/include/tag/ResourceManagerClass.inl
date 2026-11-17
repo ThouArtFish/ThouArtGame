@@ -299,7 +299,7 @@ template<class T> TAGResourceManager::MappedBuffer<T>::~MappedBuffer() {
 
 template<class T> void TAGResourceManager::MappedBuffer<T>::updateBuffer(const std::vector<T>& data) {
 	this->incrementFence();
-
+		
 	this->current_objs = glm::min(this->max_objs, data.size());
 	if (this->include_size > 0) std::memcpy(this->buffer_ptr + this->internal_offset, &this->current_objs, sizeof(GLuint));
 	std::memcpy(this->buffer_ptr + this->internal_offset + this->include_size, (GLchar*)data.data(), this->current_objs * sizeof(T));
@@ -323,6 +323,9 @@ template<class T> void TAGResourceManager::MappedBuffer<T>::resizeBuffer(size_t 
 	this->max_objs = new_size;
 	this->current_fence = 0;
 	this->internal_offset = 0;
+	for (size_t i = 0; i < this->max_fences; i++) {
+		if (this->fences[i].sync) glDeleteSync(this->fences[i].sync);
+	}
 	this->fences = std::make_unique<GLsyncWrap[]>(this->max_fences);
 
 	this->updateBindings(new_buffer);
@@ -333,6 +336,41 @@ template<class T> void TAGResourceManager::MappedBuffer<T>::resizeBuffer(size_t 
 	this->buffer_id = new_buffer;
 	this->buffer_ptr = new_buffer_ptr;
 	this->setFence(0);
+}
+
+template<class T> void TAGResourceManager::MappedBuffer<T>::appendBuffer(const std::vector<T>& data) {
+	const GLintptr last_offset = this->internal_offset;
+	const size_t last_objs = this->current_objs;
+	this->waitFence(this->current_fence);
+	this->incrementFence();
+
+	this->current_objs = glm::min(this->max_objs, this->current_objs + data.size());
+	if (this->include_size > 0) std::memcpy(this->buffer_ptr + this->internal_offset, &this->current_objs, sizeof(GLuint));
+	if (this->max_fences > 1) {
+		std::memcpy(this->buffer_ptr + this->internal_offset + this->include_size, this->buffer_ptr + last_offset + this->include_size, last_objs * sizeof(T));
+	}
+	std::memcpy(this->buffer_ptr + this->internal_offset + this->include_size + last_objs * sizeof(T), (GLchar*)data.data(), glm::min(data.size(), this->max_objs - last_objs) * sizeof(T));
+
+	this->setFence(this->current_fence);
+	if (this->max_fences > 1) this->updateBindings(this->buffer_id);
+}
+
+template<class T> void TAGResourceManager::MappedBuffer<T>::eraseBuffer(size_t start_index) {
+	if (start_index >= this->current_objs) return;
+
+	const GLintptr last_offset = this->internal_offset;
+	const size_t last_objs = this->current_objs;
+	this->waitFence(this->current_fence);
+	this->incrementFence();
+
+	this->current_objs = glm::min(start_index, this->current_objs);
+	if (this->include_size > 0) std::memcpy(this->buffer_ptr + this->internal_offset, &this->current_objs, sizeof(GLuint));
+	if (this->max_fences > 1) {
+		std::memcpy(this->buffer_ptr + this->internal_offset + this->include_size, this->buffer_ptr + last_offset + this->include_size, this->current_objs * sizeof(T));
+	}
+
+	if (this->max_fences > 1 || this->include_size > 0) this->setFence(this->current_fence);
+	if (this->max_fences > 1) this->updateBindings(this->buffer_id);
 }
 
 template<class T> std::span<GLchar> TAGResourceManager::MappedBuffer<T>::bufferPtr(size_t fence_index) {
@@ -357,8 +395,7 @@ template<class T> TAGResourceManager::UnmappedBuffer<T>::~UnmappedBuffer() {
 template<class T> void TAGResourceManager::UnmappedBuffer<T>::updateBuffer(const std::vector<T>& data) {
 	this->incrementFence();
 
-	this->current_objs = glm::min((size_t)this->max_objs, data.size());
-
+	this->current_objs = glm::min(this->max_objs, data.size());
 	if (this->include_size > 0) glNamedBufferSubData(this->buffer_id, this->internal_offset, sizeof(GLuint), &this->current_objs);
 	glNamedBufferSubData(this->buffer_id, this->internal_offset + this->include_size, this->current_objs * sizeof(T), data.data());
 
@@ -373,18 +410,21 @@ template<class T> void TAGResourceManager::UnmappedBuffer<T>::resizeBuffer(size_
 	glNamedBufferData(new_buffer_id, (new_size * sizeof(T) + this->include_size) * this->max_fences, nullptr, (GLenum)this->access);
 
 	this->current_objs = glm::min(new_size, (size_t)this->current_objs);
+	if (this->include_size > 0) glNamedBufferSubData(new_buffer_id, 0, sizeof(GLuint), &this->current_objs);
 	glCopyNamedBufferSubData(
 		this->buffer_id,
 		new_buffer_id,
-		(this->max_objs * sizeof(T) + this->include_size) * this->current_fence + this->include_size,
+		this->internal_offset + this->include_size,
 		this->include_size,
 		this->current_objs * sizeof(T)
 	);
-	if (this->include_size > 0) glNamedBufferSubData(new_buffer_id, 0, sizeof(GLuint), &this->current_objs);
 
 	this->max_objs = new_size;
 	this->current_fence = 0;
 	this->internal_offset = 0;
+	for (size_t i = 0; i < this->max_fences; i++) {
+		if (this->fences[i].sync) glDeleteSync(this->fences[i].sync);
+	}
 	this->fences = std::make_unique<GLsyncWrap[]>(this->max_fences);
 
 	this->updateBindings(new_buffer_id);
@@ -393,6 +433,53 @@ template<class T> void TAGResourceManager::UnmappedBuffer<T>::resizeBuffer(size_
 
 	this->buffer_id = new_buffer_id;
 	this->setFence(0);
+}
+
+template<class T> void TAGResourceManager::UnmappedBuffer<T>::appendBuffer(const std::vector<T>& data) {
+	const GLintptr last_offset = this->internal_offset;
+	const size_t last_objs = this->current_objs;
+	this->waitFence(this->current_fence);
+	this->incrementFence();
+
+	this->current_objs = glm::min(this->max_objs, this->current_objs + data.size());
+	if (this->include_size > 0) glNamedBufferSubData(this->buffer_id, this->internal_offset, sizeof(GLuint), &this->current_objs);
+	if (this->max_fences > 1) {
+		glCopyNamedBufferSubData(
+			this->buffer_id,
+			this->buffer_id,
+			last_offset + this->include_size,
+			this->internal_offset + this->include_size,
+			last_objs * sizeof(T)
+		);
+	}
+	glNamedBufferSubData(this->buffer_id, this->internal_offset + this->include_size + last_objs * sizeof(T), glm::min(data.size(), this->max_objs - last_objs) * sizeof(T), data.data());
+	
+	this->setFence(this->current_fence);
+	if (this->max_fences > 1) this->updateBindings(this->buffer_id);
+}
+
+template<class T> void TAGResourceManager::UnmappedBuffer<T>::eraseBuffer(size_t start_index) {
+	if (start_index >= this->current_objs) return;
+
+	const GLintptr last_offset = this->internal_offset;
+	const size_t last_objs = this->current_objs;
+	this->waitFence(this->current_fence);
+	this->incrementFence();
+
+	this->current_objs = glm::min(start_index, this->current_objs);
+	if (this->include_size > 0) glNamedBufferSubData(this->buffer_id, this->internal_offset, sizeof(GLuint), &this->current_objs);
+	if (this->max_fences > 1) {
+		glCopyNamedBufferSubData(
+			this->buffer_id,
+			this->buffer_id,
+			last_offset + this->include_size,
+			this->internal_offset + this->include_size,
+			this->current_objs * sizeof(T)
+		);
+	}
+
+	if (this->max_fences > 1 || this->include_size > 0) this->setFence(this->current_fence);
+	if (this->max_fences > 1) this->updateBindings(this->buffer_id);
 }
 
 template<class C, class G, GLuint DIVISIONS> TAGResourceManager::ObjectBuffer<C, G, DIVISIONS>::ObjectBuffer(size_t max_objs, const std::function<std::array<G, DIVISIONS + 1>(const C&)>& converter, BufferAccess access, bool include_size) {
