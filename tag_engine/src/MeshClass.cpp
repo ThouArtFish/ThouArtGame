@@ -56,7 +56,7 @@ TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment
 	}
 }
 
-const TAGTexLoader::Texture& TAGMesh::Material::getTexture(const std::string& name) const {
+TAGTexLoader::Texture TAGMesh::Material::getTexture(const std::string& name) const {
 	auto it = std::find_if(textures.begin(), textures.end(), [&name](const TAGTexLoader::Texture& tex) { return name == tex.name; });
 	if (it == textures.end()) return {};
 	return *it;
