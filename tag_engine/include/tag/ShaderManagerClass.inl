@@ -109,8 +109,8 @@ template<OpenGLObjectType::Concept T> GLuint TAGShaderManager::compileShader(con
     return shader_id;
 }
 
-template<ShaderUniformType::Concept T> void TAGShaderManager::Shader::set(const std::string& name, const T& value, const GLuint& count) const {
-    if (uniform_data.find(name) == uniform_data.end() || getEnumType<T>() != uniform_data.at(name).data_type) return;
+template<PrimitiveUniformType::Concept T> void TAGShaderManager::Shader::set(const std::string& name, const T& value, GLuint count) const {
+    if (!count || uniform_data.find(name) == uniform_data.end() || getEnumType<T>() != uniform_data.at(name).data_type) return;
 
     const GLint loc = uniform_data.at(name).location;
 
@@ -120,9 +120,6 @@ template<ShaderUniformType::Concept T> void TAGShaderManager::Shader::set(const 
     }
     else if constexpr (std::same_as<T, int>) {
         glUniform1iv(loc, count, (GLint*)&value);
-    }
-    else if constexpr (std::derived_from<T, ShaderUniformType::TagType>) {
-        glUniform1iv(loc, count, (GLint*)&value.value);
     }
     else if constexpr (std::same_as<T, unsigned int>) {
         glUniform1uiv(loc, count, (GLuint*)&value);
@@ -186,10 +183,18 @@ template<ShaderUniformType::Concept T> void TAGShaderManager::Shader::set(const 
     }
 }
 
+template<OpaqueUniformType::Concept T> void TAGShaderManager::Shader::set(const std::string& name, T value, GLuint count) const {
+    if (!count || uniform_data.find(name) == uniform_data.end() || getEnumType<T>() != uniform_data.at(name).data_type) return;
+    
+    glUniform1iv(uniform_data.at(name).location, count, value.value);
+}
+
 template<ShaderUniformType::Concept T> void TAGShaderManager::setAll(const std::vector<std::string>& shader_names, const std::vector<std::string>& uniform_names, const std::vector<T>& values, const GLuint& count) const {
     if (uniform_names.empty() || values.empty()) return;
 
     for (size_t i = 0; i < shader_names.size(); i++) {
+        if (!shaders.contains(shader_names[i])) continue;
+
         useShader(shader_names[i]).set<T>(
             (i < uniform_names.size() ? uniform_names[i] : uniform_names.back()), 
             (i < values.size() ? values[i] : values.back()),
@@ -199,7 +204,7 @@ template<ShaderUniformType::Concept T> void TAGShaderManager::setAll(const std::
 }
 
 template<ShaderUniformType::Concept T> GLenum TAGShaderManager::getEnumType() {
-    if constexpr (std::derived_from<T, ShaderUniformType::TagType>) {
+    if constexpr (std::derived_from<T, OpaqueUniformType::TagType>) {
         return T::ENUM;
     }
     else if constexpr (std::same_as<T, bool> || std::same_as<T, int>) {

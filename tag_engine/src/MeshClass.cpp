@@ -322,9 +322,9 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 		glBindVertexBuffer(defualt_vao_material_binding_point, getMaterialBufferID(), draw_command.material_index * sizeof(ShaderMaterial) + sizeof(GLuint), sizeof(ShaderMaterial));
 		glVertexBindingDivisor(defualt_vao_material_binding_point, number);
 
-		std::vector<GLuint> diffuse, specular;
+		std::vector<int> diffuse, specular;
 		const Material& material = material_buffer.getObject(draw_command.material_index);
-		for (GLuint i = 0; i < material.textures.size(); i++) {
+		for (int i = 0; i < material.textures.size(); i++) {
 			glActiveTexture(GL_TEXTURE0 + i);
 			switch (material.textures[i].type) {
 			case TAGTexType::DIFFUSE_MAP:
@@ -341,8 +341,8 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 		}
 		glActiveTexture(GL_TEXTURE0);
 
-		if (!diffuse.empty()) shader.set<ShaderUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse[0], (GLuint)diffuse.size());
-		if (!specular.empty()) shader.set<ShaderUniformType::SINGLE_2D>(options.specular_tex_array, specular[0], (GLuint)specular.size());
+		if (!diffuse.empty()) shader.set<OpaqueUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse.data(), (GLuint)diffuse.size());
+		if (!specular.empty()) shader.set<OpaqueUniformType::SINGLE_2D>(options.specular_tex_array, specular.data(), (GLuint)specular.size());
 		shader.set<glm::vec3>(options.camera_pos, TAGBaseState::camera_position);
 
 		glDrawElementsInstanced(GL_TRIANGLES, draw_command.element_count, GL_UNSIGNED_INT, (void*)(draw_command.element_start * sizeof(GLuint)), number);

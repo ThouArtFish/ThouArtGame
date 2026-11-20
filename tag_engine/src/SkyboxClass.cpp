@@ -44,7 +44,8 @@ TAGSkybox::TAGSkybox(const std::string& path, const TAGTexLoader::Params& params
 	setup_shader_manager.addShader<ProgramType::Default>({ "skybox_setup", "", TAGShaderManager::DefaultProgramType::SKYBOX_SETUP });
 	const TAGShaderManager::Shader& setup_shader = setup_shader_manager.useShader("skybox_setup");
 	setup_shader.set<glm::mat4>("perspective", glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f));
-	setup_shader.set<ShaderUniformType::SINGLE_2D>("cubemap", 0);
+	int tex_binding = 0;
+	setup_shader.set<OpaqueUniformType::SINGLE_2D>("cubemap", &tex_binding);
 
 	// Bind texture 
 	glActiveTexture(GL_TEXTURE0);
@@ -92,7 +93,8 @@ void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& 
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);
 	glActiveTexture(GL_TEXTURE0);
-	shader.set<ShaderUniformType::CUBEMAP>(cubemap_name, 0);
+	int tex_binding = 0;
+	shader.set<OpaqueUniformType::CUBEMAP>(cubemap_name, &tex_binding);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_ID);
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);

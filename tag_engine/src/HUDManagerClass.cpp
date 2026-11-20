@@ -180,7 +180,7 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 	}
 	glActiveTexture(GL_TEXTURE0);
 
-	shader.set<ShaderUniformType::SINGLE_2D>(texture_array_name, texture_indices[0], i);
+	shader.set<OpaqueUniformType::SINGLE_2D>(texture_array_name, texture_indices.data(), (GLuint)i);
 	
 	glDepthFunc(GL_ALWAYS);
 	glBindVertexArray(VAO);

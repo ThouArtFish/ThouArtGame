@@ -16,21 +16,9 @@
 #include "UtilClass.hpp"
 
 /**
-* Shader uniform sampler types
+* Shader uniform types
 */
-namespace ShaderUniformType {
-    struct TagType {};
-
-    struct SINGLE_2D : SameType<int>, TagType {
-        SINGLE_2D(int num) : SameType(num) {}
-        static constexpr GLenum ENUM = GL_SAMPLER_2D;
-    };
-
-    struct CUBEMAP : SameType<int>, TagType {
-        CUBEMAP(int num) : SameType(num) {}
-        static constexpr GLenum ENUM = GL_SAMPLER_CUBE;
-    };
-
+namespace PrimitiveUniformType {
     using Primitive = std::variant<
         bool,
         int,
@@ -59,8 +47,28 @@ namespace ShaderUniformType {
         glm::mat4x3
     >;
 
-    template<typename T> concept Concept = isVariantMember<T, Primitive> || (!std::same_as<T, TagType> && std::derived_from<T, TagType>);
+    template<typename T> concept Concept = isVariantMember<T, Primitive>;
 };
+
+namespace OpaqueUniformType {
+    struct TagType {};
+
+    struct SINGLE_2D : SameType<int*>, TagType {
+        SINGLE_2D(int* ptr) : SameType(ptr) {}
+        static constexpr GLenum ENUM = GL_SAMPLER_2D;
+    };
+
+    struct CUBEMAP : SameType<int*>, TagType {
+        CUBEMAP(int* ptr) : SameType(ptr) {}
+        static constexpr GLenum ENUM = GL_SAMPLER_CUBE;
+    };
+
+    template<typename T> concept Concept = std::derived_from<T, TagType> && !std::same_as<T, TagType>;
+}
+
+namespace ShaderUniformType {
+    template<typename T> concept Concept = PrimitiveUniformType::Concept<T> || OpaqueUniformType::Concept<T>;
+}
 
 /**
 * Possible program types
@@ -126,7 +134,8 @@ public:
         * @param value Value to set to uniform
         * @param count Number of individual values to set, default is 1
         */
-        template<ShaderUniformType::Concept T> void set(const std::string& name, const T& value, const GLuint& count = 1) const;
+        template<PrimitiveUniformType::Concept T> void set(const std::string& name, const T& value, GLuint count = 1) const;
+        template<OpaqueUniformType::Concept T> void set(const std::string& name, T value, GLuint count = 1) const;
     };
 
     /**
@@ -341,11 +350,6 @@ public:
         "   FragColor = texture(cubemap, vec2(u, v));\n}"
     };
 
-    /**
-    * Pass one or multiple shader program sources (stored within a vector) to load them.
-    * 
-    * @param source(s) Source structs containing shader program component paths
-    */
     TAGShaderManager();
     ~TAGShaderManager();
 
