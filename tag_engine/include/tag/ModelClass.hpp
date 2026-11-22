@@ -41,8 +41,8 @@ public:
 	 * Container for various info describing an instance of a mesh in-game.
 	 */
 	struct Object {
-		glm::vec3 position = glm::vec3(0.0f);
-		glm::vec3 rotation_axis = glm::vec3(0.0f, 1.0f, 0.0f);
+		glm::vec3 position{ 0.0f };
+		glm::vec3 rotation_axis{ 0.0f, 1.0f, 0.0f };
 		float angle = 0.0f;
 		float scale = 1.0f;
 	};
@@ -176,7 +176,7 @@ public:
 private:
 	void loadModel(const std::string& path, bool gen_bvh);
 	static std::array<ShaderObject, 1> shaderConverter(const Object& obj);
-	const TAGTexLoader::Texture loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const;
+	TAGTexLoader::Texture loadMaterialTexture(const std::string& tex_path) const;
 protected:
 	using InstanceBuffer = TAGResourceManager::ObjectBuffer<Object, ShaderObject>;
 	std::string directory;

@@ -56,9 +56,11 @@ TAGMesh::TAGMesh(const std::vector<Vertex>& vertices, const std::vector<Fragment
 	}
 }
 
-TAGTexLoader::Texture TAGMesh::Material::getTexture(const std::string& name) const {
-	auto it = std::find_if(textures.begin(), textures.end(), [&name](const TAGTexLoader::Texture& tex) { return name == tex.name; });
-	if (it == textures.end()) return {};
+TAGTexLoader::Texture TAGMesh::Material::getTexture(const std::string& name, TextureUsage type) const {
+	if (!textures.contains(type)) return {};
+	const auto& type_texs = textures.at(type);
+	auto it = std::find_if(type_texs.begin(), type_texs.end(), [&name](const TAGTexLoader::Texture& tex) { return name == tex.name; });
+	if (it == type_texs.end()) return {};
 	return *it;
 }
 
@@ -322,30 +324,27 @@ void TAGMesh::draw(const TAGShaderManager::Shader& shader, const TAGShaderManage
 		glBindVertexBuffer(defualt_vao_material_binding_point, getMaterialBufferID(), draw_command.material_index * sizeof(ShaderMaterial) + sizeof(GLuint), sizeof(ShaderMaterial));
 		glVertexBindingDivisor(defualt_vao_material_binding_point, number);
 
-		std::vector<int> diffuse, specular;
+		// Bind material textures
+		std::vector<int> texture_bindings;
 		const Material& material = material_buffer.getObject(draw_command.material_index);
-		for (int i = 0; i < material.textures.size(); i++) {
-			glActiveTexture(GL_TEXTURE0 + i);
-			switch (material.textures[i].type) {
-			case TAGTexType::DIFFUSE_MAP:
-				if (diffuse.size() < 16) {
-					diffuse.push_back(i);
-				}
-				break;
-			case TAGTexType::SPEC_MAP:
-				if (specular.size() < 16) {
-					specular.push_back(i);
-				}
+		for (const auto& pair : material.textures) {
+			for (const auto& tex : pair.second) {
+				const int next_tex_index = texture_bindings.size();
+				texture_bindings.push_back(next_tex_index);
+				glActiveTexture(GL_TEXTURE0 + next_tex_index);
+				glBindTexture(GL_TEXTURE_2D, tex.id);
 			}
-			glBindTexture(GL_TEXTURE_2D, material.textures[i].id);
 		}
 		glActiveTexture(GL_TEXTURE0);
 
-		if (!diffuse.empty()) shader.set<OpaqueUniformType::SINGLE_2D>(options.diffuse_tex_array, diffuse.data(), (GLuint)diffuse.size());
-		if (!specular.empty()) shader.set<OpaqueUniformType::SINGLE_2D>(options.specular_tex_array, specular.data(), (GLuint)specular.size());
+		// Set shader uniforms
+		shader.set<OpaqueUniformType::SINGLE_2D>(options.tex_array, texture_bindings.data(), texture_bindings.size());
 		shader.set<glm::vec3>(options.camera_pos, TAGBaseState::camera_position);
 
+		// Draw
 		glDrawElementsInstanced(GL_TRIANGLES, draw_command.element_count, GL_UNSIGNED_INT, (void*)(draw_command.element_start * sizeof(GLuint)), number);
+
+		// Put up fences for used buffers
 		VBO.setFence();
 		EBO.setFence();
 		material_buffer.setFence();
@@ -400,7 +399,10 @@ void TAGMesh::setupMeshVertexArrayObject() {
 	glVertexAttribFormat(attrib, 3, GL_FLOAT, GL_FALSE, offsetof(ShaderMaterial, colour));
 	glVertexAttribBinding(attrib++, defualt_vao_material_binding_point);
 	glEnableVertexAttribArray(attrib);
-	glVertexAttribIFormat(attrib, 2, GL_UNSIGNED_INT, offsetof(ShaderMaterial, num_diffuse));
+	glVertexAttribIFormat(attrib, 4, GL_UNSIGNED_INT, offsetof(ShaderMaterial, texture_type_ranges));
+	glVertexAttribBinding(attrib++, defualt_vao_material_binding_point);
+	glEnableVertexAttribArray(attrib);
+	glVertexAttribIFormat(attrib, 4, GL_UNSIGNED_INT, offsetof(ShaderMaterial, texture_type_ranges) + sizeof(GLuint) * 4);
 	glVertexAttribBinding(attrib, defualt_vao_material_binding_point);
 	glVertexBindingDivisor(defualt_vao_material_binding_point, 1);
 
@@ -420,13 +422,24 @@ std::array<GLuint, TAGMesh::fragment_component_count> TAGMesh::convertFragment(c
 }
 
 std::array<TAGMesh::ShaderMaterial, 1> TAGMesh::convertMaterial(const Material& material) {
-	const TAGMesh::ShaderMaterial shader_material = {
-		material.spec_fac, material.spec_exp, material.opacity,
-		material.colour,
-		static_cast<GLuint>(std::count_if(material.textures.begin(), material.textures.end(), [](const TAGTexLoader::Texture& tex) { return tex.type == TAGTexType::DIFFUSE_MAP; })),
-		static_cast<GLuint>(std::count_if(material.textures.begin(), material.textures.end(), [](const TAGTexLoader::Texture& tex) { return tex.type == TAGTexType::SPEC_MAP; }))
+	size_t next_index = 0;
+	std::array<GLuint, num_texture_types * 2> texture_type_ranges{};
+	for (size_t i = 0; i < num_texture_types / 2; i++) {
+		if (!material.textures.contains((TextureUsage)i)) continue;
+
+		texture_type_ranges[i * 2] = next_index;
+		const size_t num_textures = material.textures.at((TextureUsage)i).size();
+		texture_type_ranges[i * 2 + 1] = num_textures;
+		next_index += num_textures;
+	}
+
+	return { 
+		ShaderMaterial{
+			material.spec_fac, material.spec_exp, material.opacity,
+			material.colour,
+			texture_type_ranges
+		}
 	};
-	return { shader_material };
 }
 
 TAGMesh::BoundingBox TAGMesh::generateBoundingBox(const glm::vec3* first, const unsigned int& size) {

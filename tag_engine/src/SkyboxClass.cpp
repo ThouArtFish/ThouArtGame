@@ -7,7 +7,7 @@ TAGSkybox::TAGSkybox(const std::vector<std::string>& paths, const TAGTexLoader::
 	for (const std::string& path : paths) {
 		total_paths.push_back(TAGResourceManager::asset_path + path);
 	}
-	cubemap_ID = TAGTexLoader::cubemapFromMultipleFiles(total_paths, params);
+	cubemap_texture = TAGTexLoader::cubemapFromMultipleFiles("cubemap", total_paths, params);
 }
 
 TAGSkybox::TAGSkybox(const std::string& path, const TAGTexLoader::Params& params) {
@@ -20,8 +20,8 @@ TAGSkybox::TAGSkybox(const std::string& path, const TAGTexLoader::Params& params
 	// Size of each face in cubemap
 	const GLuint face_size = glm::pow(glm::round(glm::sqrt(image_data.height / 2.0f)), 2);
 
-	// Empty cubemap
-	cubemap_ID = TAGTexLoader::emptyCubemap(face_size, image_data.nr_channels);
+	// Initialise cubemap as empty
+	cubemap_texture = TAGTexLoader::emptyCubemap("cubemap", face_size, image_data.nr_channels);
 
 	// Camera space matrices for each side of the skybox
 	static const std::array<glm::mat4, 6> capture_camera = {
@@ -63,7 +63,7 @@ TAGSkybox::TAGSkybox(const std::string& path, const TAGTexLoader::Params& params
 	// Render each face
 	for (size_t i = 0; i < 6; i++) {
 		setup_shader.set<glm::mat4>("view", capture_camera[i]);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, cubemap_ID, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, cubemap_texture.id, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glBindVertexArray(VAO);
@@ -82,7 +82,7 @@ TAGSkybox::TAGSkybox(const std::string& path, const TAGTexLoader::Params& params
 }
 
 TAGSkybox::~TAGSkybox() {
-	TAGResourceManager::deleteBuffer<OpenGLObjectType::TextureBuffer>(cubemap_ID);
+	TAGResourceManager::deleteBuffer<OpenGLObjectType::TextureBuffer>(cubemap_texture.id);
 }
 
 void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& cubemap_name) const {
@@ -95,7 +95,7 @@ void TAGSkybox::draw(const TAGShaderManager::Shader& shader, const std::string& 
 	glActiveTexture(GL_TEXTURE0);
 	int tex_binding = 0;
 	shader.set<OpaqueUniformType::CUBEMAP>(cubemap_name, &tex_binding);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_ID);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_texture.id);
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);

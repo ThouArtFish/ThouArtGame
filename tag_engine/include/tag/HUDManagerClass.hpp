@@ -162,7 +162,7 @@ public:
 	* @param shader Shader used for drawing
 	* @param texture_array_name Name of uniform in shader for array of texture IDs
 	*/
-	void drawAll(const TAGShaderManager::Shader& shader, const std::string& texture_array_name = TAGShaderManager::default_options.diffuse_tex_array);
+	void drawAll(const TAGShaderManager::Shader& shader, const std::string& texture_array_name = TAGShaderManager::default_options.tex_array);
 private:
 	/**
 	* Holds data about a layer

@@ -256,28 +256,24 @@ void TAGModel::loadModel(const std::string& path, bool gen_bvh) {
 			TAGMesh::Material mesh_material;
 
 			if (!material.diffuse_texname.empty()) {
-				const auto& texture_pos = std::find_if(loaded_textures.begin(), loaded_textures.end(), [&material](const TAGTexLoader::Texture& tex) { return tex.name == material.diffuse_texname; });
+				const auto texture_pos = std::find_if(loaded_textures.begin(), loaded_textures.end(), [&material](const TAGTexLoader::Texture& tex) { return tex.name == material.diffuse_texname; });
 				if (texture_pos == loaded_textures.end()) {
-					mesh_material.textures.push_back(loadMaterialTexture(material.diffuse_texname, TAGTexType::DIFFUSE_MAP));
-					loaded_textures.push_back(mesh_material.textures.back());
+					mesh_material.textures[TAGMesh::TextureUsage::DIFFUSE].push_back(loadMaterialTexture(material.diffuse_texname));
+					loaded_textures.push_back(mesh_material.textures[TAGMesh::TextureUsage::DIFFUSE].back());
 				}
 				else {
-					TAGTexLoader::Texture texture = *texture_pos;
-					texture.type = TAGTexType::DIFFUSE_MAP;
-					mesh_material.textures.push_back(texture);
+					mesh_material.textures[TAGMesh::TextureUsage::DIFFUSE].push_back(*texture_pos);
 				}
 			}
 
 			if (!material.specular_texname.empty()) {
-				const auto& texture_pos = std::find_if(loaded_textures.begin(), loaded_textures.end(), [&material](const TAGTexLoader::Texture& tex) { return tex.name == material.specular_texname; });
+				const auto texture_pos = std::find_if(loaded_textures.begin(), loaded_textures.end(), [&material](const TAGTexLoader::Texture& tex) { return tex.name == material.specular_texname; });
 				if (texture_pos == loaded_textures.end()) {
-					mesh_material.textures.push_back(loadMaterialTexture(material.specular_texname, TAGTexType::SPEC_MAP));
-					loaded_textures.push_back(mesh_material.textures.back());
+					mesh_material.textures[TAGMesh::TextureUsage::SPECULAR].push_back(loadMaterialTexture(material.diffuse_texname));
+					loaded_textures.push_back(mesh_material.textures[TAGMesh::TextureUsage::SPECULAR].back());
 				}
 				else {
-					TAGTexLoader::Texture texture = *texture_pos;
-					texture.type = TAGTexType::SPEC_MAP;
-					mesh_material.textures.push_back(texture);
+					mesh_material.textures[TAGMesh::TextureUsage::SPECULAR].push_back(*texture_pos);
 				}
 			}
 
@@ -298,10 +294,8 @@ std::array<TAGModel::ShaderObject, 1> TAGModel::shaderConverter(const Object& ob
 	return { { obj.position, obj.scale, obj.rotation_axis, obj.angle } };
 }
 
-const TAGTexLoader::Texture TAGModel::loadMaterialTexture(const std::string& tex_path, const TAGTexType& tex_type) const {
-	TAGTexLoader::Texture texture = TAGTexLoader::textureFromFile(this->directory + tex_path, "", this->tex_params);
-	texture.type = tex_type;
-	return texture;
+TAGTexLoader::Texture TAGModel::loadMaterialTexture(const std::string& tex_path) const {
+	return TAGTexLoader::textureFromFile(this->directory + tex_path, "", this->tex_params);
 }
 
 std::vector<std::string> TAGModel::getMeshNames() const {

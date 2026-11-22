@@ -171,7 +171,7 @@ void TAGHUDManager::drawAll(const TAGShaderManager::Shader& shader, const std::s
 		TAGResourceManager::updateAttachedBuffers((TAGResourceManager::ShaderBufferType)pair.first, pair.second);
 	}
 
-	std::array<int, MAX_TEXTURES> texture_indices = {};
+	std::array<int, MAX_TEXTURES> texture_indices{};
 	size_t i;
 	for (i = 0; i < glm::min(MAX_TEXTURES, used_images.size()); i++) {
 		texture_indices[i] = i;

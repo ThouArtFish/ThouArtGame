@@ -14,10 +14,8 @@
  * The type of a texture.
  */
 enum class TAGTexType {
-	SPEC_MAP,
-	DIFFUSE_MAP,
-	NORMAL_MAP,
-	NONE_MAP
+	TWODIM = GL_TEXTURE_2D,
+	CUBEMAP = GL_TEXTURE_CUBE_MAP
 };
 
 /**
@@ -27,8 +25,8 @@ enum class TAGTexParam {
 	REPEAT_TEX = GL_REPEAT,
 	CLAMP_TO_EDGE_TEX = GL_CLAMP_TO_EDGE,
 	MIRROR_TEX = GL_MIRRORED_REPEAT,
-	LINEAR_INTERP_PIX = GL_LINEAR_MIPMAP_LINEAR,
-	NEAREST_PIX = GL_NEAREST_MIPMAP_NEAREST
+	LINEAR_INTERP_PIX = GL_LINEAR,
+	NEAREST_PIX = GL_NEAREST
 };
 
 /**
@@ -57,9 +55,9 @@ class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 		*/
 		struct Params {
 			TAGTexParam wrap_type = TAGTexParam::REPEAT_TEX;
-			TAGTexParam min_filter = TAGTexParam::LINEAR_INTERP_PIX;
+			TAGTexParam min_filter = TAGTexParam::NEAREST_PIX;
 			TAGTexParam mag_filter = TAGTexParam::NEAREST_PIX;
-			bool srgb = false, flip = false;
+			bool srgb = false, flip = false, mipmap = true, internal_int = false;
 		};
 
 		/**
@@ -68,7 +66,7 @@ class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 		struct Texture {
 			std::string name;
 			GLuint id, width, height;
-			TAGTexType type = TAGTexType::NONE_MAP;
+			TAGTexType type;
 		};
 
 		/*
@@ -78,7 +76,7 @@ class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 		* @param flip Whether to flip the image on load or not.
 		* @return Raw image data container.
 		*/
-		static Info loadRawImageData(const std::string& tex_path, const bool& flip);
+		static Info loadRawImageData(const std::string& tex_path, bool flip);
 		/*
 		* Creates texture buffer from raw image data and texture parameters
 		* 
@@ -107,26 +105,36 @@ class TAGTexLoader : public TAGBaseState::OpenGLContextChecker {
 		* @param params Settings for texture setup.
 		* @return Texture struct containing info about texture handle buffer, such as ID.
 		*/
-		static Texture emptyTexture(const std::string& name, const GLuint width, const GLuint height, const GLuint nr_channels, const Params& params = {});
+		static Texture emptyTexture(const std::string& name, GLuint width, GLuint height, GLuint nr_channels, const Params& params = {});
 		/*
 		* Creates a cubemap texture from the first 6 image paths in tex_paths, for each side of the cubemap.
 		* Uses last path for remaining sides of cubemap if size < 6.
+		* Returns invalid texture if tex_paths is empty.
 		*
+		* @param name Name of texture.
 		* @param tex_paths Paths to image files.
 		* @param params Settings for texture setup.
-		* @return ID for OpenGL texture object.
+		* @return Texture struct containing info about texture handle buffer, such as ID.
 		*/
-		static GLuint cubemapFromMultipleFiles(const std::vector<std::string>& tex_paths, const Params& params = {});
+		static Texture cubemapFromMultipleFiles(const std::string& name, const std::vector<std::string>& tex_paths, const Params& params = {});
 		/*
 		* Creates an empty cubemap texture.
 		* 
+		* @param name Name of texture.
 		* @param face_size Length of each square face in the cubemap.
 		* @param nr_channels Number of colour channels for each pixel.
 		* @param params Settings for texture setup.
-		* @return ID for OpenGL texture object.
+		* @return Texture struct containing info about texture handle buffer, such as ID.
 		*/
-		static GLuint emptyCubemap(const GLuint face_size, const GLuint nr_channels, const Params& params = {});
+		static Texture emptyCubemap(const std::string& name, GLuint face_size, GLuint nr_channels, const Params& params = {});
+		/**
+		* Generate mipmaps for a texture.
+		* 
+		* @param tex struct containing info about texture handle buffer, such as ID.
+		*/
+		static void generateMipmaps(const Texture& tex);
 	private:
-		static GLenum getTextureFormat(const int& nr_channels, const bool& srgb);
-		static GLenum removeMipmapTag(const TAGTexParam& params);
+		static GLenum getTextureInternalFormat(int nr_channels, bool srgb);
+		static GLenum getTextureDataFormat(int nr_channels);
+		static GLenum addMipmapTag(TAGTexParam param);
 };

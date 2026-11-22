@@ -3,7 +3,6 @@
 #include <string>
 #include <numeric>
 #include <vector>
-#include <deque>
 #include <array>
 #include <iostream>
 #include <concepts>
@@ -38,6 +37,11 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
         constexpr static inline GLuint bvh_max_depth = 6;
 
         /**
+        * Number of texture types
+        */
+        constexpr static inline GLuint num_texture_types = 4;
+
+        /**
          * Represents a single vertex of a mesh, including its local position, outward normal and texture coordinate.
          */
         struct Vertex {
@@ -60,6 +64,17 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             GLuint material_index = 0;
             std::vector<Fragment> frags;
         };
+
+        /**
+        * Texture usage cases
+        */
+        enum TextureUsage {
+            DIFFUSE = 0,
+            NORMAL,
+            SPECULAR,
+            NONE
+        };
+
         /**
          * Container for various values that modify the material of a mesh.
          */
@@ -68,19 +83,20 @@ class TAGMesh : public TAGBaseState::OpenGLContextChecker {
             float spec_fac = 0.0f;
             float spec_exp = 32.0f;
             float opacity = 1.0f;
-            glm::vec3 colour = glm::vec3(1.0f, 0.0f, 0.0f);
-            std::vector<TAGTexLoader::Texture> textures;
+            glm::vec3 colour{ 1.0f, 0.0f, 0.0f };
+            std::map<TextureUsage, std::vector<TAGTexLoader::Texture>> textures;
 
-            TAGTexLoader::Texture getTexture(const std::string& name) const;
+            TAGTexLoader::Texture getTexture(const std::string& name, TextureUsage type) const;
         };
         /**
 		* Shader equivalent of Material, used for passing values to shaders
         */
         struct alignas(4) ShaderMaterial {
 			GLfloat spec_fac = 0.0f, spec_exp = 32.0f, opacity = 1.0f;
-            glm::vec3 colour = glm::vec3(1.0f, 0.0f, 0.0f);
-			GLuint num_diffuse = 0, num_specular = 0;
+            glm::vec3 colour{ 1.0f, 0.0f, 0.0f };
+            std::array<GLuint, num_texture_types * 2> texture_type_ranges;
         };
+
         /**
 		* Represents a draw command for a group of fragments that share the same material
         */

@@ -34,7 +34,6 @@ class TAGSkybox : public TAGBaseState::OpenGLContextChecker {
 	private:
 		static void generateCube();
 	
-		static inline GLuint VBO = 0, EBO = 0, VAO = 0, cubemap_ID = 0;
+		static inline GLuint VBO = 0, EBO = 0, VAO = 0;
+		TAGTexLoader::Texture cubemap_texture;
 };
-
-

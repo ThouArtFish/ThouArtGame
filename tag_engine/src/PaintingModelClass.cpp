@@ -25,9 +25,7 @@ void TAGPaintingModel::loadPainting(const std::string& path, const TAGTexLoader:
 
 	const std::string name = static_cast<std::filesystem::path>(path).stem().string();
 	TAGMesh::Material new_material = material;
-	TAGTexLoader::Texture texture = TAGTexLoader::textureFromInfo(tex_info, name, tex_params);
-	texture.type = TAGTexType::DIFFUSE_MAP;
-	new_material.textures.push_back(texture);
+	new_material.textures[TAGMesh::TextureUsage::DIFFUSE].push_back(TAGTexLoader::textureFromInfo(tex_info, name, tex_params));
 	addMesh(name, vertices, { frag_1, frag_2 }, new_material);
 }
 
@@ -41,7 +39,7 @@ void TAGPaintingModel::addPainting(const std::string& name, const TAGTexLoader::
 	}
 
 	TAGMesh::Material new_material = material;
-	new_material.textures.push_back(texture);
+	new_material.textures[TAGMesh::TextureUsage::DIFFUSE].push_back(texture);
 
 	addMesh(name, vertices, { frag_1, frag_2 }, new_material);
 }
