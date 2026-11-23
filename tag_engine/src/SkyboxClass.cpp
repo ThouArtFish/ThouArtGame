@@ -21,7 +21,7 @@ TAGSkybox::TAGSkybox(const std::string& path, const TAGTexLoader::Params& params
 	const GLuint face_size = glm::pow(glm::round(glm::sqrt(image_data.height / 2.0f)), 2);
 
 	// Initialise cubemap as empty
-	cubemap_texture = TAGTexLoader::emptyCubemap("cubemap", face_size, image_data.nr_channels);
+	cubemap_texture = TAGTexLoader::emptyCubemap("cubemap", face_size, image_data.nr_channels, { .mipmap = false });
 
 	// Camera space matrices for each side of the skybox
 	static const std::array<glm::mat4, 6> capture_camera = {
